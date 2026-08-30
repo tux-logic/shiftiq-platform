@@ -1,0 +1,19 @@
+package com.tuxlogic.shiftiq.platform.billing.interfaces.rest.transform;
+
+import com.tuxlogic.shiftiq.platform.billing.domain.model.commands.CreateQuoteCommand;
+import com.tuxlogic.shiftiq.platform.billing.interfaces.rest.resources.CreateQuoteResource;
+import com.tuxlogic.shiftiq.platform.shared.domain.model.valueobjects.BranchId;
+
+/**
+ * Assembler class that transforms a {@link CreateQuoteResource} REST DTO 
+ * into a {@link CreateQuoteCommand} domain command.
+ */
+public class CreateQuoteCommandFromResourceAssembler {
+    public static CreateQuoteCommand toCommandFromResource(CreateQuoteResource resource) {
+        return new CreateQuoteCommand(
+                resource.workOrderId(),
+                new BranchId(resource.branchId()),
+                resource.discountPercentage()
+        );
+    }
+}

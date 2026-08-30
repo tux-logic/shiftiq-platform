@@ -1,13 +1,13 @@
-# Guía de Integración Backend (API REST) - Atelier Platform
+# Guía de Integración Backend (API REST) - ShiftIQ Platform
 
 Esta guía está diseñada para el equipo de **Frontend**. Su propósito es explicar la arquitectura orientada a dominios (DDD) del backend, detallar cómo se interconectan los microservicios internos (Bounded Contexts) y mostrar ejemplos prácticos de los flujos de trabajo más importantes.
 
 ---
 
 ## 1. Arquitectura General y Autenticación (IAM)
-**URL Base (Producción):** `https://atelier-platform.onrender.com`
+**URL Base (Producción):** `https://shiftiq-platform.onrender.com`
 
-El sistema Atelier está protegido mediante **JSON Web Tokens (JWT)**. Todas las peticiones al backend desplegado en Render (a excepción del login/registro) deben enviar un token válido en la cabecera HTTP:
+El sistema ShiftIQ está protegido mediante **JSON Web Tokens (JWT)**. Todas las peticiones al backend desplegado en Render (a excepción del login/registro) deben enviar un token válido en la cabecera HTTP:
 `Authorization: Bearer <tu_token_aqui>`
 
 ### 🔑 Autenticación (Login)
@@ -16,7 +16,7 @@ El sistema Atelier está protegido mediante **JSON Web Tokens (JWT)**. Todas las
 * **Request:**
   ```json
   {
-    "username": "taller@atelier.com",
+    "username": "taller@shiftiq.com",
     "password": "password123"
   }
   ```
@@ -24,7 +24,7 @@ El sistema Atelier está protegido mediante **JSON Web Tokens (JWT)**. Todas las
   ```json
   {
     "id": 1,
-    "username": "taller@atelier.com",
+    "username": "taller@shiftiq.com",
     "token": "eyJhbGciOiJIUzI1NiJ9..."
   }
   ```
@@ -126,9 +126,9 @@ El backend se comunica con la pasarela Facthub para emitir el XML oficial. **Ate
 ---
 
 ## 💡 Nota Importante para el Frontend Developer
-El backend de Atelier expone más de **30 endpoints diferentes**. Para ver la documentación exhaustiva, en vivo, con **schemas (modelos exactos)** y **tipos de datos precisos**, dirígete a nuestra interfaz oficial de Swagger:
+El backend de ShiftIQ expone más de **30 endpoints diferentes**. Para ver la documentación exhaustiva, en vivo, con **schemas (modelos exactos)** y **tipos de datos precisos**, dirígete a nuestra interfaz oficial de Swagger:
 
-🔗 **`https://atelier-platform.onrender.com/swagger-ui.html`**
+🔗 **`https://shiftiq-platform.onrender.com/swagger-ui.html`**
 
 En Swagger podrás:
 1. Autenticarte usando el botón **Authorize** (pegando allí tu token JWT).
