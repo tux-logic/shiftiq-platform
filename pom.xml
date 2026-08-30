@@ -8,11 +8,11 @@
         <version>4.0.6</version>
         <relativePath/> <!-- lookup parent from repository -->
     </parent>
-    <groupId>com.andeva.atelier.platform</groupId>
-    <artifactId>atelier-platform</artifactId>
+    <groupId>com.tuxlogic.shiftiq.platform</groupId>
+    <artifactId>shiftiq-platform</artifactId>
     <version>0.0.1-SNAPSHOT</version>
-    <name>atelier-platform</name>
-    <description>atelier-platform</description>
+    <name>shiftiq-platform</name>
+    <description>shiftiq-platform</description>
     <url/>
     <licenses>
         <license/>
