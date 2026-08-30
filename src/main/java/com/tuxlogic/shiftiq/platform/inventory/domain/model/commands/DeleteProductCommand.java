@@ -1,0 +1,6 @@
+package com.tuxlogic.shiftiq.platform.inventory.domain.model.commands;
+
+import java.util.UUID;
+
+public record DeleteProductCommand(UUID productId) {
+}
