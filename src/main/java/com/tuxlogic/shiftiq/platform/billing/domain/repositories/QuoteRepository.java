@@ -36,4 +36,12 @@ public interface QuoteRepository {
      * @return A list of Quotes belonging to the given branch.
      */
     List<Quote> findAllByBranchId(BranchId branchId);
+
+    /**
+     * Checks if a Quote exists for a specific Work Order.
+     * 
+     * @param workOrderId The unique identifier of the work order.
+     * @return true if a quote exists, false otherwise.
+     */
+    boolean existsByWorkOrderId(UUID workOrderId);
 }
