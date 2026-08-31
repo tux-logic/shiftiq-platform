@@ -56,6 +56,7 @@ class QuoteCommandServiceImplTest {
     void createQuote_WhenQuoteDoesNotExist_ShouldCreateSuccessfully() {
         // Arrange
         when(workOrderQueryService.handle(any(GetWorkOrderByIdQuery.class))).thenReturn(Optional.of(workOrder));
+        when(quoteRepository.existsByWorkOrderId(workOrderId)).thenReturn(false);
         when(quoteRepository.save(any(Quote.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
         // Act
@@ -76,6 +77,7 @@ class QuoteCommandServiceImplTest {
     void createQuote_WhenQuoteAlreadyExists_ShouldReturnFailure() {
         // Arrange
         when(workOrderQueryService.handle(any(GetWorkOrderByIdQuery.class))).thenReturn(Optional.of(workOrder));
+        when(quoteRepository.existsByWorkOrderId(workOrderId)).thenReturn(true);
 
         // Act
         Result<Quote, QuoteCommandFailure> result = quoteCommandService.handle(createQuoteCommand);
