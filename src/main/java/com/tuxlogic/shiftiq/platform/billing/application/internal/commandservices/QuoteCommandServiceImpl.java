@@ -38,6 +38,10 @@ public class QuoteCommandServiceImpl implements QuoteCommandService {
         }
 
         var workOrder = workOrderOpt.get();
+
+        if (quoteRepository.existsByWorkOrderId(command.workOrderId())) {
+            return Result.failure(QuoteCommandFailure.QUOTE_ALREADY_EXISTS_FOR_WORK_ORDER);
+        }
         
         try {
             var quote = new Quote(command, workOrder.getTotalAmount());
