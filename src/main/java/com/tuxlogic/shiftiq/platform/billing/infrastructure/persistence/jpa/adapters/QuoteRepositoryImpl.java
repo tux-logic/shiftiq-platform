@@ -55,4 +55,9 @@ public class QuoteRepositoryImpl implements QuoteRepository {
                 .map(QuotePersistenceAssembler::toAggregate)
                 .collect(Collectors.toList());
     }
+
+    @Override
+    public boolean existsByWorkOrderId(UUID workOrderId) {
+        return persistenceRepository.existsByWorkOrderId(workOrderId);
+    }
 }
