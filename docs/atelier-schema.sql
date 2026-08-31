@@ -257,7 +257,7 @@ COMMENT ON COLUMN products.category IS 'enum: FLUID, PART, MOTOR, OTHER';
 CREATE TABLE quotes
 (
     id                  uuid          NOT NULL UNIQUE,
-    work_order_id       uuid          NOT NULL,
+    work_order_id       uuid          NOT NULL UNIQUE,
     branch_id           uuid          NOT NULL,
     subtotal_amount     decimal(10,2) NOT NULL,
     discount_percentage decimal(5,2)  NOT NULL,

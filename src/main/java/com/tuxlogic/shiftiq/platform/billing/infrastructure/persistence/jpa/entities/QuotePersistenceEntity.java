@@ -22,7 +22,7 @@ import org.springframework.data.annotation.LastModifiedBy;
 @lombok.NoArgsConstructor
 public class QuotePersistenceEntity extends AuditableAbstractPersistenceEntity {
 
-    @Column(nullable = false, columnDefinition = "uuid")
+    @Column(nullable = false, unique = true, columnDefinition = "uuid")
     private UUID workOrderId;
 
     @Embedded
