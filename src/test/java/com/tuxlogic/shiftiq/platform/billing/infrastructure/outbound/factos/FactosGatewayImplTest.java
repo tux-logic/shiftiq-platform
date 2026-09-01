@@ -55,7 +55,7 @@ class FactosGatewayImplTest {
         );
 
         when(restTemplate.postForObject(
-                eq("https://factos-reva.onrender.com/api/v1/comprobantes"),
+                eq(API_URL + "/api/v1/comprobantes"),
                 any(HttpEntity.class),
                 eq(FactosIssueInvoiceResponse.class)
         )).thenReturn(response);
