@@ -2,7 +2,7 @@ package com.tuxlogic.shiftiq.platform.billing.application.internal.commandservic
 
 import com.tuxlogic.shiftiq.platform.billing.domain.model.valueobjects.VoucherCommandFailure;
 import com.tuxlogic.shiftiq.platform.billing.application.commandservices.VoucherCommandService;
-import com.tuxlogic.shiftiq.platform.billing.application.outboundservices.FacthubGateway;
+import com.tuxlogic.shiftiq.platform.billing.application.outboundservices.FactosGateway;
 import com.tuxlogic.shiftiq.platform.billing.domain.model.aggregates.Voucher;
 import com.tuxlogic.shiftiq.platform.billing.domain.model.commands.AddPaymentCommand;
 import com.tuxlogic.shiftiq.platform.billing.domain.model.commands.GenerateVoucherCommand;
@@ -22,13 +22,17 @@ import com.tuxlogic.shiftiq.platform.inventory.application.queryservices.Product
 import com.tuxlogic.shiftiq.platform.inventory.domain.model.queries.GetProductByIdQuery;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.math.BigDecimal;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
+import java.util.UUID;
 
 /**
  * Implementation of the VoucherCommandService interface.
  * Orchestrates the business logic for creating and paying invoices/receipts.
  * Integrates with the Operations bounded context to validate branch data, 
- * and with the Facthub external service to emit documents to the tax authority.
+ * and with the Factos external service to emit documents to the tax authority.
  */
 @Service
 public class VoucherCommandServiceImpl implements VoucherCommandService {
@@ -37,7 +41,7 @@ public class VoucherCommandServiceImpl implements VoucherCommandService {
     private final QuoteRepository quoteRepository;
     private final BranchQueryService branchQueryService;
     private final WorkshopQueryService workshopQueryService;
-    private final FacthubGateway facthubGateway;
+    private final FactosGateway factosGateway;
     private final WorkOrderQueryService workOrderQueryService;
     private final ProductQueryService productQueryService;
 
@@ -46,14 +50,14 @@ public class VoucherCommandServiceImpl implements VoucherCommandService {
             QuoteRepository quoteRepository,
             BranchQueryService branchQueryService,
             WorkshopQueryService workshopQueryService,
-            FacthubGateway facthubGateway,
+            FactosGateway factosGateway,
             WorkOrderQueryService workOrderQueryService,
             ProductQueryService productQueryService) {
         this.voucherRepository = voucherRepository;
         this.quoteRepository = quoteRepository;
         this.branchQueryService = branchQueryService;
         this.workshopQueryService = workshopQueryService;
-        this.facthubGateway = facthubGateway;
+        this.factosGateway = factosGateway;
         this.workOrderQueryService = workOrderQueryService;
         this.productQueryService = productQueryService;
     }
@@ -84,8 +88,8 @@ public class VoucherCommandServiceImpl implements VoucherCommandService {
         }
         String issuerRuc = workshopOpt.get().getTaxId().value();
 
-        // 3. Issue Voucher via Facthub
-        var externalInvoiceIdOpt = facthubGateway.issueVoucher(
+        // 3. Issue Voucher via Factos
+        var invoiceResultOpt = factosGateway.issueVoucher(
                 issuerRuc,
                 command.type(),
                 command.customerDocumentType(),
@@ -94,9 +98,12 @@ public class VoucherCommandServiceImpl implements VoucherCommandService {
                 getDetailedBillingItems(quote)
         );
 
-        if (externalInvoiceIdOpt.isEmpty()) {
-            return Result.failure(VoucherCommandFailure.FACTHUB_ISSUANCE_FAILED);
+        if (invoiceResultOpt.isEmpty()) {
+            return Result.failure(VoucherCommandFailure.FACTOS_ISSUANCE_FAILED);
         }
+
+        var invoiceResult = invoiceResultOpt.get();
+        UUID externalInvoiceId = UUID.nameUUIDFromBytes((invoiceResult.series() + "-" + invoiceResult.correlative()).getBytes(StandardCharsets.UTF_8));
 
         // 4. Create and save Voucher Aggregate
         try {
@@ -107,7 +114,7 @@ public class VoucherCommandServiceImpl implements VoucherCommandService {
                     command.customerDocumentNumber(),
                     command.customerName(),
                     quote.getTotalAmount(),
-                    externalInvoiceIdOpt.get()
+                    externalInvoiceId
             );
 
             var savedVoucher = voucherRepository.save(voucher);
@@ -199,8 +206,8 @@ public class VoucherCommandServiceImpl implements VoucherCommandService {
         }
         String issuerRuc = workshopOpt.get().getTaxId().value();
 
-        // 3. Issue Voucher via Facthub
-        var externalInvoiceIdOpt = facthubGateway.issueVoucher(
+        // 3. Issue Voucher via Factos
+        var invoiceResultOpt = factosGateway.issueVoucher(
                 issuerRuc,
                 command.type(),
                 command.customerDocumentType(),
@@ -209,9 +216,12 @@ public class VoucherCommandServiceImpl implements VoucherCommandService {
                 getDetailedBillingItems(quote)
         );
 
-        if (externalInvoiceIdOpt.isEmpty()) {
-            return Result.failure(VoucherCommandFailure.FACTHUB_ISSUANCE_FAILED);
+        if (invoiceResultOpt.isEmpty()) {
+            return Result.failure(VoucherCommandFailure.FACTOS_ISSUANCE_FAILED);
         }
+
+        var invoiceResult = invoiceResultOpt.get();
+        UUID externalInvoiceId = UUID.nameUUIDFromBytes((invoiceResult.series() + "-" + invoiceResult.correlative()).getBytes(StandardCharsets.UTF_8));
 
         // 4. Create Voucher Aggregate
         try {
@@ -222,7 +232,7 @@ public class VoucherCommandServiceImpl implements VoucherCommandService {
                     command.customerDocumentNumber(),
                     command.customerName(),
                     quote.getTotalAmount(),
-                    externalInvoiceIdOpt.get()
+                    externalInvoiceId
             );
 
             // 5. Add full payment to the Voucher
@@ -236,8 +246,8 @@ public class VoucherCommandServiceImpl implements VoucherCommandService {
         }
     }
 
-    private List<FacthubGateway.FacthubItem> getDetailedBillingItems(com.tuxlogic.shiftiq.platform.billing.domain.model.aggregates.Quote quote) {
-        List<FacthubGateway.FacthubItem> items = new java.util.ArrayList<>();
+    private List<FactosGateway.FactosItem> getDetailedBillingItems(com.tuxlogic.shiftiq.platform.billing.domain.model.aggregates.Quote quote) {
+        List<FactosGateway.FactosItem> items = new java.util.ArrayList<>();
         
         var workOrderOpt = workOrderQueryService.handle(new GetWorkOrderByIdQuery(new WorkOrderId(quote.getWorkOrderId())));
         if (workOrderOpt.isPresent()) {
@@ -255,9 +265,10 @@ public class VoucherCommandServiceImpl implements VoucherCommandService {
                     }
                     
                     // Add the task itself as labor item
-                    items.add(new FacthubGateway.FacthubItem(
+                    items.add(new FactosGateway.FactosItem(
+                            "TASK-" + task.getId(),
                             task.getDescription().value(),
-                            1,
+                            BigDecimal.ONE,
                             laborPrice.amount()
                     ));
                     
@@ -271,9 +282,10 @@ public class VoucherCommandServiceImpl implements VoucherCommandService {
                                     productName = productOpt.get().getName().name();
                                 }
                                 
-                                items.add(new FacthubGateway.FacthubItem(
+                                items.add(new FactosGateway.FactosItem(
+                                        "PROD-" + productAssoc.getProductId().value(),
                                         productName,
-                                        productAssoc.getQuantity().value(),
+                                        new BigDecimal(productAssoc.getQuantity().value()),
                                         productAssoc.getUnitPrice().amount()
                                 ));
                             }
@@ -285,9 +297,10 @@ public class VoucherCommandServiceImpl implements VoucherCommandService {
         
         // Fallback to summary item if no items could be resolved
         if (items.isEmpty()) {
-            items.add(new FacthubGateway.FacthubItem(
+            items.add(new FactosGateway.FactosItem(
+                    "SERV-001",
                     "Servicios de taller automotriz según orden " + quote.getWorkOrderId(),
-                    1,
+                    BigDecimal.ONE,
                     quote.getTotalAmount().amount()
             ));
         }
