@@ -141,7 +141,7 @@ public class VouchersController {
                 String message = messageSource.getMessage("billing.error.voucher.issuerNotFound", null, org.springframework.context.i18n.LocaleContextHolder.getLocale());
                 yield com.tuxlogic.shiftiq.platform.shared.interfaces.rest.transform.ErrorResponseAssembler.toErrorResponseFromApplicationError(com.tuxlogic.shiftiq.platform.shared.application.result.ApplicationError.unexpected("voucher", message));
             }
-            case FACTHUB_ISSUANCE_FAILED -> {
+            case FACTOS_ISSUANCE_FAILED -> {
                 String message = messageSource.getMessage("billing.error.voucher.facthubFailed", null, org.springframework.context.i18n.LocaleContextHolder.getLocale());
                 yield com.tuxlogic.shiftiq.platform.shared.interfaces.rest.transform.ErrorResponseAssembler.toErrorResponseFromApplicationError(com.tuxlogic.shiftiq.platform.shared.application.result.ApplicationError.unexpected("voucher", message));
             }
