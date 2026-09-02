@@ -119,7 +119,8 @@ public class VoucherCommandServiceImpl implements VoucherCommandService {
                     command.customerDocumentNumber(),
                     command.customerName(),
                     quote.getTotalAmount(),
-                    externalInvoiceId
+                    externalInvoiceId,
+                    invoiceResult.pdfUrl()
             );
 
             var savedVoucher = voucherRepository.save(voucher);
@@ -238,7 +239,8 @@ public class VoucherCommandServiceImpl implements VoucherCommandService {
                     command.customerDocumentNumber(),
                     command.customerName(),
                     quote.getTotalAmount(),
-                    externalInvoiceId
+                    externalInvoiceId,
+                    invoiceResult.pdfUrl()
             );
 
             // 5. Add full payment to the Voucher

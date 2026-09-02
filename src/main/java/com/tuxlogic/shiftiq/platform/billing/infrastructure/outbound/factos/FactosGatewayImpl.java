@@ -93,10 +93,15 @@ public class FactosGatewayImpl implements FactosGateway {
             );
 
             if (response != null && "EMITTED".equalsIgnoreCase(response.status())) {
+                String pdfUrl = response.pdfUrl();
+                if (pdfUrl != null && !pdfUrl.startsWith("http://") && !pdfUrl.startsWith("https://")) {
+                    String baseUrl = factosApiUrl.endsWith("/") ? factosApiUrl.substring(0, factosApiUrl.length() - 1) : factosApiUrl;
+                    pdfUrl = baseUrl + (pdfUrl.startsWith("/") ? pdfUrl : "/" + pdfUrl);
+                }
                 return Optional.of(new FactosInvoiceResult(
                         response.series(),
                         response.correlative(),
-                        response.pdfUrl(),
+                        pdfUrl,
                         response.totalAmount()
                 ));
             }

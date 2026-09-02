@@ -24,6 +24,7 @@ public class VoucherResourceFromAggregateAssembler {
                 aggregate.getTotalAmount().amount(),
                 aggregate.getStatus().name(),
                 aggregate.getExternalInvoiceId(),
+                aggregate.getPdfUrl(),
                 paymentResources,
                 aggregate.getTotalPaidAmount()
         );

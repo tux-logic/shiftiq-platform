@@ -29,6 +29,7 @@ public class VoucherPersistenceAssembler {
         entity.setTotalAmount(aggregate.getTotalAmount().amount());
         entity.setStatus(aggregate.getStatus());
         entity.setExternalInvoiceId(aggregate.getExternalInvoiceId());
+        entity.setPdfUrl(aggregate.getPdfUrl());
 
         // Map payments
         if (aggregate.getPayments() != null) {
@@ -66,6 +67,7 @@ public class VoucherPersistenceAssembler {
                 new Money(entity.getTotalAmount()),
                 entity.getStatus(),
                 entity.getExternalInvoiceId(),
+                entity.getPdfUrl(),
                 payments
         );
     }
