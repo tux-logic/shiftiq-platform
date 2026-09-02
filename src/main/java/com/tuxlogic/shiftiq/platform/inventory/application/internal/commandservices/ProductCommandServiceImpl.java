@@ -1,6 +1,7 @@
 package com.tuxlogic.shiftiq.platform.inventory.application.internal.commandservices;
 
 import com.tuxlogic.shiftiq.platform.inventory.application.commandservices.ProductCommandService;
+import com.tuxlogic.shiftiq.platform.inventory.domain.exceptions.InsufficientStockException;
 import com.tuxlogic.shiftiq.platform.inventory.domain.model.aggregates.Product;
 import com.tuxlogic.shiftiq.platform.inventory.domain.model.commands.AddBatchToProductCommand;
 import com.tuxlogic.shiftiq.platform.inventory.domain.model.commands.CreateProductCommand;
@@ -42,6 +43,7 @@ public class ProductCommandServiceImpl implements ProductCommandService {
                     command.description(),
                     command.minimumStock().value()
             );
+            product.refreshLowStockAlert();
             return Result.success(productRepository.save(product));
         } catch (IllegalArgumentException e) {
             return Result.failure(ProductCommandFailure.INVALID_PRODUCT_DATA);
@@ -57,15 +59,15 @@ public class ProductCommandServiceImpl implements ProductCommandService {
         }
 
         try {
-            var batch = new ProductBatch(
-                    UUID.randomUUID(),
-                    command.quantity(),
-                    command.acquisitionCost()
-            );
-            product.get().addBatch(batch);
+            var movementBatch = product.get().applyStockMovement(command.quantity(), command.acquisitionCost());
             var savedProduct = productRepository.save(product.get());
-            var savedBatch = savedProduct.getBatches().get(savedProduct.getBatches().size() - 1);
-            return Result.success(savedBatch);
+            if (movementBatch.isPresent()) {
+                var savedBatch = savedProduct.getBatches().get(savedProduct.getBatches().size() - 1);
+                return Result.success(savedBatch);
+            }
+            return Result.success(ProductBatch.forStockAdjustment(command.quantity(), command.acquisitionCost(), savedProduct.getCurrentStock().value()));
+        } catch (InsufficientStockException e) {
+            return Result.failure(ProductCommandFailure.INSUFFICIENT_STOCK);
         } catch (IllegalArgumentException e) {
             return Result.failure(ProductCommandFailure.INVALID_PRODUCT_DATA);
         }

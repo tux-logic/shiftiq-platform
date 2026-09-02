@@ -13,4 +13,14 @@ public class ProductBatchResourceFromEntityAssembler {
                 entity.getReceptionDate()
         );
     }
+
+    public static ProductBatchResource toResourceFromStockAdjustment(int signedQuantity, double acquisitionCost, ProductBatch resultingBatch) {
+        return new ProductBatchResource(
+                resultingBatch.getBatchId().toString(),
+                signedQuantity,
+                resultingBatch.getAvailableQuantity().value(),
+                acquisitionCost,
+                resultingBatch.getReceptionDate()
+        );
+    }
 }

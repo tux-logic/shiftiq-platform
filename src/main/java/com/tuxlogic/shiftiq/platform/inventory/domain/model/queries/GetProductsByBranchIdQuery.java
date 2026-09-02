@@ -3,10 +3,16 @@ package com.tuxlogic.shiftiq.platform.inventory.domain.model.queries;
 import com.tuxlogic.shiftiq.platform.shared.domain.model.valueobjects.BranchId;
 
 /**
- * Query representing the intention to retrieve all products belonging to a specific branch.
- * Used by the query service to filter the product catalog by branch (multi-tenant support).
- * @param branchId the unique identifier of the branch whose products are to be retrieved
- * @author Adiel Sanchez
+ * Query representing the intention to retrieve products belonging to a specific branch,
+ * optionally filtered by name, category or low-stock alert status.
  */
-public record GetProductsByBranchIdQuery(BranchId branchId) {
+public record GetProductsByBranchIdQuery(
+        BranchId branchId,
+        String name,
+        String category,
+        Boolean lowStockOnly
+) {
+    public GetProductsByBranchIdQuery(BranchId branchId) {
+        this(branchId, null, null, null);
+    }
 }

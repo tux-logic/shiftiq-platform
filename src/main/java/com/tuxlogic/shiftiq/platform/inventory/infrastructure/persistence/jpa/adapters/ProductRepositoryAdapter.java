@@ -52,6 +52,22 @@ public class ProductRepositoryAdapter implements ProductRepository {
     }
 
     @Override
+    public List<Product> findAllByBranchIdWithFilters(BranchId branchId, String name, String category, Boolean lowStockOnly) {
+        boolean filterLowStock = Boolean.TRUE.equals(lowStockOnly);
+        return jpaRepository.searchByBranchId(branchId.value(), name, category, filterLowStock)
+                .stream()
+                .map(ProductEntityAssembler::toAggregate)
+                .toList();
+    }
+
+    @Override
+    public List<Product> findAll() {
+        return jpaRepository.findAll().stream()
+                .map(ProductEntityAssembler::toAggregate)
+                .toList();
+    }
+
+    @Override
     public boolean existsByBranchIdAndSku(BranchId branchId, String sku) {
         return jpaRepository.existsByBranchIdAndSku(branchId.value(), sku);
     }

@@ -1,7 +1,6 @@
 package com.tuxlogic.shiftiq.platform.inventory.interfaces.rest.transform;
 
 import com.tuxlogic.shiftiq.platform.inventory.domain.model.commands.AddBatchToProductCommand;
-import com.tuxlogic.shiftiq.platform.inventory.domain.model.valueobjects.InventoryQuantity;
 import com.tuxlogic.shiftiq.platform.inventory.interfaces.rest.resources.AddBatchToProductResource;
 import com.tuxlogic.shiftiq.platform.shared.domain.model.valueobjects.Money;
 
@@ -14,7 +13,7 @@ public class AddBatchToProductCommandFromResourceAssembler {
     public static AddBatchToProductCommand toCommandFromResource(UUID productId, AddBatchToProductResource resource) {
         return new AddBatchToProductCommand(
                 productId,
-                new InventoryQuantity(resource.quantity()),
+                resource.quantity(),
                 new Money(BigDecimal.valueOf(resource.acquisitionCost()))
         );
     }

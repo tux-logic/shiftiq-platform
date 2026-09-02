@@ -12,6 +12,7 @@ public record ProductDetailsResource(
         Double salePrice,
         Integer minimumStock,
         Integer currentStock,
+        Boolean lowStockAlert,
         List<ProductBatchResource> batches
 ) {
 }

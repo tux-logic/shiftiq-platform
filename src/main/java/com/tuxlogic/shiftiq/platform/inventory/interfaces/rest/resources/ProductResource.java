@@ -11,6 +11,7 @@ public record ProductResource(
         String description,
         Double salePrice,
         Integer minimumStock,
-        Integer currentStock
+        Integer currentStock,
+        Boolean lowStockAlert
 ) {
 }

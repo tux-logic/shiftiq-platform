@@ -27,6 +27,7 @@ public class ProductEntityAssembler {
         entity.setCurrentSellingPrice(product.getCurrentSellingPrice());
         entity.setCurrentStock(product.getCurrentStock().value());
         entity.setMinimumStock(product.getMinimumStock());
+        entity.setLowStockAlert(product.isLowStockAlert());
 
         if (entity.getBatches() == null) {
             entity.setBatches(new java.util.ArrayList<>());
@@ -79,6 +80,7 @@ public class ProductEntityAssembler {
             entity.getCurrentSellingPrice(),
             entity.getDescription(),
             entity.getMinimumStock(),
+            entity.isLowStockAlert(),
             entity.getVersion(),
             batches
         );

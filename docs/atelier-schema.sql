@@ -243,6 +243,7 @@ CREATE TABLE products
     current_selling_price decimal(10,2) NOT NULL,
     current_stock         int           NOT NULL DEFAULT 0,
     minimum_stock         int           NOT NULL,
+    low_stock_alert       boolean       NOT NULL DEFAULT false,
     created_at            timestamp     NOT NULL,
     updated_at            timestamp     NOT NULL,
     deleted_at            timestamp    ,

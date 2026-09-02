@@ -23,6 +23,10 @@ public interface ProductRepository {
      */
     List<Product> findAllByBranchId(BranchId branchId);
 
+    List<Product> findAllByBranchIdWithFilters(BranchId branchId, String name, String category, Boolean lowStockOnly);
+
+    List<Product> findAll();
+
     boolean existsByBranchIdAndSku(BranchId branchId, String sku);
 
     boolean existsByBranchIdAndSkuAndIdNot(BranchId branchId, String sku, UUID productId);

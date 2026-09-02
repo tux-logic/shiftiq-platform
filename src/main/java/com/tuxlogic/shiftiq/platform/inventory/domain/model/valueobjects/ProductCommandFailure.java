@@ -4,5 +4,6 @@ public enum ProductCommandFailure {
     PRODUCT_NOT_FOUND,
     INVALID_PRODUCT_DATA,
     DUPLICATE_SKU,
-    PRODUCT_IN_USE
+    PRODUCT_IN_USE,
+    INSUFFICIENT_STOCK
 }

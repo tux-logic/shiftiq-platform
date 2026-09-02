@@ -44,4 +44,15 @@ public class ProductBatch {
     
     public void deductQuantity(InventoryQuantity amount) { this.availableQuantity = this.availableQuantity.subtract(amount); }
     public void addQuantity(InventoryQuantity amount) { this.availableQuantity = this.availableQuantity.add(amount); }
+
+    public static ProductBatch forStockAdjustment(int signedQuantity, Money acquisitionCost, int resultingStock) {
+        return reconstitute(
+                UUID.randomUUID(),
+                new InventoryQuantity(0),
+                new InventoryQuantity(resultingStock),
+                acquisitionCost,
+                new Date(),
+                null
+        );
+    }
 }

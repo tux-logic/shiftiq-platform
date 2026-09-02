@@ -53,6 +53,9 @@ public class ProductJpaEntity extends AuditableAbstractPersistenceEntity impleme
     @Column(name = "minimum_stock", nullable = false)
     private Integer minimumStock;
 
+    @Column(name = "low_stock_alert", nullable = false)
+    private boolean lowStockAlert = false;
+
     @OneToMany(mappedBy = "product", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<ProductBatchJpaEntity> batches = new ArrayList<>();
 
@@ -88,6 +91,8 @@ public class ProductJpaEntity extends AuditableAbstractPersistenceEntity impleme
     public void setCurrentStock(Integer currentStock) { this.currentStock = currentStock; }
     public Integer getMinimumStock() { return minimumStock; }
     public void setMinimumStock(Integer minimumStock) { this.minimumStock = minimumStock; }
+    public boolean isLowStockAlert() { return lowStockAlert; }
+    public void setLowStockAlert(boolean lowStockAlert) { this.lowStockAlert = lowStockAlert; }
     public List<ProductBatchJpaEntity> getBatches() { return batches; }
     public void setBatches(List<ProductBatchJpaEntity> batches) { this.batches = batches; }
     public Instant getDeletedAt() { return deletedAt; }

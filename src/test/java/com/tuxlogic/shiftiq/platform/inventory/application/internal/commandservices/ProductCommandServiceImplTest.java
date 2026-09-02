@@ -100,4 +100,43 @@ class ProductCommandServiceImplTest {
         assertTrue(result.isFailure());
         assertEquals(ProductCommandFailure.PRODUCT_IN_USE, result.failure().get());
     }
+
+    @Test
+    void addBatch_WhenNegativeQuantityExceedsStock_ShouldReturnInsufficientStockFailure() {
+        UUID productId = UUID.randomUUID();
+        Product product = new Product(
+                productId,
+                branchId,
+                new ProductCategory("PART"),
+                new ProductName("Filtro"),
+                new Sku("FLT-002"),
+                new Money(new BigDecimal("10.00")),
+                "Desc",
+                2
+        );
+        when(productRepository.findById(productId)).thenReturn(Optional.of(product));
+
+        var command = new com.tuxlogic.shiftiq.platform.inventory.domain.model.commands.AddBatchToProductCommand(
+                productId,
+                -5,
+                new Money(new BigDecimal("1.00"))
+        );
+
+        Result<?, ProductCommandFailure> result = productCommandService.handle(command);
+
+        assertTrue(result.isFailure());
+        assertEquals(ProductCommandFailure.INSUFFICIENT_STOCK, result.failure().get());
+        verify(productRepository, never()).save(any(Product.class));
+    }
+
+    @Test
+    void createProduct_WhenInitialStockIsBelowMinimum_ShouldFlagLowStockAlert() {
+        when(productRepository.existsByBranchIdAndSku(branchId, "FLT-001")).thenReturn(false);
+        when(productRepository.save(any(Product.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        Result<Product, ProductCommandFailure> result = productCommandService.handle(createProductCommand);
+
+        assertTrue(result.isSuccess());
+        assertTrue(result.success().get().isLowStockAlert());
+    }
 }

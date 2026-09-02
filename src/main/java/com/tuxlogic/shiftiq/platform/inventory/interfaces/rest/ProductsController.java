@@ -33,12 +33,6 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 import java.util.UUID;
 
-/**
- * REST controller for managing inventory products.
- * Uses CQRS pattern: delegates commands to ProductCommandService
- * and queries to ProductQueryService.
- * @author Adiel Sanchez
- */
 @RestController
 @RequestMapping(value = "/api/v1/inventory/products", produces = "application/json")
 @Tag(name = "Inventory Products", description = "Endpoints for managing products in the inventory")
@@ -68,25 +62,43 @@ public class ProductsController {
     }
 
     @GetMapping(params = "branchId")
-    @Operation(summary = "Get all products for a branch", description = "Retrieves all products in the inventory belonging to the specified branch (multi-tenant query)")
-    public ResponseEntity<List<ProductResource>> getProductsByBranch(@RequestParam UUID branchId) {
-        var query = new GetProductsByBranchIdQuery(new BranchId(branchId));
-        List<ProductResource> resources = productQueryService.handle(query).stream()
-                .map(ProductResourceFromAggregateAssembler::toResourceFromAggregate)
-                .toList();
-        return ResponseEntity.ok(resources);
+    @Operation(summary = "Get all products for a branch", description = "Retrieves products for a branch with optional name, category and low-stock filters")
+    public ResponseEntity<List<ProductResource>> getProductsByBranch(
+            @RequestParam UUID branchId,
+            @RequestParam(required = false) String name,
+            @RequestParam(required = false) String category,
+            @RequestParam(required = false) Boolean lowStockOnly) {
+        return ResponseEntity.ok(toProductResources(branchId, name, category, lowStockOnly));
+    }
+
+    @GetMapping("/branch/{branchId}")
+    @Operation(summary = "Get products by branch path", description = "Catalog endpoint aligned with TS009, supporting optional filters")
+    public ResponseEntity<List<ProductResource>> getProductsByBranchPath(
+            @PathVariable UUID branchId,
+            @RequestParam(required = false) String name,
+            @RequestParam(required = false) String category,
+            @RequestParam(required = false) Boolean lowStockOnly) {
+        return ResponseEntity.ok(toProductResources(branchId, name, category, lowStockOnly));
     }
 
     @PostMapping("/{productId}/batches")
-    @Operation(summary = "Add a batch to a product", description = "Adds a physical batch to an existing product, increasing its current stock")
+    @Operation(summary = "Add or adjust product stock", description = "Registers stock entries (positive quantity) or warehouse adjustments (negative quantity)")
     public ResponseEntity<?> addBatchToProduct(
             @PathVariable UUID productId,
             @Valid @RequestBody AddBatchToProductResource resource) {
 
+        if (resource.quantity() == 0) {
+            String message = messageSource.getMessage("inventory.error.resource.quantity.nonZero", null, LocaleContextHolder.getLocale());
+            return ErrorResponseAssembler.toErrorResponseFromApplicationError(ApplicationError.validationError("productBatch", message));
+        }
+
         var command = AddBatchToProductCommandFromResourceAssembler.toCommandFromResource(productId, resource);
         var result = productCommandService.handle(command);
         if (result.isSuccess()) {
-            var batchResource = ProductBatchResourceFromEntityAssembler.toResourceFromEntity(result.success().get());
+            ProductBatchResource batchResource = resource.quantity() < 0
+                    ? ProductBatchResourceFromEntityAssembler.toResourceFromStockAdjustment(
+                            resource.quantity(), resource.acquisitionCost(), result.success().get())
+                    : ProductBatchResourceFromEntityAssembler.toResourceFromEntity(result.success().get());
             return new ResponseEntity<>(batchResource, HttpStatus.CREATED);
         }
         return toErrorResponse(result.failure().get());
@@ -129,6 +141,13 @@ public class ProductsController {
         return toErrorResponse(result.failure().get());
     }
 
+    private List<ProductResource> toProductResources(UUID branchId, String name, String category, Boolean lowStockOnly) {
+        var query = new GetProductsByBranchIdQuery(new BranchId(branchId), name, category, lowStockOnly);
+        return productQueryService.handle(query).stream()
+                .map(ProductResourceFromAggregateAssembler::toResourceFromAggregate)
+                .toList();
+    }
+
     private ResponseEntity<?> toErrorResponse(ProductCommandFailure failure) {
         return switch (failure) {
             case PRODUCT_NOT_FOUND -> {
@@ -146,6 +165,10 @@ public class ProductsController {
             case PRODUCT_IN_USE -> {
                 String message = messageSource.getMessage("inventory.error.product.inUse", null, LocaleContextHolder.getLocale());
                 yield ErrorResponseAssembler.toErrorResponseFromApplicationError(ApplicationError.conflict("product", message));
+            }
+            case INSUFFICIENT_STOCK -> {
+                String message = messageSource.getMessage("inventory.error.product.insufficientStock", null, LocaleContextHolder.getLocale());
+                yield ErrorResponseAssembler.toErrorResponseFromApplicationError(ApplicationError.validationError("productBatch", message));
             }
         };
     }

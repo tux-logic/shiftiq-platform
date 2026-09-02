@@ -14,7 +14,8 @@ public class ProductResourceFromAggregateAssembler {
                 aggregate.getDescription(),
                 aggregate.getCurrentSellingPrice().amount().doubleValue(),
                 aggregate.getMinimumStock(),
-                aggregate.getCurrentStock().value()
+                aggregate.getCurrentStock().value(),
+                aggregate.isLowStockAlert()
         );
     }
 }
