@@ -23,6 +23,15 @@ X-API-KEY: tu_api_key_aqui
 
 ---
 
+## 📋 Tipos de Comprobante Soportados (SUNAT Catálogo 01)
+
+| Tipo de Comprobante | Código `cpeType` | Prefijo de Serie (`series`) | Tipo Documento Cliente |
+| :--- | :--- | :--- | :--- |
+| **Factura Electrónica** | `"01"` | `F001`, `F002`, ... | **RUC** (11 dígitos) |
+| **Boleta de Venta Electrónica** | `"03"` | `B001`, `B002`, ... | **DNI** (8 dígitos), RUC, Carnet Ext. o Pasaporte |
+
+---
+
 ## 🛠️ 2. Flujo Completo de Integración con Ejemplos
 
 ### Paso 1: Generar una API Key de Acceso
@@ -97,10 +106,10 @@ Consulta los elementos codificados de los catálogos SUNAT (ej. `CAT-01` Tipos d
 
 ---
 
-### Paso 4: Emitir una Factura Electrónica
+### Paso 4: Emitir una Factura Electrónica (`cpeType: "01"`)
 Emite una nueva Factura Electrónica. El servicio autocalcula la base imponible, IGV (18%), importe total y almacena automáticamente el PDF impreso en el bucket de **Cloudflare R2**.
 
-* **Endpoint:** `POST /api/v1/comprobantes`
+* **Endpoint:** `POST /api/v1/documents` *(Nota: `/api/v1/comprobantes` también se mantiene soportado por compatibilidad)*
 * **Headers:** `X-API-KEY: aa1e22c0ea1b41adbd1ce571542213bb`
 
 #### Ejemplo de Entrada (Request Body):
@@ -156,34 +165,57 @@ Emite una nueva Factura Electrónica. El servicio autocalcula la base imponible,
 
 ---
 
-### Paso 5: Consultar una Factura por Serie y Correlativo
-Obtén los datos de una factura emitida anteriormente.
+### Paso 5: Emitir una Boleta de Venta Electrónica (`cpeType: "03"`)
+Emite una Boleta de Venta Electrónica dirigida a personas naturales o clientes finales (usando DNI de 8 dígitos o RUC). El PDF impreso generado contendrá automáticamente el encabezado **BOLETA DE VENTA ELECTRÓNICA**.
 
-* **Endpoint:** `GET /api/v1/comprobantes/F004/00000001`
+* **Endpoint:** `POST /api/v1/documents`
 * **Headers:** `X-API-KEY: aa1e22c0ea1b41adbd1ce571542213bb`
 
-#### Ejemplo de Salida (Response - HTTP 200 OK):
+#### Ejemplo de Entrada (Request Body):
 ```json
 {
-  "series": "F004",
+  "series": "B001",
   "correlative": "00000001",
-  "cpeType": "01",
-  "issueDate": "2026-08-31",
+  "cpeType": "03",
+  "issueDate": "2026-09-02",
   "issuerRuc": "20123456789",
-  "acquirerDocument": "20111222333",
-  "acquirerName": "EMPRESA RENDER PRODUCCION S.A.C.",
-  "status": "EMITTED",
-  "totalTaxable": 5000.00,
-  "totalIgv": 900.00,
-  "totalAmount": 5900.00,
+  "acquirerDocument": "72345678",
+  "acquirerName": "JUAN PEREZ GARCIA",
   "currency": "PEN",
-  "pdfUrl": "/api/v1/rendering/pdf/F004/00000001",
   "items": [
     {
-      "code": "SERV-004",
-      "description": "Despliegue Exitoso en Render Production",
-      "quantity": 1.0,
-      "unitPrice": 5900.00,
+      "code": "PROD-B01",
+      "description": "Producto de Venta al Contado en Tienda",
+      "quantity": 2,
+      "unitPrice": 50.00,
+      "affectationType": "TAXABLE_ONEROUS"
+    }
+  ]
+}
+```
+
+#### Ejemplo de Salida (Response - HTTP 201 Created):
+```json
+{
+  "series": "B001",
+  "correlative": "00000001",
+  "cpeType": "03",
+  "issueDate": "2026-09-02",
+  "issuerRuc": "20123456789",
+  "acquirerDocument": "72345678",
+  "acquirerName": "JUAN PEREZ GARCIA",
+  "status": "EMITTED",
+  "totalTaxable": 84.75,
+  "totalIgv": 15.25,
+  "totalAmount": 100.00,
+  "currency": "PEN",
+  "pdfUrl": "/api/v1/rendering/pdf/B001/00000001",
+  "items": [
+    {
+      "code": "PROD-B01",
+      "description": "Producto de Venta al Contado en Tienda",
+      "quantity": 2.0,
+      "unitPrice": 50.00,
       "affectationType": "TAXABLE_ONEROUS"
     }
   ]
@@ -192,27 +224,35 @@ Obtén los datos de una factura emitida anteriormente.
 
 ---
 
-### Paso 6: Descargar / Visualizar el PDF Impreso de la Factura
+### Paso 6: Consultar un Comprobante por Serie y Correlativo
+Obtén los datos de cualquier comprobante (Factura o Boleta) emitido anteriormente.
+
+* **Endpoint:** `GET /api/v1/documents/B001/00000001`
+* **Headers:** `X-API-KEY: aa1e22c0ea1b41adbd1ce571542213bb`
+
+---
+
+### Paso 7: Descargar / Visualizar el PDF Impreso
 Descarga el documento PDF impreso oficial con el Código QR de la SUNAT al pie del documento.
 
-* **Endpoint:** `GET /api/v1/rendering/pdf/F004/00000001`
+* **Endpoint:** `GET /api/v1/rendering/pdf/B001/00000001`
 * **Headers:** `X-API-KEY: aa1e22c0ea1b41adbd1ce571542213bb`
 
 #### Ejemplo de Salida (Response - HTTP 200 OK):
 * **Headers de respuesta:**
   * `Content-Type: application/pdf`
-  * `Content-Disposition: inline; filename=F004-00000001.pdf`
-* **Body:** Archivo binario `.pdf` (Peso aproximado: ~2.95 KB).
+  * `Content-Disposition: inline; filename=B001-00000001.pdf`
+* **Body:** Archivo binario `.pdf`.
 
 ---
 
-### Paso 7: Generar Imagen PNG de Código QR SUNAT
+### Paso 8: Generar Imagen PNG de Código QR SUNAT
 Genera una imagen del código QR SUNAT a partir del texto de metadatos.
 
-* **Endpoint:** `GET /api/v1/rendering/qr?content=20123456789|01|F004|00000001|900.00|5900.00|2026-08-31|6|20111222333|MOCK_SIGNATURE`
+* **Endpoint:** `GET /api/v1/rendering/qr?content=20123456789|03|B001|00000001|15.25|100.00|2026-09-02|1|72345678|MOCK_SIGNATURE`
 * **Headers:** `X-API-KEY: aa1e22c0ea1b41adbd1ce571542213bb`
 
-#### Ejemplo of Salida (Response - HTTP 200 OK):
+#### Ejemplo de Salida (Response - HTTP 200 OK):
 * **Headers de respuesta:** `Content-Type: image/png`
 * **Body:** Imagen binaria PNG del código QR.
 
@@ -225,11 +265,3 @@ Cada comprobante PDF generado es persistido automáticamente en el bucket de **C
 * **Clave de Archivo:** `facturas/{series}-{correlative}.pdf`
 
 Al solicitar la descarga del PDF mediante `/api/v1/rendering/pdf/{series}/{correlative}`, el servicio verifica primero si el archivo existe en Cloudflare R2 para servirlo directamente desde la nube, evitando trabajo de renderizado innecesario.
-
----
-
-## 🌐 4. Entorno de Pruebas e Interfaz Swagger UI
-
-La documentación interactiva y consola de pruebas en vivo se encuentra disponible en:
-* **Swagger UI Producción:** [https://factos-reva.onrender.com/swagger-ui.html](https://factos-reva.onrender.com/swagger-ui.html)
-* **OpenAPI Docs JSON Producción:** [https://factos-reva.onrender.com/v3/api-docs](https://factos-reva.onrender.com/v3/api-docs)

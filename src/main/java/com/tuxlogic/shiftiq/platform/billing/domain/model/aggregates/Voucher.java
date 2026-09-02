@@ -30,7 +30,8 @@ public class Voucher extends AbstractDomainAggregateRoot<Voucher> {
     private String customerName;
     private Money totalAmount;
     private VoucherStatus status;
-    private UUID externalInvoiceId; // ID returned by the Facthub service
+    private UUID externalInvoiceId; // ID returned by the Factos service
+    private String pdfUrl;
     private List<Payment> payments = new ArrayList<>();
     /**
      * Default constructor required by the persistence assembler and JPA.
@@ -39,22 +40,15 @@ public class Voucher extends AbstractDomainAggregateRoot<Voucher> {
         // Required by persistence assembler
     }
 
-    /**
-     * Creates a new pending Voucher from an approved Quote.
-     * Validates that the total amount is strictly greater than zero.
-     * 
-     * @param quoteId the unique identifier of the approved quote
-     * @param type the type of voucher (e.g., RECEIPT or INVOICE)
-     * @param customerDocumentType the type of the customer's document (e.g., DNI, RUC)
-     * @param customerDocumentNumber the number of the customer's document
-     * @param customerName the full name or legal name of the customer
-     * @param totalAmount the total financial amount required to pay this voucher
-     * @param externalInvoiceId the external tracking ID returned by the billing service (e.g., Facthub)
-     * @throws IllegalArgumentException if the total amount is null or less than or equal to zero
-     */
     public Voucher(UUID quoteId, VoucherType type, String customerDocumentType, 
                    String customerDocumentNumber, String customerName, 
                    Money totalAmount, UUID externalInvoiceId) {
+        this(quoteId, type, customerDocumentType, customerDocumentNumber, customerName, totalAmount, externalInvoiceId, null);
+    }
+
+    public Voucher(UUID quoteId, VoucherType type, String customerDocumentType, 
+                   String customerDocumentNumber, String customerName, 
+                   Money totalAmount, UUID externalInvoiceId, String pdfUrl) {
         if (totalAmount == null || totalAmount.amount().compareTo(java.math.BigDecimal.ZERO) <= 0) {
             throw new IllegalArgumentException("billing.error.voucher.invalidTotalAmount");
         }
@@ -68,12 +62,13 @@ public class Voucher extends AbstractDomainAggregateRoot<Voucher> {
         this.totalAmount = totalAmount;
         this.status = VoucherStatus.PENDING;
         this.externalInvoiceId = externalInvoiceId;
+        this.pdfUrl = pdfUrl;
     }
 
     // For persistence rebuilding
     public Voucher(UUID id, UUID quoteId, VoucherType type, String customerDocumentType, 
                    String customerDocumentNumber, String customerName, 
-                   Money totalAmount, VoucherStatus status, UUID externalInvoiceId) {
+                   Money totalAmount, VoucherStatus status, UUID externalInvoiceId, String pdfUrl, List<Payment> payments) {
         this.id = id;
         this.quoteId = quoteId;
         this.type = type;
@@ -83,21 +78,7 @@ public class Voucher extends AbstractDomainAggregateRoot<Voucher> {
         this.totalAmount = totalAmount;
         this.status = status;
         this.externalInvoiceId = externalInvoiceId;
-    }
-
-    // For persistence rebuilding with payments
-    public Voucher(UUID id, UUID quoteId, VoucherType type, String customerDocumentType, 
-                   String customerDocumentNumber, String customerName, 
-                   Money totalAmount, VoucherStatus status, UUID externalInvoiceId, List<Payment> payments) {
-        this.id = id;
-        this.quoteId = quoteId;
-        this.type = type;
-        this.customerDocumentType = customerDocumentType;
-        this.customerDocumentNumber = customerDocumentNumber;
-        this.customerName = customerName;
-        this.totalAmount = totalAmount;
-        this.status = status;
-        this.externalInvoiceId = externalInvoiceId;
+        this.pdfUrl = pdfUrl;
         if (payments != null) {
             this.payments = payments;
         }

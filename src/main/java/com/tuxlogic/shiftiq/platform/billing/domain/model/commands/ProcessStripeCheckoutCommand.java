@@ -4,14 +4,18 @@ import com.tuxlogic.shiftiq.platform.billing.domain.model.valueobjects.VoucherTy
 
 import java.util.UUID;
 
-public record GenerateVoucherCommand(
+/**
+ * Command representing a Stripe checkout process where a Stripe paymentIntentId is verified before voucher generation.
+ */
+public record ProcessStripeCheckoutCommand(
         UUID quoteId,
         VoucherType type,
         String customerDocumentType,
         String customerDocumentNumber,
-        String customerName
+        String customerName,
+        String paymentIntentId
 ) {
-    public GenerateVoucherCommand {
+    public ProcessStripeCheckoutCommand {
         if (quoteId == null) {
             throw new IllegalArgumentException("billing.error.command.quoteIdRequired");
         }
@@ -26,6 +30,9 @@ public record GenerateVoucherCommand(
         }
         if (customerName == null || customerName.isBlank()) {
             throw new IllegalArgumentException("billing.error.command.customerNameRequired");
+        }
+        if (paymentIntentId == null || paymentIntentId.isBlank()) {
+            throw new IllegalArgumentException("billing.error.command.paymentIntentIdRequired");
         }
     }
 }

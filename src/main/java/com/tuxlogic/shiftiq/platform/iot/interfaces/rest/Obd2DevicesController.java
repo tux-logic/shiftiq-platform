@@ -34,13 +34,15 @@ import org.springframework.web.bind.annotation.*;
 
 import org.springframework.context.i18n.LocaleContextHolder;
 import java.util.UUID;
+import org.springframework.security.access.prepost.PreAuthorize;
 
 /**
  * REST controller for managing OBD2 Devices registration.
  */
 @RestController
 @RequestMapping(value = "/api/v1/obd2-devices", produces = "application/json")
-@Tag(name = "OBD2 Devices", description = "Endpoints for managing OBD2 device fleet")
+@Tag(name = "OBD2 Devices", description = "Endpoints for managing OBD2 hardware dongles and IoT telemetry")
+@PreAuthorize("isAuthenticated()")
 public class Obd2DevicesController {
 
     private final Obd2DeviceCommandService commandService;
@@ -148,6 +150,7 @@ public class Obd2DevicesController {
      */
     @GetMapping
     @Operation(summary = "Get OBD2 devices by branch", description = "Retrieves all registered OBD2 devices under a specific branch. Use ?status=available to filter by availability.")
+    @PreAuthorize("isAuthenticated() and @multiTenancySecurityService.isAuthorizedForBranch(#branchId)")
     public ResponseEntity<List<Obd2DeviceResource>> getObd2Devices(
             @RequestParam UUID branchId,
             @RequestParam(required = false) String status

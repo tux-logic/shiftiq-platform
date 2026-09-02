@@ -30,11 +30,13 @@ import java.util.UUID;
 
 /**
  * Implementation of the VoucherCommandService interface.
- * Orchestrates the business logic for creating and paying invoices/receipts.
- * Integrates with the Operations bounded context to validate branch data, 
+ * Handles the business use cases for Voucher operations, interacting with repositories
  * and with the Factos external service to emit documents to the tax authority.
  */
+import com.tuxlogic.shiftiq.platform.billing.application.outboundservices.StripeGateway;
+
 @Service
+@Transactional
 public class VoucherCommandServiceImpl implements VoucherCommandService {
 
     private final VoucherRepository voucherRepository;
@@ -42,6 +44,7 @@ public class VoucherCommandServiceImpl implements VoucherCommandService {
     private final BranchQueryService branchQueryService;
     private final WorkshopQueryService workshopQueryService;
     private final FactosGateway factosGateway;
+    private final StripeGateway stripeGateway;
     private final WorkOrderQueryService workOrderQueryService;
     private final ProductQueryService productQueryService;
 
@@ -51,6 +54,7 @@ public class VoucherCommandServiceImpl implements VoucherCommandService {
             BranchQueryService branchQueryService,
             WorkshopQueryService workshopQueryService,
             FactosGateway factosGateway,
+            StripeGateway stripeGateway,
             WorkOrderQueryService workOrderQueryService,
             ProductQueryService productQueryService) {
         this.voucherRepository = voucherRepository;
@@ -58,6 +62,7 @@ public class VoucherCommandServiceImpl implements VoucherCommandService {
         this.branchQueryService = branchQueryService;
         this.workshopQueryService = workshopQueryService;
         this.factosGateway = factosGateway;
+        this.stripeGateway = stripeGateway;
         this.workOrderQueryService = workOrderQueryService;
         this.productQueryService = productQueryService;
     }
@@ -114,7 +119,8 @@ public class VoucherCommandServiceImpl implements VoucherCommandService {
                     command.customerDocumentNumber(),
                     command.customerName(),
                     quote.getTotalAmount(),
-                    externalInvoiceId
+                    externalInvoiceId,
+                    invoiceResult.pdfUrl()
             );
 
             var savedVoucher = voucherRepository.save(voucher);
@@ -144,13 +150,14 @@ public class VoucherCommandServiceImpl implements VoucherCommandService {
             var savedVoucher = voucherRepository.save(voucher);
             return Result.success(savedVoucher);
         } catch (IllegalStateException e) {
-            if (e.getMessage().contains("already paid")) {
+            String msg = e.getMessage() != null ? e.getMessage() : "";
+            if (msg.contains("alreadyPaid") || msg.contains("already paid")) {
                 return Result.failure(VoucherCommandFailure.VOUCHER_ALREADY_PAID);
             }
-            if (e.getMessage().contains("canceled")) {
+            if (msg.contains("canceled") || msg.contains("Canceled")) {
                 return Result.failure(VoucherCommandFailure.VOUCHER_CANCELED);
             }
-            if (e.getMessage().contains("exceeds")) {
+            if (msg.contains("exceeds") || msg.contains("paymentExceedsDebt")) {
                 return Result.failure(VoucherCommandFailure.PAYMENT_EXCEEDS_TOTAL_DEBT);
             }
             return Result.failure(VoucherCommandFailure.INVALID_VOUCHER_DATA);
@@ -232,7 +239,8 @@ public class VoucherCommandServiceImpl implements VoucherCommandService {
                     command.customerDocumentNumber(),
                     command.customerName(),
                     quote.getTotalAmount(),
-                    externalInvoiceId
+                    externalInvoiceId,
+                    invoiceResult.pdfUrl()
             );
 
             // 5. Add full payment to the Voucher
@@ -244,6 +252,41 @@ public class VoucherCommandServiceImpl implements VoucherCommandService {
         } catch (IllegalArgumentException | IllegalStateException e) {
             return Result.failure(VoucherCommandFailure.INVALID_VOUCHER_DATA);
         }
+    }
+
+    @Override
+    @Transactional
+    public Result<Voucher, VoucherCommandFailure> handle(com.tuxlogic.shiftiq.platform.billing.domain.model.commands.ProcessStripeCheckoutCommand command) {
+        // 1. Validate Quote
+        var quoteOpt = quoteRepository.findById(command.quoteId());
+        if (quoteOpt.isEmpty()) {
+            return Result.failure(VoucherCommandFailure.QUOTE_NOT_FOUND);
+        }
+        var quote = quoteOpt.get();
+
+        // 2. Verify Stripe PaymentIntent status and amount
+        var stripeIntentOpt = stripeGateway.getPaymentIntent(command.paymentIntentId());
+        if (stripeIntentOpt.isEmpty()) {
+            return Result.failure(VoucherCommandFailure.PAYMENT_NOT_FOUND);
+        }
+        var stripeIntent = stripeIntentOpt.get();
+        if (!"succeeded".equalsIgnoreCase(stripeIntent.status()) && !"requires_capture".equalsIgnoreCase(stripeIntent.status())) {
+            return Result.failure(VoucherCommandFailure.INVALID_VOUCHER_DATA);
+        }
+        if (stripeIntent.amount().compareTo(quote.getTotalAmount().amount()) != 0) {
+            return Result.failure(VoucherCommandFailure.INVALID_VOUCHER_DATA);
+        }
+
+        // 3. Delegate to standard checkout with CREDIT_CARD method
+        var checkoutCommand = new com.tuxlogic.shiftiq.platform.billing.domain.model.commands.ProcessCheckoutCommand(
+                command.quoteId(),
+                command.type(),
+                command.customerDocumentType(),
+                command.customerDocumentNumber(),
+                command.customerName(),
+                com.tuxlogic.shiftiq.platform.billing.domain.model.valueobjects.PaymentMethod.CREDIT_CARD
+        );
+        return handle(checkoutCommand);
     }
 
     private List<FactosGateway.FactosItem> getDetailedBillingItems(com.tuxlogic.shiftiq.platform.billing.domain.model.aggregates.Quote quote) {

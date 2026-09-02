@@ -13,6 +13,7 @@ public record VoucherResource(
         BigDecimal totalAmount,
         String status,
         UUID externalInvoiceId,
+        String pdfUrl,
         java.util.List<PaymentResource> payments,
         BigDecimal totalPaid
 ) {
