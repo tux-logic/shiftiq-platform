@@ -22,4 +22,8 @@ public interface ProductJpaRepository extends JpaRepository<ProductJpaEntity, UU
      * @return list of matching product entities
      */
     List<ProductJpaEntity> findAllByBranchId(UUID branchId);
+
+    boolean existsByBranchIdAndSku(UUID branchId, String sku);
+
+    boolean existsByBranchIdAndSkuAndIdNot(UUID branchId, String sku, UUID id);
 }

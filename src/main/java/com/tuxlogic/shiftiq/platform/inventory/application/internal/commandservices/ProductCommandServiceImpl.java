@@ -2,12 +2,18 @@ package com.tuxlogic.shiftiq.platform.inventory.application.internal.commandserv
 
 import com.tuxlogic.shiftiq.platform.inventory.application.commandservices.ProductCommandService;
 import com.tuxlogic.shiftiq.platform.inventory.domain.model.aggregates.Product;
+import com.tuxlogic.shiftiq.platform.inventory.domain.model.commands.AddBatchToProductCommand;
 import com.tuxlogic.shiftiq.platform.inventory.domain.model.commands.CreateProductCommand;
+import com.tuxlogic.shiftiq.platform.inventory.domain.model.commands.DeleteProductCommand;
+import com.tuxlogic.shiftiq.platform.inventory.domain.model.commands.UpdateProductCommand;
+import com.tuxlogic.shiftiq.platform.inventory.domain.model.entities.ProductBatch;
+import com.tuxlogic.shiftiq.platform.inventory.domain.model.valueobjects.ProductCommandFailure;
 import com.tuxlogic.shiftiq.platform.inventory.domain.repositories.ProductRepository;
+import com.tuxlogic.shiftiq.platform.shared.application.result.Result;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.Optional;
 import java.util.UUID;
 
 @Service
@@ -20,48 +26,94 @@ public class ProductCommandServiceImpl implements ProductCommandService {
 
     @Override
     @Transactional
-    public Optional<Product> handle(CreateProductCommand command) {
-        Product product = new Product(UUID.randomUUID(), command.branchId(), command.category(), command.name(), command.sku(), command.salePrice(), command.description(), command.minimumStock().value());
-        var savedProduct = productRepository.save(product);
-        return Optional.of(savedProduct);
+    public Result<Product, ProductCommandFailure> handle(CreateProductCommand command) {
+        if (productRepository.existsByBranchIdAndSku(command.branchId(), command.sku().value())) {
+            return Result.failure(ProductCommandFailure.DUPLICATE_SKU);
+        }
+
+        try {
+            Product product = new Product(
+                    UUID.randomUUID(),
+                    command.branchId(),
+                    command.category(),
+                    command.name(),
+                    command.sku(),
+                    command.salePrice(),
+                    command.description(),
+                    command.minimumStock().value()
+            );
+            return Result.success(productRepository.save(product));
+        } catch (IllegalArgumentException e) {
+            return Result.failure(ProductCommandFailure.INVALID_PRODUCT_DATA);
+        }
     }
 
     @Override
     @Transactional
-    public Optional<com.tuxlogic.shiftiq.platform.inventory.domain.model.entities.ProductBatch> handle(com.tuxlogic.shiftiq.platform.inventory.domain.model.commands.AddBatchToProductCommand command) {
+    public Result<ProductBatch, ProductCommandFailure> handle(AddBatchToProductCommand command) {
         var product = productRepository.findById(command.productId());
         if (product.isEmpty()) {
-            return Optional.empty();
+            return Result.failure(ProductCommandFailure.PRODUCT_NOT_FOUND);
         }
-        var batch = new com.tuxlogic.shiftiq.platform.inventory.domain.model.entities.ProductBatch(
-                UUID.randomUUID(),
-                command.quantity(),
-                command.acquisitionCost()
-        );
-        product.get().addBatch(batch);
-        var savedProduct = productRepository.save(product.get());
-        var savedBatch = savedProduct.getBatches().get(savedProduct.getBatches().size() - 1);
-        return Optional.of(savedBatch);
+
+        try {
+            var batch = new ProductBatch(
+                    UUID.randomUUID(),
+                    command.quantity(),
+                    command.acquisitionCost()
+            );
+            product.get().addBatch(batch);
+            var savedProduct = productRepository.save(product.get());
+            var savedBatch = savedProduct.getBatches().get(savedProduct.getBatches().size() - 1);
+            return Result.success(savedBatch);
+        } catch (IllegalArgumentException e) {
+            return Result.failure(ProductCommandFailure.INVALID_PRODUCT_DATA);
+        }
     }
 
     @Override
     @Transactional
-    public Optional<Product> handle(com.tuxlogic.shiftiq.platform.inventory.domain.model.commands.UpdateProductCommand command) {
+    public Result<Product, ProductCommandFailure> handle(UpdateProductCommand command) {
         var product = productRepository.findById(command.productId());
         if (product.isEmpty()) {
-            return Optional.empty();
+            return Result.failure(ProductCommandFailure.PRODUCT_NOT_FOUND);
         }
-        product.get().updateDetails(command.name(), command.category(), command.sku(), command.salePrice(), command.description(), command.minimumStock().value());
-        var savedProduct = productRepository.save(product.get());
-        return Optional.of(savedProduct);
+
+        if (productRepository.existsByBranchIdAndSkuAndIdNot(
+                product.get().getBranchId(),
+                command.sku().value(),
+                command.productId()
+        )) {
+            return Result.failure(ProductCommandFailure.DUPLICATE_SKU);
+        }
+
+        try {
+            product.get().updateDetails(
+                    command.name(),
+                    command.category(),
+                    command.sku(),
+                    command.salePrice(),
+                    command.description(),
+                    command.minimumStock().value()
+            );
+            return Result.success(productRepository.save(product.get()));
+        } catch (IllegalArgumentException e) {
+            return Result.failure(ProductCommandFailure.INVALID_PRODUCT_DATA);
+        }
     }
 
     @Override
     @Transactional
-    public void handle(com.tuxlogic.shiftiq.platform.inventory.domain.model.commands.DeleteProductCommand command) {
+    public Result<Void, ProductCommandFailure> handle(DeleteProductCommand command) {
         if (!productRepository.existsById(command.productId())) {
-            throw new IllegalArgumentException("inventory.error.product.notFound");
+            return Result.failure(ProductCommandFailure.PRODUCT_NOT_FOUND);
         }
-        productRepository.deleteById(command.productId());
+
+        try {
+            productRepository.deleteById(command.productId());
+            return Result.success(null);
+        } catch (DataIntegrityViolationException e) {
+            return Result.failure(ProductCommandFailure.PRODUCT_IN_USE);
+        }
     }
 }

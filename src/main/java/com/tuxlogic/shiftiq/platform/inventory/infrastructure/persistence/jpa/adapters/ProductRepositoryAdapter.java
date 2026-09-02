@@ -52,6 +52,16 @@ public class ProductRepositoryAdapter implements ProductRepository {
     }
 
     @Override
+    public boolean existsByBranchIdAndSku(BranchId branchId, String sku) {
+        return jpaRepository.existsByBranchIdAndSku(branchId.value(), sku);
+    }
+
+    @Override
+    public boolean existsByBranchIdAndSkuAndIdNot(BranchId branchId, String sku, UUID productId) {
+        return jpaRepository.existsByBranchIdAndSkuAndIdNot(branchId.value(), sku, productId);
+    }
+
+    @Override
     public boolean existsById(UUID id) {
         return jpaRepository.existsById(id);
     }

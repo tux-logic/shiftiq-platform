@@ -6,12 +6,12 @@ import com.tuxlogic.shiftiq.platform.inventory.domain.model.commands.CreateProdu
 import com.tuxlogic.shiftiq.platform.inventory.domain.model.commands.DeleteProductCommand;
 import com.tuxlogic.shiftiq.platform.inventory.domain.model.commands.UpdateProductCommand;
 import com.tuxlogic.shiftiq.platform.inventory.domain.model.entities.ProductBatch;
-
-import java.util.Optional;
+import com.tuxlogic.shiftiq.platform.inventory.domain.model.valueobjects.ProductCommandFailure;
+import com.tuxlogic.shiftiq.platform.shared.application.result.Result;
 
 public interface ProductCommandService {
-    Optional<Product> handle(CreateProductCommand command);
-    Optional<ProductBatch> handle(AddBatchToProductCommand command);
-    Optional<Product> handle(UpdateProductCommand command);
-    void handle(DeleteProductCommand command);
+    Result<Product, ProductCommandFailure> handle(CreateProductCommand command);
+    Result<ProductBatch, ProductCommandFailure> handle(AddBatchToProductCommand command);
+    Result<Product, ProductCommandFailure> handle(UpdateProductCommand command);
+    Result<Void, ProductCommandFailure> handle(DeleteProductCommand command);
 }

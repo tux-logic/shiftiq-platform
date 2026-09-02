@@ -2,23 +2,35 @@ package com.tuxlogic.shiftiq.platform.inventory.interfaces.rest;
 
 import com.tuxlogic.shiftiq.platform.inventory.application.commandservices.ProductCommandService;
 import com.tuxlogic.shiftiq.platform.inventory.application.queryservices.ProductQueryService;
-import com.tuxlogic.shiftiq.platform.inventory.domain.model.aggregates.Product;
-import com.tuxlogic.shiftiq.platform.inventory.domain.model.commands.CreateProductCommand;
+import com.tuxlogic.shiftiq.platform.inventory.domain.model.commands.DeleteProductCommand;
+import com.tuxlogic.shiftiq.platform.inventory.domain.model.queries.GetProductByIdQuery;
 import com.tuxlogic.shiftiq.platform.inventory.domain.model.queries.GetProductsByBranchIdQuery;
-import com.tuxlogic.shiftiq.platform.inventory.domain.model.valueobjects.*;
+import com.tuxlogic.shiftiq.platform.inventory.domain.model.valueobjects.ProductCommandFailure;
+import com.tuxlogic.shiftiq.platform.inventory.interfaces.rest.resources.AddBatchToProductResource;
 import com.tuxlogic.shiftiq.platform.inventory.interfaces.rest.resources.CreateProductResource;
+import com.tuxlogic.shiftiq.platform.inventory.interfaces.rest.resources.ProductBatchResource;
+import com.tuxlogic.shiftiq.platform.inventory.interfaces.rest.resources.ProductDetailsResource;
 import com.tuxlogic.shiftiq.platform.inventory.interfaces.rest.resources.ProductResource;
+import com.tuxlogic.shiftiq.platform.inventory.interfaces.rest.resources.UpdateProductResource;
+import com.tuxlogic.shiftiq.platform.inventory.interfaces.rest.transform.AddBatchToProductCommandFromResourceAssembler;
+import com.tuxlogic.shiftiq.platform.inventory.interfaces.rest.transform.CreateProductCommandFromResourceAssembler;
+import com.tuxlogic.shiftiq.platform.inventory.interfaces.rest.transform.ProductBatchResourceFromEntityAssembler;
+import com.tuxlogic.shiftiq.platform.inventory.interfaces.rest.transform.ProductDetailsResourceFromAggregateAssembler;
 import com.tuxlogic.shiftiq.platform.inventory.interfaces.rest.transform.ProductResourceFromAggregateAssembler;
+import com.tuxlogic.shiftiq.platform.inventory.interfaces.rest.transform.UpdateProductCommandFromResourceAssembler;
+import com.tuxlogic.shiftiq.platform.shared.application.result.ApplicationError;
 import com.tuxlogic.shiftiq.platform.shared.domain.model.valueobjects.BranchId;
-import com.tuxlogic.shiftiq.platform.shared.domain.model.valueobjects.Money;
+import com.tuxlogic.shiftiq.platform.shared.interfaces.rest.transform.ErrorResponseAssembler;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
+import org.springframework.context.MessageSource;
+import org.springframework.context.i18n.LocaleContextHolder;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
-import java.util.Optional;
 import java.util.UUID;
 
 /**
@@ -33,37 +45,33 @@ import java.util.UUID;
 public class ProductsController {
     private final ProductCommandService productCommandService;
     private final ProductQueryService productQueryService;
+    private final MessageSource messageSource;
 
     public ProductsController(ProductCommandService productCommandService,
-                              ProductQueryService productQueryService) {
+                              ProductQueryService productQueryService,
+                              MessageSource messageSource) {
         this.productCommandService = productCommandService;
         this.productQueryService = productQueryService;
+        this.messageSource = messageSource;
     }
 
     @PostMapping
     @Operation(summary = "Create a new Product", description = "Creates a new product in the inventory for a specific branch")
-    public ResponseEntity<ProductResource> createProduct(@RequestBody CreateProductResource resource) {
-        CreateProductCommand command = new CreateProductCommand(
-                new BranchId(java.util.UUID.fromString(resource.branchId())),
-                new ProductCategory(resource.category()),
-                new ProductName(resource.name()),
-                new Sku(resource.sku()),
-                resource.description(),
-                new Money(java.math.BigDecimal.valueOf(resource.salePrice())),
-                new InventoryQuantity(resource.minimumStock())
-        );
-
-        Optional<Product> product = productCommandService.handle(command);
-        return product.map(p -> new ResponseEntity<>(ProductResourceFromAggregateAssembler.toResourceFromAggregate(p), HttpStatus.CREATED))
-                .orElseGet(() -> ResponseEntity.badRequest().build());
+    public ResponseEntity<?> createProduct(@Valid @RequestBody CreateProductResource resource) {
+        var command = CreateProductCommandFromResourceAssembler.toCommandFromResource(resource);
+        var result = productCommandService.handle(command);
+        if (result.isSuccess()) {
+            var productResource = ProductResourceFromAggregateAssembler.toResourceFromAggregate(result.success().get());
+            return new ResponseEntity<>(productResource, HttpStatus.CREATED);
+        }
+        return toErrorResponse(result.failure().get());
     }
 
-    @GetMapping
+    @GetMapping(params = "branchId")
     @Operation(summary = "Get all products for a branch", description = "Retrieves all products in the inventory belonging to the specified branch (multi-tenant query)")
     public ResponseEntity<List<ProductResource>> getProductsByBranch(@RequestParam UUID branchId) {
         var query = new GetProductsByBranchIdQuery(new BranchId(branchId));
-        List<Product> products = productQueryService.handle(query);
-        List<ProductResource> resources = products.stream()
+        List<ProductResource> resources = productQueryService.handle(query).stream()
                 .map(ProductResourceFromAggregateAssembler::toResourceFromAggregate)
                 .toList();
         return ResponseEntity.ok(resources);
@@ -71,66 +79,74 @@ public class ProductsController {
 
     @PostMapping("/{productId}/batches")
     @Operation(summary = "Add a batch to a product", description = "Adds a physical batch to an existing product, increasing its current stock")
-    public ResponseEntity<com.tuxlogic.shiftiq.platform.inventory.interfaces.rest.resources.ProductBatchResource> addBatchToProduct(
+    public ResponseEntity<?> addBatchToProduct(
             @PathVariable UUID productId,
-            @RequestBody com.tuxlogic.shiftiq.platform.inventory.interfaces.rest.resources.AddBatchToProductResource resource) {
+            @Valid @RequestBody AddBatchToProductResource resource) {
 
-        var command = new com.tuxlogic.shiftiq.platform.inventory.domain.model.commands.AddBatchToProductCommand(
-                productId,
-                new InventoryQuantity(resource.quantity()),
-                new Money(java.math.BigDecimal.valueOf(resource.acquisitionCost()))
-        );
-
-        var productBatch = productCommandService.handle(command);
-        return productBatch.map(batch -> new ResponseEntity<>(
-                com.tuxlogic.shiftiq.platform.inventory.interfaces.rest.transform.ProductBatchResourceFromEntityAssembler.toResourceFromEntity(batch),
-                HttpStatus.CREATED
-        )).orElseGet(() -> ResponseEntity.notFound().build());
+        var command = AddBatchToProductCommandFromResourceAssembler.toCommandFromResource(productId, resource);
+        var result = productCommandService.handle(command);
+        if (result.isSuccess()) {
+            var batchResource = ProductBatchResourceFromEntityAssembler.toResourceFromEntity(result.success().get());
+            return new ResponseEntity<>(batchResource, HttpStatus.CREATED);
+        }
+        return toErrorResponse(result.failure().get());
     }
 
     @GetMapping("/{productId}")
     @Operation(summary = "Get product details by ID", description = "Retrieves all details for a product including its associated batches")
-    public ResponseEntity<com.tuxlogic.shiftiq.platform.inventory.interfaces.rest.resources.ProductDetailsResource> getProductById(@PathVariable UUID productId) {
-        var query = new com.tuxlogic.shiftiq.platform.inventory.domain.model.queries.GetProductByIdQuery(productId);
+    public ResponseEntity<ProductDetailsResource> getProductById(@PathVariable UUID productId) {
+        var query = new GetProductByIdQuery(productId);
         var product = productQueryService.handle(query);
-        
+
         return product.map(p -> ResponseEntity.ok(
-                com.tuxlogic.shiftiq.platform.inventory.interfaces.rest.transform.ProductDetailsResourceFromAggregateAssembler.toResourceFromAggregate(p)
+                ProductDetailsResourceFromAggregateAssembler.toResourceFromAggregate(p)
         )).orElseGet(() -> ResponseEntity.notFound().build());
     }
 
     @PutMapping("/{productId}")
     @Operation(summary = "Update product details", description = "Updates the basic details of a product (Name, Category, SKU)")
-    public ResponseEntity<ProductResource> updateProduct(
+    public ResponseEntity<?> updateProduct(
             @PathVariable UUID productId,
-            @RequestBody com.tuxlogic.shiftiq.platform.inventory.interfaces.rest.resources.UpdateProductResource resource) {
-            
-        var command = new com.tuxlogic.shiftiq.platform.inventory.domain.model.commands.UpdateProductCommand(
-                productId,
-                new com.tuxlogic.shiftiq.platform.inventory.domain.model.valueobjects.ProductName(resource.name()),
-                new com.tuxlogic.shiftiq.platform.inventory.domain.model.valueobjects.ProductCategory(resource.category().toUpperCase()),
-                new com.tuxlogic.shiftiq.platform.inventory.domain.model.valueobjects.Sku(resource.sku()),
-                resource.description(),
-                new Money(java.math.BigDecimal.valueOf(resource.salePrice())),
-                new InventoryQuantity(resource.minimumStock())
-        );
-        
-        var updatedProduct = productCommandService.handle(command);
-        
-        return updatedProduct.map(product -> ResponseEntity.ok(
-                ProductResourceFromAggregateAssembler.toResourceFromAggregate(product)
-        )).orElseGet(() -> ResponseEntity.notFound().build());
+            @Valid @RequestBody UpdateProductResource resource) {
+
+        var command = UpdateProductCommandFromResourceAssembler.toCommandFromResource(productId, resource);
+        var result = productCommandService.handle(command);
+        if (result.isSuccess()) {
+            var productResource = ProductResourceFromAggregateAssembler.toResourceFromAggregate(result.success().get());
+            return ResponseEntity.ok(productResource);
+        }
+        return toErrorResponse(result.failure().get());
     }
 
     @DeleteMapping("/{productId}")
     @Operation(summary = "Delete a product", description = "Deletes a product and all its associated batches")
     public ResponseEntity<?> deleteProduct(@PathVariable UUID productId) {
-        var command = new com.tuxlogic.shiftiq.platform.inventory.domain.model.commands.DeleteProductCommand(productId);
-        try {
-            productCommandService.handle(command);
+        var command = new DeleteProductCommand(productId);
+        var result = productCommandService.handle(command);
+        if (result.isSuccess()) {
             return ResponseEntity.noContent().build();
-        } catch (IllegalArgumentException e) {
-            return ResponseEntity.notFound().build();
         }
+        return toErrorResponse(result.failure().get());
+    }
+
+    private ResponseEntity<?> toErrorResponse(ProductCommandFailure failure) {
+        return switch (failure) {
+            case PRODUCT_NOT_FOUND -> {
+                String message = messageSource.getMessage("inventory.error.product.notFound", null, LocaleContextHolder.getLocale());
+                yield ErrorResponseAssembler.toErrorResponseFromApplicationError(ApplicationError.notFound("product", message));
+            }
+            case INVALID_PRODUCT_DATA -> {
+                String message = messageSource.getMessage("inventory.error.product.invalidData", null, LocaleContextHolder.getLocale());
+                yield ErrorResponseAssembler.toErrorResponseFromApplicationError(ApplicationError.validationError("product", message));
+            }
+            case DUPLICATE_SKU -> {
+                String message = messageSource.getMessage("inventory.error.product.duplicateSku", null, LocaleContextHolder.getLocale());
+                yield ErrorResponseAssembler.toErrorResponseFromApplicationError(ApplicationError.conflict("product", message));
+            }
+            case PRODUCT_IN_USE -> {
+                String message = messageSource.getMessage("inventory.error.product.inUse", null, LocaleContextHolder.getLocale());
+                yield ErrorResponseAssembler.toErrorResponseFromApplicationError(ApplicationError.conflict("product", message));
+            }
+        };
     }
 }
