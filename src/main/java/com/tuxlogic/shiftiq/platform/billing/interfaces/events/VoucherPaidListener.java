@@ -4,7 +4,8 @@ import com.tuxlogic.shiftiq.platform.billing.domain.model.events.VoucherPaidEven
 import com.tuxlogic.shiftiq.platform.billing.domain.repositories.QuoteRepository;
 import com.tuxlogic.shiftiq.platform.shared.domain.model.events.PaymentProcessedEvent;
 import org.springframework.context.ApplicationEventPublisher;
-import org.springframework.context.event.EventListener;
+import org.springframework.transaction.event.TransactionPhase;
+import org.springframework.transaction.event.TransactionalEventListener;
 import org.springframework.stereotype.Component;
 
 /**
@@ -24,9 +25,9 @@ public class VoucherPaidListener {
 
     /**
      * Listens for VoucherPaidEvent (Domain Event), retrieves the associated Quote 
-     * to obtain the workOrderId, and publishes a PaymentProcessedEvent (Integration Event).
+     * to obtain the workOrderId, and publishes a PaymentProcessedEvent (Integration Event) after transaction commit.
      */
-    @EventListener
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT, fallbackExecution = true)
     public void onVoucherPaid(VoucherPaidEvent event) {
         var quoteOpt = quoteRepository.findById(event.quoteId());
         

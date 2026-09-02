@@ -95,10 +95,17 @@ public class VouchersController {
     @PostMapping("/{voucherId}/payments")
     @Operation(summary = "Add a payment to a voucher", description = "Records a partial or full payment for a given voucher")
     public ResponseEntity<?> addPayment(@PathVariable UUID voucherId, @Valid @RequestBody AddPaymentResource resource) {
+        PaymentMethod paymentMethod;
+        try {
+            paymentMethod = resource.method() != null ? PaymentMethod.valueOf(resource.method().toUpperCase()) : PaymentMethod.CASH;
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body("Invalid payment method");
+        }
+
         var command = new AddPaymentCommand(
                 voucherId,
                 new Money(resource.amount()),
-                PaymentMethod.valueOf(resource.method())
+                paymentMethod
         );
 
         var result = commandService.handle(command);

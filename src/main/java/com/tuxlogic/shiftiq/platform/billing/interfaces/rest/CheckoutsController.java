@@ -37,13 +37,22 @@ public class CheckoutsController {
     @PostMapping
     @Operation(summary = "Process checkout", description = "Generates a voucher and records a full payment in a single transaction")
     public ResponseEntity<?> checkout(@Valid @RequestBody ProcessCheckoutResource resource) {
+        VoucherType voucherType;
+        PaymentMethod paymentMethod;
+        try {
+            voucherType = resource.type() != null ? VoucherType.valueOf(resource.type().toUpperCase()) : VoucherType.RECEIPT;
+            paymentMethod = resource.method() != null ? PaymentMethod.valueOf(resource.method().toUpperCase()) : PaymentMethod.CASH;
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body("Invalid voucher type or payment method");
+        }
+
         var command = new ProcessCheckoutCommand(
                 resource.quoteId(),
-                VoucherType.valueOf(resource.type()),
+                voucherType,
                 resource.customerDocumentType(),
                 resource.customerDocumentNumber(),
                 resource.customerName(),
-                PaymentMethod.valueOf(resource.method())
+                paymentMethod
         );
 
         var result = commandService.handle(command);
