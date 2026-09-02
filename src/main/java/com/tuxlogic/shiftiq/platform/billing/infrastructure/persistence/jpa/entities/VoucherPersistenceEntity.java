@@ -47,6 +47,9 @@ public class VoucherPersistenceEntity extends AuditableAbstractPersistenceEntity
     @Column(name = "external_invoice_id", nullable = false)
     private UUID externalInvoiceId;
 
+    @Column(name = "pdf_url", length = 500)
+    private String pdfUrl;
+
     @OneToMany(mappedBy = "voucher", cascade = CascadeType.ALL, orphanRemoval = true)
     private java.util.List<PaymentPersistenceEntity> payments = new java.util.ArrayList<>();
 }

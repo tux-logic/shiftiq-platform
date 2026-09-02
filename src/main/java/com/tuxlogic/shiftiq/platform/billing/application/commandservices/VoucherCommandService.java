@@ -42,4 +42,5 @@ public interface VoucherCommandService {
      * @return A Result containing the fully paid Voucher, or a specific failure reason.
      */
     Result<Voucher, VoucherCommandFailure> handle(ProcessCheckoutCommand command);
+    Result<Voucher, VoucherCommandFailure> handle(com.tuxlogic.shiftiq.platform.billing.domain.model.commands.ProcessStripeCheckoutCommand command);
 }

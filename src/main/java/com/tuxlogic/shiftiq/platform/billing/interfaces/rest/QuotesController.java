@@ -23,6 +23,9 @@ import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.security.access.prepost.PreAuthorize;
+
+import com.tuxlogic.shiftiq.platform.shared.infrastructure.security.MultiTenancySecurityService;
 
 /**
  * REST controller for managing billing quotes.
@@ -32,16 +35,19 @@ import org.springframework.web.bind.annotation.*;
 @RestController
 @RequestMapping(value = "/api/v1/quotes", produces = "application/json")
 @Tag(name = "Quotes", description = "Endpoints for managing billing quotes")
+@PreAuthorize("isAuthenticated()")
 public class QuotesController {
 
     private final QuoteCommandService commandService;
     private final QuoteQueryService queryService;
     private final org.springframework.context.MessageSource messageSource;
+    private final MultiTenancySecurityService multiTenancySecurityService;
 
-    public QuotesController(QuoteCommandService commandService, QuoteQueryService queryService, org.springframework.context.MessageSource messageSource) {
+    public QuotesController(QuoteCommandService commandService, QuoteQueryService queryService, org.springframework.context.MessageSource messageSource, MultiTenancySecurityService multiTenancySecurityService) {
         this.commandService = commandService;
         this.queryService = queryService;
         this.messageSource = messageSource;
+        this.multiTenancySecurityService = multiTenancySecurityService;
     }
 
     /**
@@ -148,6 +154,7 @@ public class QuotesController {
      */
     @GetMapping(params = "branchId")
     @Operation(summary = "Get quotes by branch ID", description = "Retrieves all Quotes belonging to a specific branch")
+    @PreAuthorize("isAuthenticated() and @multiTenancySecurityService.isAuthorizedForBranch(#branchId)")
     public ResponseEntity<List<QuoteResource>> getQuotesByBranchId(@RequestParam UUID branchId) {
         var query = new GetQuotesByBranchIdQuery(new BranchId(branchId));
         var quotes = queryService.handle(query);

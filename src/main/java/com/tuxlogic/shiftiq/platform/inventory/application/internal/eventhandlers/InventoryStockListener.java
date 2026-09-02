@@ -6,7 +6,8 @@ import com.tuxlogic.shiftiq.platform.inventory.domain.repositories.ProductReposi
 import com.tuxlogic.shiftiq.platform.operations.domain.model.events.ProductReservationCanceledEvent;
 import com.tuxlogic.shiftiq.platform.operations.domain.model.events.ProductReservedEvent;
 import com.tuxlogic.shiftiq.platform.operations.domain.model.events.WorkOrderPaidEvent;
-import org.springframework.context.event.EventListener;
+import org.springframework.transaction.event.TransactionPhase;
+import org.springframework.transaction.event.TransactionalEventListener;
 import org.springframework.stereotype.Component;
 
 import java.util.Optional;
@@ -19,7 +20,7 @@ public class InventoryStockListener {
         this.productRepository = productRepository;
     }
 
-    @EventListener
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT, fallbackExecution = true)
     public void on(ProductReservedEvent event) {
         Optional<Product> productOpt = productRepository.findById(event.productId().value());
         productOpt.ifPresent(product -> {
@@ -28,7 +29,7 @@ public class InventoryStockListener {
         });
     }
 
-    @EventListener
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT, fallbackExecution = true)
     public void on(ProductReservationCanceledEvent event) {
         Optional<Product> productOpt = productRepository.findById(event.productId().value());
         productOpt.ifPresent(product -> {
@@ -37,7 +38,7 @@ public class InventoryStockListener {
         });
     }
 
-    @EventListener
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT, fallbackExecution = true)
     public void on(WorkOrderPaidEvent event) {
         // En la arquitectura definida con Operations, el stock se descuenta físicamente de los lotes 
         // al momento de hacer la reserva (ProductReservedEvent). 

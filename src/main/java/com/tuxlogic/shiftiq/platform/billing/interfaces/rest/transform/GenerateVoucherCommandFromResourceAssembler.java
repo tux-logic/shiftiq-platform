@@ -7,9 +7,15 @@ import com.tuxlogic.shiftiq.platform.billing.interfaces.rest.resources.GenerateV
 public class GenerateVoucherCommandFromResourceAssembler {
 
     public static GenerateVoucherCommand toCommandFromResource(GenerateVoucherResource resource) {
+        VoucherType type;
+        try {
+            type = resource.type() != null ? VoucherType.valueOf(resource.type().toUpperCase()) : VoucherType.RECEIPT;
+        } catch (Exception e) {
+            throw new IllegalArgumentException("billing.error.voucher.invalidType");
+        }
         return new GenerateVoucherCommand(
                 resource.quoteId(),
-                VoucherType.valueOf(resource.type()),
+                type,
                 resource.customerDocumentType(),
                 resource.customerDocumentNumber(),
                 resource.customerName()

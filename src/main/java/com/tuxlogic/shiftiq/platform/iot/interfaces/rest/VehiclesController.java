@@ -29,6 +29,7 @@ import org.springframework.context.MessageSource;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
@@ -40,7 +41,8 @@ import java.util.UUID;
  */
 @RestController
 @RequestMapping(value = "/api/v1/vehicles", produces = "application/json")
-@Tag(name = "Vehicles", description = "Endpoints for managing vehicle fleet inside the iot context")
+@Tag(name = "Vehicles", description = "Endpoints for registering and managing customer vehicles")
+@PreAuthorize("isAuthenticated()")
 public class VehiclesController {
 
     private final VehicleQueryService vehicleQueryService;
@@ -69,6 +71,7 @@ public class VehiclesController {
      */
     @GetMapping
     @Operation(summary = "Get vehicles by branch and status", description = "Retrieves vehicles under a specific branch. Use ?status=available-for-linking to get vehicles available for OBD2 device linking.")
+    @PreAuthorize("isAuthenticated() and @multiTenancySecurityService.isAuthorizedForBranch(#branchId)")
     public ResponseEntity<?> getVehicles(
             @RequestParam UUID branchId,
             @RequestParam String status) {

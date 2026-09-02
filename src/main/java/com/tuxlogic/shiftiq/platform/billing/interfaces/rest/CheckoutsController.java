@@ -17,6 +17,9 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.tuxlogic.shiftiq.platform.shared.infrastructure.security.MultiTenancySecurityService;
+import org.springframework.security.access.prepost.PreAuthorize;
+
 /**
  * REST controller for managing billing checkouts.
  * Exposes endpoints for the checkout workflow which involves generating a voucher and processing a full payment.
@@ -24,26 +27,67 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping(value = "/api/v1/checkouts", produces = "application/json")
 @Tag(name = "Checkouts", description = "Endpoints for processing complete checkout workflows")
+@PreAuthorize("isAuthenticated()")
 public class CheckoutsController {
 
     private final VoucherCommandService commandService;
     private final org.springframework.context.MessageSource messageSource;
+    private final MultiTenancySecurityService multiTenancySecurityService;
 
-    public CheckoutsController(VoucherCommandService commandService, org.springframework.context.MessageSource messageSource) {
+    public CheckoutsController(VoucherCommandService commandService, org.springframework.context.MessageSource messageSource, MultiTenancySecurityService multiTenancySecurityService) {
         this.commandService = commandService;
         this.messageSource = messageSource;
+        this.multiTenancySecurityService = multiTenancySecurityService;
     }
 
     @PostMapping
     @Operation(summary = "Process checkout", description = "Generates a voucher and records a full payment in a single transaction")
     public ResponseEntity<?> checkout(@Valid @RequestBody ProcessCheckoutResource resource) {
+        VoucherType voucherType;
+        PaymentMethod paymentMethod;
+        try {
+            voucherType = resource.type() != null ? VoucherType.valueOf(resource.type().toUpperCase()) : VoucherType.RECEIPT;
+            paymentMethod = resource.method() != null ? PaymentMethod.valueOf(resource.method().toUpperCase()) : PaymentMethod.CASH;
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body("Invalid voucher type or payment method");
+        }
+
         var command = new ProcessCheckoutCommand(
                 resource.quoteId(),
-                VoucherType.valueOf(resource.type()),
+                voucherType,
                 resource.customerDocumentType(),
                 resource.customerDocumentNumber(),
                 resource.customerName(),
-                PaymentMethod.valueOf(resource.method())
+                paymentMethod
+        );
+
+        var result = commandService.handle(command);
+
+        if (result.isSuccess()) {
+            var voucherResource = VoucherResourceFromAggregateAssembler.toResourceFromAggregate(result.success().get());
+            return new ResponseEntity<>(voucherResource, HttpStatus.CREATED);
+        }
+
+        return toErrorResponse(result.failure().get());
+    }
+
+    @PostMapping("/stripe")
+    @Operation(summary = "Process Stripe checkout", description = "Verifies a Stripe PaymentIntent, generates a voucher via Factos/SUNAT, and records the payment")
+    public ResponseEntity<?> stripeCheckout(@Valid @RequestBody com.tuxlogic.shiftiq.platform.billing.interfaces.rest.resources.ProcessStripeCheckoutResource resource) {
+        VoucherType voucherType;
+        try {
+            voucherType = resource.type() != null ? VoucherType.valueOf(resource.type().toUpperCase()) : VoucherType.RECEIPT;
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body("Invalid voucher type");
+        }
+
+        var command = new com.tuxlogic.shiftiq.platform.billing.domain.model.commands.ProcessStripeCheckoutCommand(
+                resource.quoteId(),
+                voucherType,
+                resource.customerDocumentType(),
+                resource.customerDocumentNumber(),
+                resource.customerName(),
+                resource.paymentIntentId()
         );
 
         var result = commandService.handle(command);
