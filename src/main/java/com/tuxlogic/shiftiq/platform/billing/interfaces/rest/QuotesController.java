@@ -150,6 +150,7 @@ public class QuotesController {
      */
     @GetMapping(params = "branchId")
     @Operation(summary = "Get quotes by branch ID", description = "Retrieves all Quotes belonging to a specific branch")
+    @PreAuthorize("isAuthenticated() and @multiTenancySecurityService.isAuthorizedForBranch(#branchId)")
     public ResponseEntity<List<QuoteResource>> getQuotesByBranchId(@RequestParam UUID branchId) {
         var query = new GetQuotesByBranchIdQuery(new BranchId(branchId));
         var quotes = queryService.handle(query);

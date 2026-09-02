@@ -30,11 +30,11 @@ import java.util.UUID;
 
 /**
  * Implementation of the VoucherCommandService interface.
- * Orchestrates the business logic for creating and paying invoices/receipts.
- * Integrates with the Operations bounded context to validate branch data, 
+ * Handles the business use cases for Voucher operations, interacting with repositories
  * and with the Factos external service to emit documents to the tax authority.
  */
 @Service
+@Transactional
 public class VoucherCommandServiceImpl implements VoucherCommandService {
 
     private final VoucherRepository voucherRepository;

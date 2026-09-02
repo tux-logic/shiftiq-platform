@@ -17,6 +17,8 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import org.springframework.security.access.prepost.PreAuthorize;
+
 /**
  * REST controller for managing billing checkouts.
  * Exposes endpoints for the checkout workflow which involves generating a voucher and processing a full payment.
@@ -24,6 +26,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping(value = "/api/v1/checkouts", produces = "application/json")
 @Tag(name = "Checkouts", description = "Endpoints for processing complete checkout workflows")
+@PreAuthorize("isAuthenticated()")
 public class CheckoutsController {
 
     private final VoucherCommandService commandService;

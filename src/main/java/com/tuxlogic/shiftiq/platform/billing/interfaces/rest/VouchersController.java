@@ -81,6 +81,7 @@ public class VouchersController {
 
     @GetMapping(params = "branchId")
     @Operation(summary = "Get vouchers by branch", description = "Retrieves all vouchers emitted in a specific branch")
+    @PreAuthorize("isAuthenticated() and @multiTenancySecurityService.isAuthorizedForBranch(#branchId)")
     public ResponseEntity<List<VoucherResource>> getVouchersByBranch(@RequestParam UUID branchId) {
         var query = new com.tuxlogic.shiftiq.platform.billing.domain.model.queries.GetVouchersByBranchIdQuery(new com.tuxlogic.shiftiq.platform.shared.domain.model.valueobjects.BranchId(branchId));
         var vouchers = queryService.handle(query);
