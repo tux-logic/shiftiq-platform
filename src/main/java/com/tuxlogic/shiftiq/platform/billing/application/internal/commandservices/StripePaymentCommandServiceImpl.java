@@ -26,4 +26,10 @@ public class StripePaymentCommandServiceImpl implements StripePaymentCommandServ
     public Optional<StripePaymentIntentResult> createPaymentIntent(BigDecimal amount, String currency, String description) {
         return stripeGateway.createPaymentIntent(amount, currency, description);
     }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Optional<StripePaymentIntentResult> getPaymentIntent(String paymentIntentId) {
+        return stripeGateway.getPaymentIntent(paymentIntentId);
+    }
 }

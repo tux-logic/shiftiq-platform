@@ -10,4 +10,5 @@ import java.util.Optional;
  */
 public interface StripePaymentCommandService {
     Optional<StripePaymentIntentResult> createPaymentIntent(BigDecimal amount, String currency, String description);
+    Optional<StripePaymentIntentResult> getPaymentIntent(String paymentIntentId);
 }

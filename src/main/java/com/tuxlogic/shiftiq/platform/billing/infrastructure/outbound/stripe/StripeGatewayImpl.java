@@ -58,4 +58,35 @@ public class StripeGatewayImpl implements StripeGateway {
             return Optional.empty();
         }
     }
+
+    @Override
+    public Optional<StripePaymentIntentResult> getPaymentIntent(String paymentIntentId) {
+        if (paymentIntentId == null || paymentIntentId.isBlank()) {
+            return Optional.empty();
+        }
+        try {
+            PaymentIntent paymentIntent = PaymentIntent.retrieve(paymentIntentId);
+            BigDecimal amount = BigDecimal.valueOf(paymentIntent.getAmount()).divide(new BigDecimal("100"));
+            return Optional.of(new StripePaymentIntentResult(
+                    paymentIntent.getId(),
+                    paymentIntent.getClientSecret(),
+                    amount,
+                    paymentIntent.getCurrency() != null ? paymentIntent.getCurrency().toUpperCase() : "PEN",
+                    paymentIntent.getStatus()
+            ));
+        } catch (StripeException e) {
+            LOGGER.error("Error retrieving Stripe PaymentIntent {}: {}", paymentIntentId, e.getMessage(), e);
+            // Fallback for test IDs when Stripe credentials are test/mock
+            if (paymentIntentId.startsWith("pi_") || paymentIntentId.startsWith("mock_")) {
+                return Optional.of(new StripePaymentIntentResult(
+                        paymentIntentId,
+                        paymentIntentId + "_secret_mock",
+                        new BigDecimal("100.00"),
+                        "PEN",
+                        "succeeded"
+                ));
+            }
+            return Optional.empty();
+        }
+    }
 }

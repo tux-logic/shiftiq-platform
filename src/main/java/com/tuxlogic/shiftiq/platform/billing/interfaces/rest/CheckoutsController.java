@@ -71,6 +71,35 @@ public class CheckoutsController {
         return toErrorResponse(result.failure().get());
     }
 
+    @PostMapping("/stripe")
+    @Operation(summary = "Process Stripe checkout", description = "Verifies a Stripe PaymentIntent, generates a voucher via Factos/SUNAT, and records the payment")
+    public ResponseEntity<?> stripeCheckout(@Valid @RequestBody com.tuxlogic.shiftiq.platform.billing.interfaces.rest.resources.ProcessStripeCheckoutResource resource) {
+        VoucherType voucherType;
+        try {
+            voucherType = resource.type() != null ? VoucherType.valueOf(resource.type().toUpperCase()) : VoucherType.RECEIPT;
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body("Invalid voucher type");
+        }
+
+        var command = new com.tuxlogic.shiftiq.platform.billing.domain.model.commands.ProcessStripeCheckoutCommand(
+                resource.quoteId(),
+                voucherType,
+                resource.customerDocumentType(),
+                resource.customerDocumentNumber(),
+                resource.customerName(),
+                resource.paymentIntentId()
+        );
+
+        var result = commandService.handle(command);
+
+        if (result.isSuccess()) {
+            var voucherResource = VoucherResourceFromAggregateAssembler.toResourceFromAggregate(result.success().get());
+            return new ResponseEntity<>(voucherResource, HttpStatus.CREATED);
+        }
+
+        return toErrorResponse(result.failure().get());
+    }
+
     private ResponseEntity<?> toErrorResponse(VoucherCommandFailure failure) {
         return switch (failure) {
             case QUOTE_NOT_FOUND -> {

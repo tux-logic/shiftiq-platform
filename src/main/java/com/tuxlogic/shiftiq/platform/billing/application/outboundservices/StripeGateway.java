@@ -8,4 +8,5 @@ import java.util.Optional;
  */
 public interface StripeGateway {
     Optional<StripePaymentIntentResult> createPaymentIntent(BigDecimal amount, String currency, String description);
+    Optional<StripePaymentIntentResult> getPaymentIntent(String paymentIntentId);
 }

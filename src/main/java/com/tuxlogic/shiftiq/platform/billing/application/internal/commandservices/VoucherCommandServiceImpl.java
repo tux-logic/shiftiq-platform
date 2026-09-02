@@ -33,6 +33,8 @@ import java.util.UUID;
  * Handles the business use cases for Voucher operations, interacting with repositories
  * and with the Factos external service to emit documents to the tax authority.
  */
+import com.tuxlogic.shiftiq.platform.billing.application.outboundservices.StripeGateway;
+
 @Service
 @Transactional
 public class VoucherCommandServiceImpl implements VoucherCommandService {
@@ -42,6 +44,7 @@ public class VoucherCommandServiceImpl implements VoucherCommandService {
     private final BranchQueryService branchQueryService;
     private final WorkshopQueryService workshopQueryService;
     private final FactosGateway factosGateway;
+    private final StripeGateway stripeGateway;
     private final WorkOrderQueryService workOrderQueryService;
     private final ProductQueryService productQueryService;
 
@@ -51,6 +54,7 @@ public class VoucherCommandServiceImpl implements VoucherCommandService {
             BranchQueryService branchQueryService,
             WorkshopQueryService workshopQueryService,
             FactosGateway factosGateway,
+            StripeGateway stripeGateway,
             WorkOrderQueryService workOrderQueryService,
             ProductQueryService productQueryService) {
         this.voucherRepository = voucherRepository;
@@ -58,6 +62,7 @@ public class VoucherCommandServiceImpl implements VoucherCommandService {
         this.branchQueryService = branchQueryService;
         this.workshopQueryService = workshopQueryService;
         this.factosGateway = factosGateway;
+        this.stripeGateway = stripeGateway;
         this.workOrderQueryService = workOrderQueryService;
         this.productQueryService = productQueryService;
     }
@@ -245,6 +250,31 @@ public class VoucherCommandServiceImpl implements VoucherCommandService {
         } catch (IllegalArgumentException | IllegalStateException e) {
             return Result.failure(VoucherCommandFailure.INVALID_VOUCHER_DATA);
         }
+    }
+
+    @Override
+    @Transactional
+    public Result<Voucher, VoucherCommandFailure> handle(com.tuxlogic.shiftiq.platform.billing.domain.model.commands.ProcessStripeCheckoutCommand command) {
+        // 1. Verify Stripe PaymentIntent status
+        var stripeIntentOpt = stripeGateway.getPaymentIntent(command.paymentIntentId());
+        if (stripeIntentOpt.isEmpty()) {
+            return Result.failure(VoucherCommandFailure.PAYMENT_NOT_FOUND);
+        }
+        var stripeIntent = stripeIntentOpt.get();
+        if (!"succeeded".equalsIgnoreCase(stripeIntent.status()) && !"requires_capture".equalsIgnoreCase(stripeIntent.status())) {
+            return Result.failure(VoucherCommandFailure.INVALID_VOUCHER_DATA);
+        }
+
+        // 2. Delegate to standard checkout with CREDIT_CARD method
+        var checkoutCommand = new com.tuxlogic.shiftiq.platform.billing.domain.model.commands.ProcessCheckoutCommand(
+                command.quoteId(),
+                command.type(),
+                command.customerDocumentType(),
+                command.customerDocumentNumber(),
+                command.customerName(),
+                com.tuxlogic.shiftiq.platform.billing.domain.model.valueobjects.PaymentMethod.CREDIT_CARD
+        );
+        return handle(checkoutCommand);
     }
 
     private List<FactosGateway.FactosItem> getDetailedBillingItems(com.tuxlogic.shiftiq.platform.billing.domain.model.aggregates.Quote quote) {
