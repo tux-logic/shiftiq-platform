@@ -1,7 +1,7 @@
 package com.tuxlogic.shiftiq.platform.billing.interfaces.rest;
 
-import com.tuxlogic.shiftiq.platform.billing.application.outboundservices.StripeGateway;
-import com.tuxlogic.shiftiq.platform.billing.infrastructure.outbound.stripe.StripePaymentIntentResponse;
+import com.tuxlogic.shiftiq.platform.billing.application.commandservices.StripePaymentCommandService;
+import com.tuxlogic.shiftiq.platform.billing.application.outboundservices.StripePaymentIntentResult;
 import com.tuxlogic.shiftiq.platform.billing.interfaces.rest.resources.CreatePaymentIntentResource;
 import com.tuxlogic.shiftiq.platform.billing.interfaces.rest.resources.PaymentIntentResource;
 import org.junit.jupiter.api.BeforeEach;
@@ -24,13 +24,13 @@ import static org.mockito.Mockito.when;
 class StripePaymentsControllerTest {
 
     @Mock
-    private StripeGateway stripeGateway;
+    private StripePaymentCommandService paymentCommandService;
 
     private StripePaymentsController controller;
 
     @BeforeEach
     void setUp() {
-        controller = new StripePaymentsController(stripeGateway);
+        controller = new StripePaymentsController(paymentCommandService);
     }
 
     @Test
@@ -40,7 +40,7 @@ class StripePaymentsControllerTest {
         String currency = "PEN";
         String description = "Pago taller";
 
-        StripePaymentIntentResponse mockResponse = new StripePaymentIntentResponse(
+        StripePaymentIntentResult mockResponse = new StripePaymentIntentResult(
                 "pi_123456",
                 "pi_123456_secret_789",
                 amount,
@@ -48,7 +48,7 @@ class StripePaymentsControllerTest {
                 "requires_payment_method"
         );
 
-        when(stripeGateway.createPaymentIntent(eq(amount), eq(currency), eq(description)))
+        when(paymentCommandService.createPaymentIntent(eq(amount), eq(currency), eq(description)))
                 .thenReturn(Optional.of(mockResponse));
 
         CreatePaymentIntentResource resource = new CreatePaymentIntentResource(amount, currency, description);
@@ -70,7 +70,7 @@ class StripePaymentsControllerTest {
     void createPaymentIntent_WhenGatewayFails_ShouldReturnInternalServerError() {
         // Arrange
         BigDecimal amount = new BigDecimal("100.00");
-        when(stripeGateway.createPaymentIntent(any(), any(), any()))
+        when(paymentCommandService.createPaymentIntent(any(), any(), any()))
                 .thenReturn(Optional.empty());
 
         CreatePaymentIntentResource resource = new CreatePaymentIntentResource(amount, "PEN", "Pago taller");

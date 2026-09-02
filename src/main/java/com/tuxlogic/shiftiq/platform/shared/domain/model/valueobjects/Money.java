@@ -13,6 +13,14 @@ public record Money(BigDecimal amount) {
 
     public static final Money ZERO = new Money(BigDecimal.ZERO);
 
+    public static Money of(double val) {
+        return new Money(BigDecimal.valueOf(val));
+    }
+
+    public static Money of(BigDecimal val) {
+        return new Money(val);
+    }
+
     private static final String NOT_NULL_MESSAGE_KEY = "operations.error.money.required";
     private static final String NOT_NEGATIVE_MESSAGE_KEY = "operations.error.money.cannotBeNegative";
 

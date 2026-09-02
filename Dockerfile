@@ -1,6 +1,6 @@
-﻿# Dockerfile for catch-up-platform
+# Dockerfile for shiftiq-platform
 # Summary:
-# This Dockerfile builds and run the catch-up-platform application using Maven and OpenJDK 26.
+# This Dockerfile builds and runs the shiftiq-platform application using Maven and OpenJDK 26.
 # Description:
 # This Dockerfile is designed to build a Spring Boot application using Maven and run it in a lightweight
 # OpenJDK 26 environment. It uses a multi-stage build to keep the final image size small by separating the build
