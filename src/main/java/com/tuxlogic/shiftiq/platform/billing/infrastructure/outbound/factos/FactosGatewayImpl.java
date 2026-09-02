@@ -2,6 +2,8 @@ package com.tuxlogic.shiftiq.platform.billing.infrastructure.outbound.factos;
 
 import com.tuxlogic.shiftiq.platform.billing.application.outboundservices.FactosGateway;
 import com.tuxlogic.shiftiq.platform.billing.domain.model.valueobjects.VoucherType;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
@@ -23,7 +25,8 @@ import java.util.concurrent.atomic.AtomicLong;
 @Service
 public class FactosGatewayImpl implements FactosGateway {
 
-    private static final AtomicLong CORRELATIVE_COUNTER = new AtomicLong(1);
+    private static final Logger LOGGER = LoggerFactory.getLogger(FactosGatewayImpl.class);
+    private static final AtomicLong CORRELATIVE_COUNTER = new AtomicLong((System.currentTimeMillis() / 1000) % 100000000L);
 
     private final String factosApiUrl;
     private final String factosApiKey;
@@ -50,7 +53,7 @@ public class FactosGatewayImpl implements FactosGateway {
         try {
             String cpeType = documentType == VoucherType.INVOICE ? "01" : "03";
             String series = documentType == VoucherType.INVOICE ? "F001" : "B001";
-            String correlative = String.format("%08d", CORRELATIVE_COUNTER.getAndIncrement());
+            String correlative = String.format("%08d", CORRELATIVE_COUNTER.getAndIncrement() % 100000000L);
             String issueDate = LocalDate.now().format(DateTimeFormatter.ISO_LOCAL_DATE);
 
             List<FactosIssueInvoiceRequest.Item> requestItems = items.stream()
@@ -100,7 +103,7 @@ public class FactosGatewayImpl implements FactosGateway {
 
             return Optional.empty();
         } catch (RestClientException e) {
-            System.err.println("Error calling Factos Service: " + e.getMessage());
+            LOGGER.error("Error calling Factos Service: {}", e.getMessage(), e);
             return Optional.empty();
         }
     }

@@ -5,6 +5,8 @@ import com.stripe.exception.StripeException;
 import com.stripe.model.PaymentIntent;
 import com.stripe.param.PaymentIntentCreateParams;
 import com.tuxlogic.shiftiq.platform.billing.application.outboundservices.StripeGateway;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
@@ -17,6 +19,8 @@ import java.util.Optional;
  */
 @Service
 public class StripeGatewayImpl implements StripeGateway {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(StripeGatewayImpl.class);
 
     public StripeGatewayImpl(@Value("${stripe.secret.key}") String secretKey) {
         Stripe.apiKey = secretKey;
@@ -49,7 +53,7 @@ public class StripeGatewayImpl implements StripeGateway {
                     paymentIntent.getStatus()
             ));
         } catch (StripeException e) {
-            System.err.println("Error creating Stripe PaymentIntent: " + e.getMessage());
+            LOGGER.error("Error creating Stripe PaymentIntent: {}", e.getMessage(), e);
             return Optional.empty();
         }
     }
