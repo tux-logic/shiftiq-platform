@@ -255,7 +255,14 @@ public class VoucherCommandServiceImpl implements VoucherCommandService {
     @Override
     @Transactional
     public Result<Voucher, VoucherCommandFailure> handle(com.tuxlogic.shiftiq.platform.billing.domain.model.commands.ProcessStripeCheckoutCommand command) {
-        // 1. Verify Stripe PaymentIntent status
+        // 1. Validate Quote
+        var quoteOpt = quoteRepository.findById(command.quoteId());
+        if (quoteOpt.isEmpty()) {
+            return Result.failure(VoucherCommandFailure.QUOTE_NOT_FOUND);
+        }
+        var quote = quoteOpt.get();
+
+        // 2. Verify Stripe PaymentIntent status and amount
         var stripeIntentOpt = stripeGateway.getPaymentIntent(command.paymentIntentId());
         if (stripeIntentOpt.isEmpty()) {
             return Result.failure(VoucherCommandFailure.PAYMENT_NOT_FOUND);
@@ -264,8 +271,11 @@ public class VoucherCommandServiceImpl implements VoucherCommandService {
         if (!"succeeded".equalsIgnoreCase(stripeIntent.status()) && !"requires_capture".equalsIgnoreCase(stripeIntent.status())) {
             return Result.failure(VoucherCommandFailure.INVALID_VOUCHER_DATA);
         }
+        if (stripeIntent.amount().compareTo(quote.getTotalAmount().amount()) != 0) {
+            return Result.failure(VoucherCommandFailure.INVALID_VOUCHER_DATA);
+        }
 
-        // 2. Delegate to standard checkout with CREDIT_CARD method
+        // 3. Delegate to standard checkout with CREDIT_CARD method
         var checkoutCommand = new com.tuxlogic.shiftiq.platform.billing.domain.model.commands.ProcessCheckoutCommand(
                 command.quoteId(),
                 command.type(),

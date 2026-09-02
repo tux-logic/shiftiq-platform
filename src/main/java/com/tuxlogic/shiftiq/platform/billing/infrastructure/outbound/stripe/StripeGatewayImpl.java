@@ -76,16 +76,6 @@ public class StripeGatewayImpl implements StripeGateway {
             ));
         } catch (StripeException e) {
             LOGGER.error("Error retrieving Stripe PaymentIntent {}: {}", paymentIntentId, e.getMessage(), e);
-            // Fallback for test IDs when Stripe credentials are test/mock
-            if (paymentIntentId.startsWith("pi_") || paymentIntentId.startsWith("mock_")) {
-                return Optional.of(new StripePaymentIntentResult(
-                        paymentIntentId,
-                        paymentIntentId + "_secret_mock",
-                        new BigDecimal("100.00"),
-                        "PEN",
-                        "succeeded"
-                ));
-            }
             return Optional.empty();
         }
     }
