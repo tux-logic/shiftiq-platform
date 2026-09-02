@@ -117,6 +117,7 @@ public class WorkOrdersController {
 
     @GetMapping
     @Operation(summary = "Get Work Orders", description = "Retrieves a list of all Work Orders, optionally filtered by branchId or vehicleId")
+    @PreAuthorize("isAuthenticated() and @multiTenancySecurityService.isAuthorizedForBranch(#branchId)")
     public ResponseEntity<?> getWorkOrders(@RequestParam(required = false) UUID branchId,
                                            @RequestParam(required = false) UUID vehicleId) {
         if (branchId != null) {
