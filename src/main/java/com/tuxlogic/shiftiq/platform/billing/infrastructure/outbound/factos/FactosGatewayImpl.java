@@ -84,7 +84,7 @@ public class FactosGatewayImpl implements FactosGateway {
 
             HttpEntity<FactosIssueInvoiceRequest> requestEntity = new HttpEntity<>(requestDto, headers);
 
-            String endpoint = factosApiUrl.endsWith("/") ? factosApiUrl + "api/v1/comprobantes" : factosApiUrl + "/api/v1/comprobantes";
+            String endpoint = factosApiUrl.endsWith("/") ? factosApiUrl + "api/v1/documents" : factosApiUrl + "/api/v1/documents";
 
             var response = restTemplate.postForObject(
                     endpoint,
