@@ -28,6 +28,8 @@ import org.springframework.web.bind.annotation.RequestParam;
 import java.util.UUID;
 import java.util.List;
 
+import org.springframework.security.access.prepost.PreAuthorize;
+
 /**
  * REST controller for managing billing vouchers (Invoices and Receipts).
  * Exposes endpoints for voucher generation, payment processing, and checkout workflows.
@@ -36,6 +38,7 @@ import java.util.List;
 @RestController
 @RequestMapping(value = "/api/v1/vouchers", produces = "application/json")
 @Tag(name = "Vouchers", description = "Endpoints for generating and managing billing vouchers (invoices and receipts)")
+@PreAuthorize("isAuthenticated()")
 public class VouchersController {
 
     private final VoucherCommandService commandService;

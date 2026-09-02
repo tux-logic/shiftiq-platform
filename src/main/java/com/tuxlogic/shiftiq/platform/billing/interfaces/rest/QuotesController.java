@@ -23,6 +23,7 @@ import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.security.access.prepost.PreAuthorize;
 
 /**
  * REST controller for managing billing quotes.
@@ -32,6 +33,7 @@ import org.springframework.web.bind.annotation.*;
 @RestController
 @RequestMapping(value = "/api/v1/quotes", produces = "application/json")
 @Tag(name = "Quotes", description = "Endpoints for managing billing quotes")
+@PreAuthorize("isAuthenticated()")
 public class QuotesController {
 
     private final QuoteCommandService commandService;

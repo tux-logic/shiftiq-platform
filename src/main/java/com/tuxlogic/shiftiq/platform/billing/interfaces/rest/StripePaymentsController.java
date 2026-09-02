@@ -11,6 +11,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
@@ -20,6 +21,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping(value = "/api/v1/payments/stripe", produces = "application/json")
 @Tag(name = "Stripe Payments", description = "Endpoints for creating Stripe PaymentIntents to process card payments")
+@PreAuthorize("isAuthenticated()")
 public class StripePaymentsController {
 
     private final StripeGateway stripeGateway;
