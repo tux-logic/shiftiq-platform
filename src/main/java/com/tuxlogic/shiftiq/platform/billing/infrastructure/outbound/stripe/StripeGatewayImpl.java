@@ -5,6 +5,7 @@ import com.stripe.exception.StripeException;
 import com.stripe.model.PaymentIntent;
 import com.stripe.param.PaymentIntentCreateParams;
 import com.tuxlogic.shiftiq.platform.billing.application.outboundservices.StripeGateway;
+import com.tuxlogic.shiftiq.platform.billing.application.outboundservices.StripePaymentIntentResult;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -27,7 +28,7 @@ public class StripeGatewayImpl implements StripeGateway {
     }
 
     @Override
-    public Optional<StripePaymentIntentResponse> createPaymentIntent(BigDecimal amount, String currency, String description) {
+    public Optional<StripePaymentIntentResult> createPaymentIntent(BigDecimal amount, String currency, String description) {
         try {
             // Stripe amounts are represented in cents (e.g. 10.00 -> 1000)
             long amountInCents = amount.multiply(new BigDecimal("100")).longValue();
@@ -45,7 +46,7 @@ public class StripeGatewayImpl implements StripeGateway {
 
             PaymentIntent paymentIntent = PaymentIntent.create(params);
 
-            return Optional.of(new StripePaymentIntentResponse(
+            return Optional.of(new StripePaymentIntentResult(
                     paymentIntent.getId(),
                     paymentIntent.getClientSecret(),
                     amount,

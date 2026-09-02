@@ -1,6 +1,6 @@
 package com.tuxlogic.shiftiq.platform.billing.interfaces.rest;
 
-import com.tuxlogic.shiftiq.platform.billing.application.outboundservices.StripeGateway;
+import com.tuxlogic.shiftiq.platform.billing.application.commandservices.StripePaymentCommandService;
 import com.tuxlogic.shiftiq.platform.billing.interfaces.rest.resources.CreatePaymentIntentResource;
 import com.tuxlogic.shiftiq.platform.billing.interfaces.rest.resources.PaymentIntentResource;
 import io.swagger.v3.oas.annotations.Operation;
@@ -24,16 +24,16 @@ import org.springframework.web.bind.annotation.RestController;
 @PreAuthorize("isAuthenticated()")
 public class StripePaymentsController {
 
-    private final StripeGateway stripeGateway;
+    private final StripePaymentCommandService paymentCommandService;
 
-    public StripePaymentsController(StripeGateway stripeGateway) {
-        this.stripeGateway = stripeGateway;
+    public StripePaymentsController(StripePaymentCommandService paymentCommandService) {
+        this.paymentCommandService = paymentCommandService;
     }
 
     @PostMapping("/payment-intents")
     @Operation(summary = "Create a Stripe PaymentIntent", description = "Generates a Stripe PaymentIntent and clientSecret for card payment processing")
     public ResponseEntity<PaymentIntentResource> createPaymentIntent(@Valid @RequestBody CreatePaymentIntentResource resource) {
-        var resultOpt = stripeGateway.createPaymentIntent(
+        var resultOpt = paymentCommandService.createPaymentIntent(
                 resource.amount(),
                 resource.currency(),
                 resource.description()
