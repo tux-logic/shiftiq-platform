@@ -38,7 +38,7 @@ public class VoucherPersistenceAssembler {
                 paymentEntity.setAmount(payment.getAmount().amount());
                 paymentEntity.setCurrency("PEN");
                 paymentEntity.setMethod(payment.getMethod());
-                paymentEntity.setPaidAt(java.time.LocalDateTime.now());
+                paymentEntity.setPaidAt(payment.getPaidAt() != null ? payment.getPaidAt() : java.time.LocalDateTime.now());
                 paymentEntity.setBranchId(payment.getBranchId());
                 paymentEntity.setVoucher(entity);
                 return paymentEntity;
@@ -53,7 +53,7 @@ public class VoucherPersistenceAssembler {
         if (entity == null) return null;
         
         var payments = entity.getPayments() != null ? entity.getPayments().stream()
-                .map(pEntity -> new Payment(pEntity.getId(), new Money(pEntity.getAmount()), pEntity.getMethod(), pEntity.getBranchId()))
+                .map(pEntity -> new Payment(pEntity.getId(), new Money(pEntity.getAmount()), pEntity.getMethod(), pEntity.getBranchId(), pEntity.getPaidAt()))
                 .collect(Collectors.toList()) : new java.util.ArrayList<Payment>();
 
         return new Voucher(

@@ -144,13 +144,14 @@ public class VoucherCommandServiceImpl implements VoucherCommandService {
             var savedVoucher = voucherRepository.save(voucher);
             return Result.success(savedVoucher);
         } catch (IllegalStateException e) {
-            if (e.getMessage().contains("already paid")) {
+            String msg = e.getMessage() != null ? e.getMessage() : "";
+            if (msg.contains("alreadyPaid") || msg.contains("already paid")) {
                 return Result.failure(VoucherCommandFailure.VOUCHER_ALREADY_PAID);
             }
-            if (e.getMessage().contains("canceled")) {
+            if (msg.contains("canceled") || msg.contains("Canceled")) {
                 return Result.failure(VoucherCommandFailure.VOUCHER_CANCELED);
             }
-            if (e.getMessage().contains("exceeds")) {
+            if (msg.contains("exceeds") || msg.contains("paymentExceedsDebt")) {
                 return Result.failure(VoucherCommandFailure.PAYMENT_EXCEEDS_TOTAL_DEBT);
             }
             return Result.failure(VoucherCommandFailure.INVALID_VOUCHER_DATA);
