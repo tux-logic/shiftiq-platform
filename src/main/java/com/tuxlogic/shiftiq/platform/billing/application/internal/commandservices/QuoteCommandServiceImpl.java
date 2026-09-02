@@ -10,6 +10,7 @@ import com.tuxlogic.shiftiq.platform.operations.domain.model.queries.GetWorkOrde
 import com.tuxlogic.shiftiq.platform.operations.domain.model.valueobjects.WorkOrderId;
 import com.tuxlogic.shiftiq.platform.shared.application.result.Result;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 /**
  * Implementation of the QuoteCommandService interface.
@@ -18,6 +19,7 @@ import org.springframework.stereotype.Service;
  * and persistence repositories.
  */
 @Service
+@Transactional
 public class QuoteCommandServiceImpl implements QuoteCommandService {
 
     private final QuoteRepository quoteRepository;

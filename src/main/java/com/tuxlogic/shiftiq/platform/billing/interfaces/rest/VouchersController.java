@@ -28,6 +28,9 @@ import org.springframework.web.bind.annotation.RequestParam;
 import java.util.UUID;
 import java.util.List;
 
+import com.tuxlogic.shiftiq.platform.shared.infrastructure.security.MultiTenancySecurityService;
+import org.springframework.security.access.prepost.PreAuthorize;
+
 /**
  * REST controller for managing billing vouchers (Invoices and Receipts).
  * Exposes endpoints for voucher generation, payment processing, and checkout workflows.
@@ -36,16 +39,19 @@ import java.util.List;
 @RestController
 @RequestMapping(value = "/api/v1/vouchers", produces = "application/json")
 @Tag(name = "Vouchers", description = "Endpoints for generating and managing billing vouchers (invoices and receipts)")
+@PreAuthorize("isAuthenticated()")
 public class VouchersController {
 
     private final VoucherCommandService commandService;
     private final VoucherQueryService queryService;
     private final org.springframework.context.MessageSource messageSource;
+    private final MultiTenancySecurityService multiTenancySecurityService;
 
-    public VouchersController(VoucherCommandService commandService, VoucherQueryService queryService, org.springframework.context.MessageSource messageSource) {
+    public VouchersController(VoucherCommandService commandService, VoucherQueryService queryService, org.springframework.context.MessageSource messageSource, MultiTenancySecurityService multiTenancySecurityService) {
         this.commandService = commandService;
         this.queryService = queryService;
         this.messageSource = messageSource;
+        this.multiTenancySecurityService = multiTenancySecurityService;
     }
 
     @PostMapping
@@ -78,6 +84,7 @@ public class VouchersController {
 
     @GetMapping(params = "branchId")
     @Operation(summary = "Get vouchers by branch", description = "Retrieves all vouchers emitted in a specific branch")
+    @PreAuthorize("isAuthenticated() and @multiTenancySecurityService.isAuthorizedForBranch(#branchId)")
     public ResponseEntity<List<VoucherResource>> getVouchersByBranch(@RequestParam UUID branchId) {
         var query = new com.tuxlogic.shiftiq.platform.billing.domain.model.queries.GetVouchersByBranchIdQuery(new com.tuxlogic.shiftiq.platform.shared.domain.model.valueobjects.BranchId(branchId));
         var vouchers = queryService.handle(query);
@@ -92,10 +99,17 @@ public class VouchersController {
     @PostMapping("/{voucherId}/payments")
     @Operation(summary = "Add a payment to a voucher", description = "Records a partial or full payment for a given voucher")
     public ResponseEntity<?> addPayment(@PathVariable UUID voucherId, @Valid @RequestBody AddPaymentResource resource) {
+        PaymentMethod paymentMethod;
+        try {
+            paymentMethod = resource.method() != null ? PaymentMethod.valueOf(resource.method().toUpperCase()) : PaymentMethod.CASH;
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body("Invalid payment method");
+        }
+
         var command = new AddPaymentCommand(
                 voucherId,
                 new Money(resource.amount()),
-                PaymentMethod.valueOf(resource.method())
+                paymentMethod
         );
 
         var result = commandService.handle(command);

@@ -24,6 +24,8 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 import java.util.UUID;
 
+import org.springframework.security.access.prepost.PreAuthorize;
+
 /**
  * REST controller for managing workshop work orders and mechanic tasks. This controller provides endpoints for creating, updating, retrieving, and deleting work orders, as well as managing the tasks and products associated with those work orders. It uses a command-query separation approach, delegating command handling to the WorkOrderCommandService and query handling to the WorkOrderQueryService. The controller also utilizes a MessageSource for internationalization of response messages.
  * @author Joel Huamani Estefanero
@@ -31,6 +33,7 @@ import java.util.UUID;
 @RestController
 @RequestMapping(value = "/api/v1/work-orders", produces = "application/json")
 @Tag(name = "Work Orders", description = "Endpoints for managing workshop work orders and mechanic tasks")
+@PreAuthorize("isAuthenticated()")
 public class WorkOrdersController {
 
     private final WorkOrderCommandService commandService;
@@ -114,6 +117,7 @@ public class WorkOrdersController {
 
     @GetMapping
     @Operation(summary = "Get Work Orders", description = "Retrieves a list of all Work Orders, optionally filtered by branchId or vehicleId")
+    @PreAuthorize("isAuthenticated() and @multiTenancySecurityService.isAuthorizedForBranch(#branchId)")
     public ResponseEntity<?> getWorkOrders(@RequestParam(required = false) UUID branchId,
                                            @RequestParam(required = false) UUID vehicleId) {
         if (branchId != null) {

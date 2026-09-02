@@ -4,11 +4,12 @@ import com.tuxlogic.shiftiq.platform.billing.domain.model.valueobjects.PaymentMe
 import com.tuxlogic.shiftiq.platform.shared.domain.model.valueobjects.Money;
 import lombok.Getter;
 
+import java.time.LocalDateTime;
 import java.util.UUID;
 
 /**
  * Entity representing a monetary payment made against a {@link com.tuxlogic.shiftiq.platform.billing.domain.model.aggregates.Voucher}.
- * Payments track the amount paid and the payment method used.
+ * Payments track the amount paid, payment method used, branch ID, and payment timestamp.
  */
 @Getter
 public class Payment {
@@ -16,6 +17,7 @@ public class Payment {
     private Money amount;
     private PaymentMethod method;
     private UUID branchId;
+    private LocalDateTime paidAt;
 
     /**
      * Default constructor required for persistence frameworks.
@@ -47,13 +49,19 @@ public class Payment {
         this.amount = amount;
         this.method = method;
         this.branchId = branchId;
+        this.paidAt = LocalDateTime.now();
     }
 
     // For persistence rebuilding
     public Payment(UUID id, Money amount, PaymentMethod method, UUID branchId) {
+        this(id, amount, method, branchId, LocalDateTime.now());
+    }
+
+    public Payment(UUID id, Money amount, PaymentMethod method, UUID branchId, LocalDateTime paidAt) {
         this.id = id;
         this.amount = amount;
         this.method = method;
         this.branchId = branchId;
+        this.paidAt = paidAt != null ? paidAt : LocalDateTime.now();
     }
 }

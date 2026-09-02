@@ -55,7 +55,7 @@ class FactosGatewayImplTest {
         );
 
         when(restTemplate.postForObject(
-                eq(API_URL + "/api/v1/comprobantes"),
+                eq(API_URL + "/api/v1/documents"),
                 any(HttpEntity.class),
                 eq(FactosIssueInvoiceResponse.class)
         )).thenReturn(response);
@@ -78,7 +78,7 @@ class FactosGatewayImplTest {
         assertTrue(result.isPresent());
         assertEquals("F001", result.get().series());
         assertEquals("00000001", result.get().correlative());
-        assertEquals("/api/v1/rendering/pdf/F001/00000001", result.get().pdfUrl());
+        assertEquals(API_URL + "/api/v1/rendering/pdf/F001/00000001", result.get().pdfUrl());
         assertEquals(new BigDecimal("118.00"), result.get().totalAmount());
     }
 

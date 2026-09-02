@@ -40,4 +40,9 @@ public abstract class AuditableAbstractPersistenceEntity {
     @Setter
     @Column(name = "updated_at", nullable = false)
     private Instant updatedAt;
+
+    @Version
+    @Setter
+    @Column(name = "version")
+    private Long version;
 }

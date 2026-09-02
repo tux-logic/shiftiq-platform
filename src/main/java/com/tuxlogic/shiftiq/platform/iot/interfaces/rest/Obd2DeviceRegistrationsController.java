@@ -34,12 +34,15 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 import java.util.UUID;
 
+import org.springframework.security.access.prepost.PreAuthorize;
+
 /**
  * REST controller for managing OBD2 Device Registrations (linking devices to vehicles).
  */
 @RestController
 @RequestMapping(value = "/api/v1/obd2-device-registrations", produces = MediaType.APPLICATION_JSON_VALUE)
 @Tag(name = "OBD2 Device Registrations", description = "Endpoints for managing OBD2-vehicle couplings")
+@PreAuthorize("isAuthenticated()")
 public class Obd2DeviceRegistrationsController {
 
     private final Obd2DeviceRegistrationCommandService commandService;
@@ -108,6 +111,7 @@ public class Obd2DeviceRegistrationsController {
      */
     @GetMapping
     @Operation(summary = "Get OBD2 device registrations by branch and status", description = "Retrieves all registered OBD2-vehicle couplings under a specific branch, filtered by status")
+    @PreAuthorize("isAuthenticated() and @multiTenancySecurityService.isAuthorizedForBranch(#branchId)")
     public ResponseEntity<List<Obd2DeviceRegistrationResource>> getObd2DeviceRegistrations(
             @RequestParam UUID branchId,
             @RequestParam String status

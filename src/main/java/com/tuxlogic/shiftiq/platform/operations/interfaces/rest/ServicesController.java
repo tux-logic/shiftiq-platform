@@ -23,9 +23,12 @@ import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
+import org.springframework.security.access.prepost.PreAuthorize;
+
 @RestController
 @RequestMapping(value = "/api/v1/services", produces = MediaType.APPLICATION_JSON_VALUE)
 @Tag(name = "Services", description = "Services Management Endpoints")
+@PreAuthorize("isAuthenticated()")
 public class ServicesController {
 
     private final ServiceCommandService serviceCommandService;
@@ -72,6 +75,7 @@ public class ServicesController {
 
     @Operation(summary = "Get services by branch ID", description = "Retrieves all services belonging to a specific branch")
     @GetMapping
+    @PreAuthorize("isAuthenticated() and @multiTenancySecurityService.isAuthorizedForBranch(#branchId)")
     public ResponseEntity<List<ServiceResource>> getServicesByBranchId(@RequestParam(name = "branchId") UUID branchId) {
         var query = new GetAllServicesByBranchIdQuery(new BranchId(branchId));
         var services = serviceQueryService.handle(query);
