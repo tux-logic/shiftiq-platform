@@ -17,6 +17,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.tuxlogic.shiftiq.platform.shared.infrastructure.security.MultiTenancySecurityService;
 import org.springframework.security.access.prepost.PreAuthorize;
 
 /**
@@ -31,10 +32,12 @@ public class CheckoutsController {
 
     private final VoucherCommandService commandService;
     private final org.springframework.context.MessageSource messageSource;
+    private final MultiTenancySecurityService multiTenancySecurityService;
 
-    public CheckoutsController(VoucherCommandService commandService, org.springframework.context.MessageSource messageSource) {
+    public CheckoutsController(VoucherCommandService commandService, org.springframework.context.MessageSource messageSource, MultiTenancySecurityService multiTenancySecurityService) {
         this.commandService = commandService;
         this.messageSource = messageSource;
+        this.multiTenancySecurityService = multiTenancySecurityService;
     }
 
     @PostMapping

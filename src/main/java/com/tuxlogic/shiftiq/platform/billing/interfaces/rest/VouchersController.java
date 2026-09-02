@@ -28,6 +28,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import java.util.UUID;
 import java.util.List;
 
+import com.tuxlogic.shiftiq.platform.shared.infrastructure.security.MultiTenancySecurityService;
 import org.springframework.security.access.prepost.PreAuthorize;
 
 /**
@@ -44,11 +45,13 @@ public class VouchersController {
     private final VoucherCommandService commandService;
     private final VoucherQueryService queryService;
     private final org.springframework.context.MessageSource messageSource;
+    private final MultiTenancySecurityService multiTenancySecurityService;
 
-    public VouchersController(VoucherCommandService commandService, VoucherQueryService queryService, org.springframework.context.MessageSource messageSource) {
+    public VouchersController(VoucherCommandService commandService, VoucherQueryService queryService, org.springframework.context.MessageSource messageSource, MultiTenancySecurityService multiTenancySecurityService) {
         this.commandService = commandService;
         this.queryService = queryService;
         this.messageSource = messageSource;
+        this.multiTenancySecurityService = multiTenancySecurityService;
     }
 
     @PostMapping

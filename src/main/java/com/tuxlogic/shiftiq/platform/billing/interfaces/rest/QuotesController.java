@@ -25,6 +25,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.security.access.prepost.PreAuthorize;
 
+import com.tuxlogic.shiftiq.platform.shared.infrastructure.security.MultiTenancySecurityService;
+
 /**
  * REST controller for managing billing quotes.
  * This controller provides endpoints for creating and interacting with quotes.
@@ -39,11 +41,13 @@ public class QuotesController {
     private final QuoteCommandService commandService;
     private final QuoteQueryService queryService;
     private final org.springframework.context.MessageSource messageSource;
+    private final MultiTenancySecurityService multiTenancySecurityService;
 
-    public QuotesController(QuoteCommandService commandService, QuoteQueryService queryService, org.springframework.context.MessageSource messageSource) {
+    public QuotesController(QuoteCommandService commandService, QuoteQueryService queryService, org.springframework.context.MessageSource messageSource, MultiTenancySecurityService multiTenancySecurityService) {
         this.commandService = commandService;
         this.queryService = queryService;
         this.messageSource = messageSource;
+        this.multiTenancySecurityService = multiTenancySecurityService;
     }
 
     /**
