@@ -7,8 +7,6 @@ import com.tuxlogic.shiftiq.platform.inventory.domain.model.valueobjects.Product
 import com.tuxlogic.shiftiq.platform.inventory.domain.model.valueobjects.Sku;
 import com.tuxlogic.shiftiq.platform.inventory.interfaces.rest.resources.UpdateProductResource;
 import com.tuxlogic.shiftiq.platform.shared.domain.model.valueobjects.Money;
-
-import java.math.BigDecimal;
 import java.util.UUID;
 
 public class UpdateProductCommandFromResourceAssembler {
@@ -21,7 +19,7 @@ public class UpdateProductCommandFromResourceAssembler {
                 new ProductCategory(resource.category()),
                 new Sku(resource.sku()),
                 resource.description(),
-                new Money(BigDecimal.valueOf(resource.salePrice())),
+                new Money(resource.salePrice()),
                 new InventoryQuantity(resource.minimumStock())
         );
     }

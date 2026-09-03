@@ -8,6 +8,7 @@ import com.tuxlogic.shiftiq.platform.inventory.domain.model.valueobjects.Product
 import com.tuxlogic.shiftiq.platform.inventory.domain.model.valueobjects.ProductCommandFailure;
 import com.tuxlogic.shiftiq.platform.inventory.domain.model.valueobjects.ProductName;
 import com.tuxlogic.shiftiq.platform.inventory.domain.model.valueobjects.Sku;
+import com.tuxlogic.shiftiq.platform.inventory.domain.model.valueobjects.StockMovementQuantity;
 import com.tuxlogic.shiftiq.platform.inventory.domain.repositories.ProductRepository;
 import com.tuxlogic.shiftiq.platform.shared.application.result.Result;
 import com.tuxlogic.shiftiq.platform.shared.domain.model.valueobjects.BranchId;
@@ -118,7 +119,7 @@ class ProductCommandServiceImplTest {
 
         var command = new com.tuxlogic.shiftiq.platform.inventory.domain.model.commands.AddBatchToProductCommand(
                 productId,
-                -5,
+                new StockMovementQuantity(-5),
                 new Money(new BigDecimal("1.00"))
         );
 

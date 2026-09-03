@@ -9,8 +9,6 @@ import com.tuxlogic.shiftiq.platform.inventory.interfaces.rest.resources.CreateP
 import com.tuxlogic.shiftiq.platform.shared.domain.model.valueobjects.BranchId;
 import com.tuxlogic.shiftiq.platform.shared.domain.model.valueobjects.Money;
 
-import java.math.BigDecimal;
-
 public class CreateProductCommandFromResourceAssembler {
     private CreateProductCommandFromResourceAssembler() {}
 
@@ -21,7 +19,7 @@ public class CreateProductCommandFromResourceAssembler {
                 new ProductName(resource.name()),
                 new Sku(resource.sku()),
                 resource.description(),
-                new Money(BigDecimal.valueOf(resource.salePrice())),
+                new Money(resource.salePrice()),
                 new InventoryQuantity(resource.minimumStock())
         );
     }

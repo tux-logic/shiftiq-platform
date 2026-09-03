@@ -70,9 +70,6 @@ public class ProductJpaEntity extends AuditableAbstractPersistenceEntity impleme
     @Column(name = "updated_by")
     private UUID updatedBy;
 
-    @Version
-    private Long version;
-
     public ProductJpaEntity() {}
 
     public UUID getBranchId() { return branchId; }
@@ -101,6 +98,4 @@ public class ProductJpaEntity extends AuditableAbstractPersistenceEntity impleme
     public void setCreatedBy(UUID createdBy) { this.createdBy = createdBy; }
     public UUID getUpdatedBy() { return updatedBy; }
     public void setUpdatedBy(UUID updatedBy) { this.updatedBy = updatedBy; }
-    public Long getVersion() { return version; }
-    public void setVersion(Long version) { this.version = version; }
 }

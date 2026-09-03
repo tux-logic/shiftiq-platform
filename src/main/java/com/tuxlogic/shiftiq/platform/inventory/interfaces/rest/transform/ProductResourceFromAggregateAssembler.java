@@ -12,7 +12,7 @@ public class ProductResourceFromAggregateAssembler {
                 aggregate.getName().name(),
                 aggregate.getSku().value(),
                 aggregate.getDescription(),
-                aggregate.getCurrentSellingPrice().amount().doubleValue(),
+                aggregate.getCurrentSellingPrice().amount(),
                 aggregate.getMinimumStock(),
                 aggregate.getCurrentStock().value(),
                 aggregate.isLowStockAlert()

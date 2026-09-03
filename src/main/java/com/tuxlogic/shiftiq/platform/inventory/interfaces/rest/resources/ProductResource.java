@@ -1,6 +1,7 @@
 package com.tuxlogic.shiftiq.platform.inventory.interfaces.rest.resources;
 
 import java.util.UUID;
+import java.math.BigDecimal;
 
 public record ProductResource(
         UUID id,
@@ -9,7 +10,7 @@ public record ProductResource(
         String name,
         String sku,
         String description,
-        Double salePrice,
+        BigDecimal salePrice,
         Integer minimumStock,
         Integer currentStock,
         Boolean lowStockAlert

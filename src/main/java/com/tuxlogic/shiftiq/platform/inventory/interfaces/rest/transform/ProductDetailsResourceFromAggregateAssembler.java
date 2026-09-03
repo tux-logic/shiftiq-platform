@@ -10,13 +10,13 @@ public class ProductDetailsResourceFromAggregateAssembler {
                 .toList();
 
         return new ProductDetailsResource(
-                aggregate.getId().toString(),
+                aggregate.getId(),
                 aggregate.getBranchId().value().toString(),
                 aggregate.getCategory().value(),
                 aggregate.getName().name(),
                 aggregate.getSku().value(),
                 aggregate.getDescription(),
-                aggregate.getCurrentSellingPrice().amount().doubleValue(),
+                aggregate.getCurrentSellingPrice().amount(),
                 aggregate.getMinimumStock(),
                 aggregate.getCurrentStock().value(),
                 aggregate.isLowStockAlert(),

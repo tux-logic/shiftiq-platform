@@ -65,7 +65,7 @@ public class ProductCommandServiceImpl implements ProductCommandService {
                 var savedBatch = savedProduct.getBatches().get(savedProduct.getBatches().size() - 1);
                 return Result.success(savedBatch);
             }
-            return Result.success(ProductBatch.forStockAdjustment(command.quantity(), command.acquisitionCost(), savedProduct.getCurrentStock().value()));
+            return Result.success(ProductBatch.forStockAdjustment(command.quantity().value(), command.acquisitionCost(), savedProduct.getCurrentStock().value()));
         } catch (InsufficientStockException e) {
             return Result.failure(ProductCommandFailure.INSUFFICIENT_STOCK);
         } catch (IllegalArgumentException e) {

@@ -5,7 +5,6 @@ import com.tuxlogic.shiftiq.platform.inventory.domain.model.valueobjects.Invento
 import com.tuxlogic.shiftiq.platform.inventory.domain.repositories.ProductRepository;
 import com.tuxlogic.shiftiq.platform.operations.domain.model.events.ProductReservationCanceledEvent;
 import com.tuxlogic.shiftiq.platform.operations.domain.model.events.ProductReservedEvent;
-import com.tuxlogic.shiftiq.platform.operations.domain.model.events.WorkOrderPaidEvent;
 import org.springframework.transaction.event.TransactionPhase;
 import org.springframework.transaction.event.TransactionalEventListener;
 import org.springframework.stereotype.Component;
@@ -36,13 +35,5 @@ public class InventoryStockListener {
             product.releaseStock(new InventoryQuantity(event.quantity().value()));
             productRepository.save(product);
         });
-    }
-
-    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT, fallbackExecution = true)
-    public void on(WorkOrderPaidEvent event) {
-        // En la arquitectura definida con Operations, el stock se descuenta físicamente de los lotes 
-        // al momento de hacer la reserva (ProductReservedEvent). 
-        // El trigger de base de datos sync_product_stock() se encarga de actualizar el current_stock.
-        // Por lo tanto, al pagar la orden, no es necesario hacer ninguna deducción adicional.
     }
 }

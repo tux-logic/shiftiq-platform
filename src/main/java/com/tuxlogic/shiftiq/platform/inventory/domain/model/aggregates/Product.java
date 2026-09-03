@@ -87,16 +87,13 @@ public class Product extends AbstractAggregateRoot<Product> {
         refreshLowStockAlert();
     }
 
-    public Optional<ProductBatch> applyStockMovement(int signedQuantity, Money acquisitionCost) {
-        if (signedQuantity == 0) {
-            throw new IllegalArgumentException("inventory.error.resource.quantity.nonZero");
-        }
-        if (signedQuantity > 0) {
-            var batch = new ProductBatch(UUID.randomUUID(), new InventoryQuantity(signedQuantity), acquisitionCost);
+    public Optional<ProductBatch> applyStockMovement(StockMovementQuantity quantity, Money acquisitionCost) {
+        if (quantity.isPositive()) {
+            var batch = new ProductBatch(UUID.randomUUID(), quantity.absoluteValue(), acquisitionCost);
             addBatch(batch);
             return Optional.of(batch);
         }
-        reserveStock(new InventoryQuantity(-signedQuantity));
+        reserveStock(quantity.absoluteValue());
         return Optional.empty();
     }
 

@@ -44,9 +44,6 @@ public class ProductBatchJpaEntity extends AuditableAbstractPersistenceEntity im
     @Column(name = "deleted_at")
     private Instant deletedAt;
 
-    @Version
-    private Long version;
-
     public ProductBatchJpaEntity() {}
 
     public UUID getBranchId() { return branchId; }
@@ -61,6 +58,4 @@ public class ProductBatchJpaEntity extends AuditableAbstractPersistenceEntity im
     public void setProduct(ProductJpaEntity product) { this.product = product; }
     public Instant getDeletedAt() { return deletedAt; }
     public void setDeletedAt(Instant deletedAt) { this.deletedAt = deletedAt; }
-    public Long getVersion() { return version; }
-    public void setVersion(Long version) { this.version = version; }
 }
