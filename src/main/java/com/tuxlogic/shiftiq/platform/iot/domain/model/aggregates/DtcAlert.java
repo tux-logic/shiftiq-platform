@@ -1,5 +1,6 @@
 package com.tuxlogic.shiftiq.platform.iot.domain.model.aggregates;
 
+import com.tuxlogic.shiftiq.platform.iot.domain.model.events.DtcAlertTriggeredEvent;
 import com.tuxlogic.shiftiq.platform.iot.domain.model.valueobjects.DtcAlertId;
 import com.tuxlogic.shiftiq.platform.iot.domain.model.valueobjects.DtcAlertSeverity;
 import com.tuxlogic.shiftiq.platform.shared.domain.model.aggregates.AbstractDomainAggregateRoot;
@@ -26,6 +27,10 @@ public class DtcAlert extends AbstractDomainAggregateRoot<DtcAlert> {
     public DtcAlert() {
     }
 
+    /**
+     * Reconstitution constructor, used by the persistence assembler when
+     * loading an existing alert. Does not raise domain events.
+     */
     public DtcAlert(
             DtcAlertId id,
             UUID telemetrySnapshotId,
@@ -42,5 +47,26 @@ public class DtcAlert extends AbstractDomainAggregateRoot<DtcAlert> {
         this.description = description;
         this.severity = severity;
         this.createdAt = createdAt != null ? createdAt : Instant.now();
+    }
+
+    /**
+     * Creation constructor, used when a device reports a new DTC code during
+     * telemetry ingestion. Raises {@link DtcAlertTriggeredEvent}.
+     */
+    public DtcAlert(
+            UUID telemetrySnapshotId,
+            BranchId branchId,
+            String dtcCode,
+            String description,
+            DtcAlertSeverity severity
+    ) {
+        this(DtcAlertId.random(), telemetrySnapshotId, branchId, dtcCode, description, severity, Instant.now());
+        registerDomainEvent(new DtcAlertTriggeredEvent(
+                this.id.value(),
+                this.branchId,
+                this.telemetrySnapshotId,
+                this.dtcCode,
+                this.severity
+        ));
     }
 }
