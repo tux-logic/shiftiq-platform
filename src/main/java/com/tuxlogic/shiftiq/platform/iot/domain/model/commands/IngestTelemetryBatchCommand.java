@@ -18,6 +18,13 @@ public record IngestTelemetryBatchCommand(
             Double speedKmh,
             Integer odometerKm,
             Double fuelLevelPercent,
-            Instant createdAt
+            Instant createdAt,
+            List<DtcCodeData> dtcCodes
+    ) {}
+
+    public record DtcCodeData(
+            String dtcCode,
+            String description,
+            String severity
     ) {}
 }
