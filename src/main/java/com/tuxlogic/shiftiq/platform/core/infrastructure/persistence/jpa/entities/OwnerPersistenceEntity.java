@@ -50,7 +50,5 @@ public class OwnerPersistenceEntity extends AuditableAbstractPersistenceEntity i
 
     @Column(name = "deleted_at")
     private Instant deletedAt;
-
-    @Version
-    private Long version;
 }
+

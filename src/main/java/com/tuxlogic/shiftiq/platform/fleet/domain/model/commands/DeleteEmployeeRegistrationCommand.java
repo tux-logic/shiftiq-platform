@@ -1,6 +1,11 @@
 package com.tuxlogic.shiftiq.platform.fleet.domain.model.commands;
 
-import com.tuxlogic.shiftiq.platform.core.domain.model.valueobjects.EmployeeId;
+import com.tuxlogic.shiftiq.platform.fleet.domain.model.valueobjects.EmployeeRegistrationId;
 
-public record DeleteEmployeeRegistrationCommand(EmployeeId id) {
+public record DeleteEmployeeRegistrationCommand(EmployeeRegistrationId id) {
+    public DeleteEmployeeRegistrationCommand {
+        if (id == null) {
+            throw new IllegalArgumentException("Employee Registration ID is required");
+        }
+    }
 }

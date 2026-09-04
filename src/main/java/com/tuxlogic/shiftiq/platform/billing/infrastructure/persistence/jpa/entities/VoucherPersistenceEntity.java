@@ -53,3 +53,4 @@ public class VoucherPersistenceEntity extends AuditableAbstractPersistenceEntity
     @OneToMany(mappedBy = "voucher", cascade = CascadeType.ALL, orphanRemoval = true)
     private java.util.List<PaymentPersistenceEntity> payments = new java.util.ArrayList<>();
 }
+

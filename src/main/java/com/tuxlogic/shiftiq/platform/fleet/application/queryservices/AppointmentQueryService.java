@@ -10,12 +10,15 @@ import com.tuxlogic.shiftiq.platform.shared.domain.model.valueobjects.VehicleId;
 import java.util.List;
 import java.util.UUID;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+
 public interface AppointmentQueryService {
 
-    Result<List<Appointment>, AppointmentQueryFailure> handle(BranchId branchId);
-    Result<List<Appointment>, AppointmentQueryFailure> handle(
-            BranchId branchId, AppointmentStatus status);
+    Result<Page<Appointment>, AppointmentQueryFailure> handle(BranchId branchId, Pageable pageable);
+    Result<Page<Appointment>, AppointmentQueryFailure> handle(
+            BranchId branchId, AppointmentStatus status, Pageable pageable);
     Result<Appointment, AppointmentQueryFailure> handle(UUID appointmentId);
-    Result<List<Appointment>, AppointmentQueryFailure> handle(CustomerId customerId);
-    Result<List<Appointment>, AppointmentQueryFailure> handle(VehicleId vehicleId);
+    Result<Page<Appointment>, AppointmentQueryFailure> handle(CustomerId customerId, Pageable pageable);
+    Result<Page<Appointment>, AppointmentQueryFailure> handle(VehicleId vehicleId, Pageable pageable);
 }

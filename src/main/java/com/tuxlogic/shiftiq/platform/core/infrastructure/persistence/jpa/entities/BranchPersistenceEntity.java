@@ -57,7 +57,5 @@ public class BranchPersistenceEntity extends AuditableAbstractPersistenceEntity 
     @LastModifiedBy
     @Column(name = "updated_by")
     private UUID updatedBy;
-
-    @Version
-    private Long version;
 }
+

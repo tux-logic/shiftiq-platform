@@ -47,7 +47,5 @@ public class Obd2DevicePersistenceEntity extends AuditableAbstractPersistenceEnt
 
     @Column(name = "deleted_at")
     private Instant deletedAt;
-
-    @Version
-    private Long version;
 }
+

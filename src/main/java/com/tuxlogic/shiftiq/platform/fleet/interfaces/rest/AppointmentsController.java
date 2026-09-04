@@ -23,12 +23,14 @@ import org.springframework.context.MessageSource;
 import org.springframework.context.i18n.LocaleContextHolder;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.UUID;
 
 @RestController
 @RequestMapping(value = "/api/v1/appointments", produces = "application/json")
+@PreAuthorize("isAuthenticated()")
 @Tag(name = "Appointments", description = "Appointment Management Endpoints")
 public class AppointmentsController {
 
@@ -83,43 +85,37 @@ public class AppointmentsController {
 
         @GetMapping
         @Operation(summary = "Get appointments", description = "Get appointments filtered by branch, branch and status, customer, or vehicle ID")
+        @PreAuthorize("isAuthenticated() and (#branchId == null or @multiTenancySecurityService.isAuthorizedForBranch(#branchId))")
         public ResponseEntity<?> getAppointments(
                         @RequestParam(required = false) UUID branchId,
                         @RequestParam(required = false) AppointmentStatus status,
                         @RequestParam(required = false) UUID customerId,
-                        @RequestParam(required = false) UUID vehicleId) {
+                        @RequestParam(required = false) UUID vehicleId,
+                        org.springframework.data.domain.Pageable pageable) {
 
                 if (branchId != null && status != null) {
-                        var result = queryService.handle(new BranchId(branchId), status);
+                        var result = queryService.handle(new BranchId(branchId), status, pageable);
                         return result.fold(
                                         appointments -> ResponseEntity.ok(
-                                                        appointments.stream()
-                                                                        .map(AppointmentResourceFromAggregateAssembler::toResourceFromAggregate)
-                                                                        .toList()),
+                                                        appointments.map(AppointmentResourceFromAggregateAssembler::toResourceFromAggregate)),
                                         this::handleQueryFailure);
                 } else if (branchId != null) {
-                        var result = queryService.handle(new BranchId(branchId));
+                        var result = queryService.handle(new BranchId(branchId), pageable);
                         return result.fold(
                                         appointments -> ResponseEntity.ok(
-                                                        appointments.stream()
-                                                                        .map(AppointmentResourceFromAggregateAssembler::toResourceFromAggregate)
-                                                                        .toList()),
+                                                        appointments.map(AppointmentResourceFromAggregateAssembler::toResourceFromAggregate)),
                                         this::handleQueryFailure);
                 } else if (customerId != null) {
-                        var result = queryService.handle(new CustomerId(customerId));
+                        var result = queryService.handle(new CustomerId(customerId), pageable);
                         return result.fold(
                                         appointments -> ResponseEntity.ok(
-                                                        appointments.stream()
-                                                                        .map(AppointmentResourceFromAggregateAssembler::toResourceFromAggregate)
-                                                                        .toList()),
+                                                        appointments.map(AppointmentResourceFromAggregateAssembler::toResourceFromAggregate)),
                                         this::handleQueryFailure);
                 } else if (vehicleId != null) {
-                        var result = queryService.handle(new VehicleId(vehicleId));
+                        var result = queryService.handle(new VehicleId(vehicleId), pageable);
                         return result.fold(
                                         appointments -> ResponseEntity.ok(
-                                                        appointments.stream()
-                                                                        .map(AppointmentResourceFromAggregateAssembler::toResourceFromAggregate)
-                                                                        .toList()),
+                                                        appointments.map(AppointmentResourceFromAggregateAssembler::toResourceFromAggregate)),
                                         this::handleQueryFailure);
                 }
 

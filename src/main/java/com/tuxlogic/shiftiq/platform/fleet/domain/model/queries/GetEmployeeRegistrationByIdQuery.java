@@ -1,6 +1,6 @@
 package com.tuxlogic.shiftiq.platform.fleet.domain.model.queries;
 
-import com.tuxlogic.shiftiq.platform.core.domain.model.valueobjects.EmployeeId;
+import com.tuxlogic.shiftiq.platform.fleet.domain.model.valueobjects.EmployeeRegistrationId;
 
-public record GetEmployeeRegistrationByIdQuery(EmployeeId id) {
+public record GetEmployeeRegistrationByIdQuery(EmployeeRegistrationId id) {
 }

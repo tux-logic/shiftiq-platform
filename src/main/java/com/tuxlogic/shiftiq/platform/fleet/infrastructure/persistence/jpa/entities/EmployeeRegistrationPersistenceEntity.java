@@ -1,25 +1,24 @@
 package com.tuxlogic.shiftiq.platform.fleet.infrastructure.persistence.jpa.entities;
 
+import com.tuxlogic.shiftiq.platform.shared.infrastructure.persistence.jpa.entities.AuditableAbstractPersistenceEntity;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
-import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.Setter;
+import org.hibernate.annotations.SQLDelete;
+import org.hibernate.annotations.SQLRestriction;
 
 import java.math.BigDecimal;
-import java.time.Instant;
 import java.util.UUID;
 
 @Entity
 @Table(name = "employee_registrations")
 @Getter
 @Setter
-public class EmployeeRegistrationPersistenceEntity {
-
-    @Id
-    @Column(nullable = false, unique = true)
-    private UUID id;
+@SQLDelete(sql = "UPDATE employee_registrations SET deleted_at = NOW() WHERE id = ? AND version = ?")
+@SQLRestriction("deleted_at IS NULL")
+public class EmployeeRegistrationPersistenceEntity extends AuditableAbstractPersistenceEntity {
 
     @Column(name = "employee_id", nullable = false)
     private UUID employeeId;
@@ -39,12 +38,7 @@ public class EmployeeRegistrationPersistenceEntity {
     @Column(name = "status", nullable = false, length = 20)
     private String status;
 
-    @Column(name = "created_at", nullable = false)
-    private Instant createdAt;
-
-    @Column(name = "updated_at", nullable = false)
-    private Instant updatedAt;
-
     @Column(name = "deleted_at")
-    private Instant deletedAt;
+    private java.time.Instant deletedAt;
 }
+

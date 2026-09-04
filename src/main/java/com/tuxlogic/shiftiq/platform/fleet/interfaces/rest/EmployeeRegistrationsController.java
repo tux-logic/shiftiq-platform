@@ -1,6 +1,6 @@
 package com.tuxlogic.shiftiq.platform.fleet.interfaces.rest;
 
-import com.tuxlogic.shiftiq.platform.core.domain.model.valueobjects.EmployeeId;
+import com.tuxlogic.shiftiq.platform.fleet.domain.model.valueobjects.EmployeeRegistrationId;
 import com.tuxlogic.shiftiq.platform.shared.domain.model.valueobjects.BranchId;
 import com.tuxlogic.shiftiq.platform.fleet.application.commandservices.EmployeeRegistrationCommandFailure;
 import com.tuxlogic.shiftiq.platform.fleet.application.commandservices.EmployeeRegistrationCommandService;
@@ -25,12 +25,16 @@ import org.springframework.context.MessageSource;
 import org.springframework.context.i18n.LocaleContextHolder;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.UUID;
 
 @RestController
 @RequestMapping(value = "/api/v1/employee-registrations", produces = "application/json")
+@PreAuthorize("isAuthenticated()")
 @Tag(name = "EmployeeRegistrations", description = "Employee Registration Management Endpoints")
 public class EmployeeRegistrationsController {
 
@@ -61,55 +65,64 @@ public class EmployeeRegistrationsController {
     @GetMapping("/{id}")
     @Operation(summary = "Get an employee registration by ID", description = "Retrieves an employee registration by ID")
     public ResponseEntity<?> getById(@PathVariable UUID id) {
-        var query = new GetEmployeeRegistrationByIdQuery(new EmployeeId(id));
-        var registration = queryService.handle(query);
-        if (registration.isEmpty()) {
-            return ResponseEntity.notFound().build();
-        }
-        var resource = EmployeeRegistrationResourceFromAggregateAssembler.toResourceFromAggregate(registration.get());
-        return ResponseEntity.ok(resource);
+        var query = new GetEmployeeRegistrationByIdQuery(new EmployeeRegistrationId(id));
+        var result = queryService.handle(query);
+        return result.fold(
+                registration -> ResponseEntity.ok(EmployeeRegistrationResourceFromAggregateAssembler.toResourceFromAggregate(registration)),
+                this::handleQueryFailure
+        );
     }
 
     @GetMapping
     @Operation(summary = "Get employee registrations", description = "Get registrations filtered by branch, branch and status, or employee ID")
+    @PreAuthorize("isAuthenticated() and (#branchId == null or @multiTenancySecurityService.isAuthorizedForBranch(#branchId))")
     public ResponseEntity<?> getRegistrations(
             @RequestParam(required = false) UUID branchId,
             @RequestParam(required = false) String status,
-            @RequestParam(required = false) UUID employeeId) {
+            @RequestParam(required = false) UUID employeeId,
+            org.springframework.data.domain.Pageable pageable) {
 
         if (employeeId != null) {
             var query = new GetEmployeeRegistrationByEmployeeIdQuery(employeeId);
-            var registration = queryService.handle(query);
-            if (registration.isEmpty()) {
-                return ResponseEntity.notFound().build();
-            }
-            return ResponseEntity.ok(EmployeeRegistrationResourceFromAggregateAssembler.toResourceFromAggregate(registration.get()));
+            var result = queryService.handle(query);
+            return result.fold(
+                    registration -> ResponseEntity.ok(EmployeeRegistrationResourceFromAggregateAssembler.toResourceFromAggregate(registration)),
+                    this::handleQueryFailure
+            );
         } else if (branchId != null && status != null) {
-            var query = new GetEmployeeRegistrationsByBranchIdAndStatusQuery(new BranchId(branchId), new EmployeeRegistrationStatus(status.toUpperCase()));
-            var registrations = queryService.handle(query);
-            return ResponseEntity.ok(registrations.stream()
-                    .map(EmployeeRegistrationResourceFromAggregateAssembler::toResourceFromAggregate)
-                    .toList());
+            var query = new GetEmployeeRegistrationsByBranchIdAndStatusQuery(
+                    new BranchId(branchId), new EmployeeRegistrationStatus(status.toUpperCase()), pageable);
+            var result = queryService.handle(query);
+            return result.fold(
+                    registrations -> ResponseEntity.ok(registrations
+                            .map(EmployeeRegistrationResourceFromAggregateAssembler::toResourceFromAggregate)),
+                    this::handleQueryFailure
+            );
         } else if (branchId != null) {
-            var query = new GetEmployeeRegistrationsByBranchIdQuery(new BranchId(branchId));
-            var registrations = queryService.handle(query);
-            return ResponseEntity.ok(registrations.stream()
-                    .map(EmployeeRegistrationResourceFromAggregateAssembler::toResourceFromAggregate)
-                    .toList());
+            var query = new GetEmployeeRegistrationsByBranchIdQuery(new BranchId(branchId), pageable);
+            var result = queryService.handle(query);
+            return result.fold(
+                    registrations -> ResponseEntity.ok(registrations
+                            .map(EmployeeRegistrationResourceFromAggregateAssembler::toResourceFromAggregate)),
+                    this::handleQueryFailure
+            );
         }
 
-        return ResponseEntity.badRequest().build();
+        String message = messageSource.getMessage(
+                "fleet.error.employeeRegistration.invalidQueryParams", null, LocaleContextHolder.getLocale());
+        return ErrorResponseAssembler.toErrorResponseFromApplicationError(
+                ApplicationError.validationError("employeeRegistration", message));
     }
 
     @PutMapping("/{id}")
     @Operation(summary = "Update an employee registration", description = "Updates the speciality and salary of an existing employee registration")
     public ResponseEntity<?> updateEmployeeRegistration(
             @PathVariable UUID id,
-            @RequestBody UpdateEmployeeRegistrationResource resource) {
-        
+            @Valid @RequestBody UpdateEmployeeRegistrationResource resource) {
+
         var command = UpdateEmployeeRegistrationCommandFromResourceAssembler.toCommandFromResource(id, resource);
         var result = commandService.handle(command);
-        
+
         return result.fold(
                 registration -> ResponseEntity.ok(EmployeeRegistrationResourceFromAggregateAssembler.toResourceFromAggregate(registration)),
                 this::handleCommandFailure
@@ -119,9 +132,9 @@ public class EmployeeRegistrationsController {
     @DeleteMapping("/{id}")
     @Operation(summary = "Deactivate an employee registration", description = "Performs a soft delete on an employee registration, marking it as inactive")
     public ResponseEntity<?> deactivateEmployeeRegistration(@PathVariable UUID id) {
-        var command = new DeleteEmployeeRegistrationCommand(new EmployeeId(id));
+        var command = new DeleteEmployeeRegistrationCommand(new EmployeeRegistrationId(id));
         var result = commandService.handle(command);
-        
+
         return result.fold(
                 registration -> ResponseEntity.ok(EmployeeRegistrationResourceFromAggregateAssembler.toResourceFromAggregate(registration)),
                 this::handleCommandFailure
@@ -141,5 +154,15 @@ public class EmployeeRegistrationsController {
             case INVALID_REGISTRATION_DATA -> ApplicationError.validationError("employeeRegistration", message);
         };
         return ErrorResponseAssembler.toErrorResponseFromApplicationError(error);
+    }
+
+    private ResponseEntity<?> handleQueryFailure(com.tuxlogic.shiftiq.platform.fleet.application.queryservices.EmployeeRegistrationQueryFailure failure) {
+        if (failure instanceof com.tuxlogic.shiftiq.platform.fleet.application.queryservices.EmployeeRegistrationQueryFailure.NotFound) {
+            String message = messageSource.getMessage(
+                    "fleet.error.employeeRegistration.notFound", null, LocaleContextHolder.getLocale());
+            return ErrorResponseAssembler.toErrorResponseFromApplicationError(
+                    ApplicationError.notFound("employeeRegistration", message));
+        }
+        return ResponseEntity.internalServerError().build();
     }
 }

@@ -22,12 +22,16 @@ import org.springframework.context.MessageSource;
 import org.springframework.context.i18n.LocaleContextHolder;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.UUID;
 
 @RestController
 @RequestMapping(value = "/api/v1/customer-registrations", produces = "application/json")
+@PreAuthorize("isAuthenticated()")
 @Tag(name = "CustomerRegistrations", description = "Customer Registration Management Endpoints")
 public class CustomerRegistrationsController {
 
@@ -80,10 +84,12 @@ public class CustomerRegistrationsController {
 
     @GetMapping
     @Operation(summary = "Get registrations", description = "Get registrations filtered by branch, branch and status, or customer ID")
+    @PreAuthorize("isAuthenticated() and (#branchId == null or @multiTenancySecurityService.isAuthorizedForBranch(#branchId))")
     public ResponseEntity<?> getRegistrations(
             @RequestParam(required = false) UUID branchId,
             @RequestParam(required = false) CustomerRegistrationStatus status,
-            @RequestParam(required = false) UUID customerId) {
+            @RequestParam(required = false) UUID customerId,
+            Pageable pageable) {
 
         if (customerId != null) {
             var result = queryService.handle(new GetCustomerRegistrationByCustomerIdQuery(customerId));
@@ -92,17 +98,15 @@ public class CustomerRegistrationsController {
                     this::handleQueryFailure
             );
         } else if (branchId != null && status != null) {
-            var result = queryService.handle(new BranchId(branchId), status);
+            var result = queryService.handle(new BranchId(branchId), status, pageable);
             return result.fold(
-                    regs -> ResponseEntity.ok(regs.stream()
-                            .map(CustomerRegistrationResourceFromAggregateAssembler::toResourceFromAggregate).toList()),
+                    regs -> ResponseEntity.ok(regs.map(CustomerRegistrationResourceFromAggregateAssembler::toResourceFromAggregate)),
                     this::handleQueryFailure
             );
         } else if (branchId != null) {
-            var result = queryService.handle(new BranchId(branchId));
+            var result = queryService.handle(new BranchId(branchId), pageable);
             return result.fold(
-                    regs -> ResponseEntity.ok(regs.stream()
-                            .map(CustomerRegistrationResourceFromAggregateAssembler::toResourceFromAggregate).toList()),
+                    regs -> ResponseEntity.ok(regs.map(CustomerRegistrationResourceFromAggregateAssembler::toResourceFromAggregate)),
                     this::handleQueryFailure
             );
         }
@@ -150,4 +154,5 @@ public class CustomerRegistrationsController {
         return ErrorResponseAssembler.toErrorResponseFromApplicationError(error);
     }
 }
+
 

@@ -29,7 +29,9 @@ public class AppointmentCommandServiceImpl implements AppointmentCommandService 
             var scheduledStart = command.scheduledStart();
             var scheduledEnd = scheduledStart.plusHours(1);
 
-            boolean overlap = appointmentRepository.existsByScheduledStartLessThanAndScheduledEndGreaterThan(
+            boolean overlap = appointmentRepository.existsOverlappingAppointment(
+                    command.branchId(),
+                    command.vehicleId(),
                     scheduledEnd,
                     scheduledStart
             );
@@ -68,8 +70,10 @@ public class AppointmentCommandServiceImpl implements AppointmentCommandService 
             var scheduledStart = command.scheduledStart();
             var scheduledEnd = scheduledStart.plusHours(1);
 
-            boolean overlap = appointmentRepository.existsByIdNotAndScheduledStartLessThanAndScheduledEndGreaterThan(
+            boolean overlap = appointmentRepository.existsOverlappingAppointmentExcludingId(
                     command.appointmentId(),
+                    command.branchId(),
+                    command.vehicleId(),
                     scheduledEnd,
                     scheduledStart
             );

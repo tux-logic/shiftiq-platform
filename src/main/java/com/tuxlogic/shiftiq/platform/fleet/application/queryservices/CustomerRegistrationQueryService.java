@@ -6,17 +6,19 @@ import com.tuxlogic.shiftiq.platform.shared.application.result.Result;
 import com.tuxlogic.shiftiq.platform.fleet.domain.model.queries.GetCustomerRegistrationByCustomerIdQuery;
 import com.tuxlogic.shiftiq.platform.shared.domain.model.valueobjects.BranchId;
 
-import java.util.List;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import java.util.UUID;
 
 public interface CustomerRegistrationQueryService {
 
-    Result<List<CustomerRegistration>, CustomerRegistrationQueryFailure> handle(BranchId branchId);
+    Result<Page<CustomerRegistration>, CustomerRegistrationQueryFailure> handle(BranchId branchId, Pageable pageable);
 
-    Result<List<CustomerRegistration>, CustomerRegistrationQueryFailure> handle(BranchId branchId, CustomerRegistrationStatus status);
+    Result<Page<CustomerRegistration>, CustomerRegistrationQueryFailure> handle(BranchId branchId, CustomerRegistrationStatus status, Pageable pageable);
 
     Result<CustomerRegistration, CustomerRegistrationQueryFailure> handle(UUID registrationId);
 
     Result<CustomerRegistration, CustomerRegistrationQueryFailure> handle(GetCustomerRegistrationByCustomerIdQuery query);
 }
+
 

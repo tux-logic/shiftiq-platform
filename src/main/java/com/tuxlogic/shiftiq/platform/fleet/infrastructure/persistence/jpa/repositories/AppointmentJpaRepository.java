@@ -4,26 +4,26 @@ import com.tuxlogic.shiftiq.platform.fleet.domain.model.valueobjects.Appointment
 import com.tuxlogic.shiftiq.platform.fleet.infrastructure.persistence.jpa.entities.AppointmentPersistenceEntity;
 import com.tuxlogic.shiftiq.platform.shared.domain.model.valueobjects.BranchId;
 import com.tuxlogic.shiftiq.platform.shared.domain.model.valueobjects.CustomerId;
+import com.tuxlogic.shiftiq.platform.shared.domain.model.valueobjects.VehicleId;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 
 import java.time.LocalDateTime;
-import java.util.List;
 import java.util.UUID;
 
 public interface AppointmentJpaRepository extends JpaRepository<AppointmentPersistenceEntity, UUID> {
 
-        boolean existsByScheduledStartLessThanAndScheduledEndGreaterThan(
+        boolean existsByBranchIdAndVehicleIdAndScheduledStartLessThanAndScheduledEndGreaterThan(
+                        BranchId branchId, VehicleId vehicleId,
                         LocalDateTime scheduledEnd, LocalDateTime scheduledStart);
 
-        boolean existsByIdNotAndScheduledStartLessThanAndScheduledEndGreaterThan(
-                        UUID appointmentId, LocalDateTime scheduledEnd, LocalDateTime scheduledStart);
+        boolean existsByIdNotAndBranchIdAndVehicleIdAndScheduledStartLessThanAndScheduledEndGreaterThan(
+                        UUID appointmentId, BranchId branchId, VehicleId vehicleId, 
+                        LocalDateTime scheduledEnd, LocalDateTime scheduledStart);
 
-        List<AppointmentPersistenceEntity> findByBranchId(BranchId branchId);
-
-        List<AppointmentPersistenceEntity> findByCustomerId(CustomerId customerId);
-
-        List<AppointmentPersistenceEntity> findByVehicleId(com.tuxlogic.shiftiq.platform.shared.domain.model.valueobjects.VehicleId vehicleId);
-
-        List<AppointmentPersistenceEntity> findByBranchIdAndStatus(
-                        BranchId branchId, AppointmentStatus status);
+        Page<AppointmentPersistenceEntity> findByBranchId(BranchId branchId, Pageable pageable);
+        Page<AppointmentPersistenceEntity> findByCustomerId(CustomerId customerId, Pageable pageable);
+        Page<AppointmentPersistenceEntity> findByVehicleId(VehicleId vehicleId, Pageable pageable);
+        Page<AppointmentPersistenceEntity> findByBranchIdAndStatus(BranchId branchId, AppointmentStatus status, Pageable pageable);
 }

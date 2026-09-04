@@ -52,3 +52,4 @@ public class QuotePersistenceEntity extends AuditableAbstractPersistenceEntity {
     @Column(name = "updated_by")
     private UUID updatedBy;
 }
+

@@ -7,9 +7,10 @@ import com.tuxlogic.shiftiq.platform.fleet.domain.model.valueobjects.Appointment
 import com.tuxlogic.shiftiq.platform.fleet.domain.repositories.AppointmentRepository;
 import com.tuxlogic.shiftiq.platform.shared.application.result.Result;
 import com.tuxlogic.shiftiq.platform.shared.domain.model.valueobjects.BranchId;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
-import java.util.List;
 import java.util.UUID;
 
 @Service
@@ -22,9 +23,9 @@ public class AppointmentQueryServiceImpl implements AppointmentQueryService {
     }
 
     @Override
-    public Result<List<Appointment>, AppointmentQueryFailure> handle(BranchId branchId) {
+    public Result<Page<Appointment>, AppointmentQueryFailure> handle(BranchId branchId, Pageable pageable) {
         try {
-            var appointments = appointmentRepository.findByBranchId(branchId);
+            var appointments = appointmentRepository.findByBranchId(branchId, pageable);
             return Result.success(appointments);
         } catch (IllegalArgumentException e) {
             return Result.failure(AppointmentQueryFailure.INVALID_QUERY_PARAMS);
@@ -32,10 +33,10 @@ public class AppointmentQueryServiceImpl implements AppointmentQueryService {
     }
 
     @Override
-    public Result<List<Appointment>, AppointmentQueryFailure> handle(
-            BranchId branchId, AppointmentStatus status) {
+    public Result<Page<Appointment>, AppointmentQueryFailure> handle(
+            BranchId branchId, AppointmentStatus status, Pageable pageable) {
         try {
-            var appointments = appointmentRepository.findByBranchIdAndStatus(branchId, status);
+            var appointments = appointmentRepository.findByBranchIdAndStatus(branchId, status, pageable);
             return Result.success(appointments);
         } catch (IllegalArgumentException e) {
             return Result.failure(AppointmentQueryFailure.INVALID_QUERY_PARAMS);
@@ -50,9 +51,9 @@ public class AppointmentQueryServiceImpl implements AppointmentQueryService {
     }
 
     @Override
-    public Result<List<Appointment>, AppointmentQueryFailure> handle(com.tuxlogic.shiftiq.platform.shared.domain.model.valueobjects.CustomerId customerId) {
+    public Result<Page<Appointment>, AppointmentQueryFailure> handle(com.tuxlogic.shiftiq.platform.shared.domain.model.valueobjects.CustomerId customerId, Pageable pageable) {
         try {
-            var appointments = appointmentRepository.findByCustomerId(customerId);
+            var appointments = appointmentRepository.findByCustomerId(customerId, pageable);
             return Result.success(appointments);
         } catch (IllegalArgumentException e) {
             return Result.failure(AppointmentQueryFailure.INVALID_QUERY_PARAMS);
@@ -60,9 +61,9 @@ public class AppointmentQueryServiceImpl implements AppointmentQueryService {
     }
 
     @Override
-    public Result<List<Appointment>, AppointmentQueryFailure> handle(com.tuxlogic.shiftiq.platform.shared.domain.model.valueobjects.VehicleId vehicleId) {
+    public Result<Page<Appointment>, AppointmentQueryFailure> handle(com.tuxlogic.shiftiq.platform.shared.domain.model.valueobjects.VehicleId vehicleId, Pageable pageable) {
         try {
-            var appointments = appointmentRepository.findByVehicleId(vehicleId);
+            var appointments = appointmentRepository.findByVehicleId(vehicleId, pageable);
             return Result.success(appointments);
         } catch (IllegalArgumentException e) {
             return Result.failure(AppointmentQueryFailure.INVALID_QUERY_PARAMS);

@@ -70,7 +70,7 @@ public class ProductsController {
 
     @GetMapping({"", "/branch/{branchId}"})
     @Operation(summary = "Get products by branch", description = "Retrieves products for a branch with optional name, category and low-stock filters")
-    public ResponseEntity<List<ProductResource>> getProductsByBranch(
+    public ResponseEntity<?> getProductsByBranch(
             @PathVariable(required = false) UUID branchId,
             @RequestParam(required = false) UUID branchIdQuery,
             @RequestParam(required = false) String name,

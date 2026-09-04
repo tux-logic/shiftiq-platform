@@ -1,6 +1,6 @@
 package com.tuxlogic.shiftiq.platform.fleet.domain.model.aggregates;
 
-import com.tuxlogic.shiftiq.platform.core.domain.model.valueobjects.EmployeeId;
+import com.tuxlogic.shiftiq.platform.fleet.domain.model.valueobjects.EmployeeRegistrationId;
 import com.tuxlogic.shiftiq.platform.fleet.domain.model.valueobjects.EmployeeRegistrationStatus;
 import com.tuxlogic.shiftiq.platform.shared.domain.model.aggregates.AbstractDomainAggregateRoot;
 import com.tuxlogic.shiftiq.platform.shared.domain.model.valueobjects.BranchId;
@@ -13,7 +13,7 @@ import java.util.UUID;
 @Getter
 public class EmployeeRegistration extends AbstractDomainAggregateRoot<EmployeeRegistration> {
 
-    private EmployeeId id;
+    private EmployeeRegistrationId id;
     private UUID employeeId;
     private BranchId branchId;
     private String speciality;
@@ -29,7 +29,7 @@ public class EmployeeRegistration extends AbstractDomainAggregateRoot<EmployeeRe
 
     public EmployeeRegistration(UUID employeeId, BranchId branchId,
             String speciality, String specialityName, BigDecimal salary) {
-        this.id = new EmployeeId(UUID.randomUUID());
+        this.id = new EmployeeRegistrationId(UUID.randomUUID());
         this.employeeId = employeeId;
         this.branchId = branchId;
         this.speciality = speciality;
@@ -40,7 +40,7 @@ public class EmployeeRegistration extends AbstractDomainAggregateRoot<EmployeeRe
         this.updatedAt = Instant.now();
     }
 
-    public EmployeeRegistration(EmployeeId id, UUID employeeId, BranchId branchId,
+    public EmployeeRegistration(EmployeeRegistrationId id, UUID employeeId, BranchId branchId,
             String speciality, String specialityName, BigDecimal salary,
             EmployeeRegistrationStatus status,
             Instant createdAt, Instant updatedAt, Instant deletedAt) {

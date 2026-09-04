@@ -81,7 +81,5 @@ public class WorkOrderTaskPersistenceEntity extends AuditableAbstractPersistence
     @LastModifiedBy
     @Column(name = "updated_by")
     private java.util.UUID updatedBy;
-
-    @Version
-    private Long version;
 }
+

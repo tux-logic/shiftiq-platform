@@ -8,7 +8,8 @@ import com.tuxlogic.shiftiq.platform.fleet.infrastructure.persistence.jpa.assemb
 import com.tuxlogic.shiftiq.platform.shared.domain.model.valueobjects.BranchId;
 import org.springframework.stereotype.Repository;
 
-import java.util.List;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -55,11 +56,8 @@ public class CustomerRegistrationRepositoryAdapter implements CustomerRegistrati
     }
 
     @Override
-    public List<CustomerRegistration> findByBranchIdAndStatus(BranchId branchId, String status) {
-        return persistenceRepository.findByBranchIdAndStatus(branchId.value(), status)
-                .stream()
-                .map(CustomerRegistrationPersistenceAssembler::toDomain)
-                .collect(Collectors.toList());
+    public Page<CustomerRegistration> findByBranchIdAndStatus(BranchId branchId, String status, Pageable pageable) {
+        return persistenceRepository.findByBranchIdAndStatus(branchId.value(), status, pageable).map(CustomerRegistrationPersistenceAssembler::toDomain);
     }
 
     @Override
@@ -67,4 +65,10 @@ public class CustomerRegistrationRepositoryAdapter implements CustomerRegistrati
         return persistenceRepository.findByCustomerIdAndBranchId(customerId, branchId).isPresent();
     }
 }
+
+
+
+
+
+
 

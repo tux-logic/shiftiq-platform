@@ -1,6 +1,6 @@
 package com.tuxlogic.shiftiq.platform.fleet.infrastructure.persistence.jpa.assemblers;
 
-import com.tuxlogic.shiftiq.platform.core.domain.model.valueobjects.EmployeeId;
+import com.tuxlogic.shiftiq.platform.fleet.domain.model.valueobjects.EmployeeRegistrationId;
 import com.tuxlogic.shiftiq.platform.fleet.infrastructure.persistence.jpa.entities.EmployeeRegistrationPersistenceEntity;
 import com.tuxlogic.shiftiq.platform.fleet.domain.model.aggregates.EmployeeRegistration;
 import com.tuxlogic.shiftiq.platform.fleet.domain.model.valueobjects.EmployeeRegistrationStatus;
@@ -11,7 +11,7 @@ public class EmployeeRegistrationPersistenceAssembler {
     public static EmployeeRegistration toDomain(EmployeeRegistrationPersistenceEntity entity) {
         if (entity == null) return null;
         return new EmployeeRegistration(
-                new EmployeeId(entity.getId()),
+                new EmployeeRegistrationId(entity.getId()),
                 entity.getEmployeeId(),
                 new BranchId(entity.getBranchId()),
                 entity.getSpeciality(),

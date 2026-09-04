@@ -32,8 +32,6 @@ public class UserPersistenceEntity extends AuditableAbstractPersistenceEntity {
 
     @Column(name = "deleted_at")
     private Instant deletedAt;
-
-    @Version
-    @Column(name = "version", nullable = false)
-    private Long version;
 }
+
+

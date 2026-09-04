@@ -2,7 +2,7 @@ package com.tuxlogic.shiftiq.platform.fleet.infrastructure.persistence.jpa.assem
 
 import com.tuxlogic.shiftiq.platform.fleet.infrastructure.persistence.jpa.entities.CustomerRegistrationPersistenceEntity;
 import com.tuxlogic.shiftiq.platform.fleet.domain.model.aggregates.CustomerRegistration;
-import com.tuxlogic.shiftiq.platform.shared.domain.model.valueobjects.CustomerId;
+import com.tuxlogic.shiftiq.platform.fleet.domain.model.valueobjects.CustomerRegistrationId;
 import com.tuxlogic.shiftiq.platform.shared.domain.model.valueobjects.BranchId;
 import com.tuxlogic.shiftiq.platform.fleet.domain.model.valueobjects.CustomerRegistrationStatus;
 
@@ -11,7 +11,7 @@ public class CustomerRegistrationPersistenceAssembler {
     public static CustomerRegistration toDomain(CustomerRegistrationPersistenceEntity entity) {
         if (entity == null) return null;
         return new CustomerRegistration(
-                new CustomerId(entity.getId()),
+                new CustomerRegistrationId(entity.getId()),
                 entity.getCustomerId(),
                 new BranchId(entity.getBranchId()),
                 entity.getStatus() != null ? new CustomerRegistrationStatus(entity.getStatus()) : null,

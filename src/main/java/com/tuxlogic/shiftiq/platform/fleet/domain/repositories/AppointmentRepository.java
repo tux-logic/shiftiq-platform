@@ -6,8 +6,9 @@ import com.tuxlogic.shiftiq.platform.shared.domain.model.valueobjects.BranchId;
 import com.tuxlogic.shiftiq.platform.shared.domain.model.valueobjects.CustomerId;
 import com.tuxlogic.shiftiq.platform.shared.domain.model.valueobjects.VehicleId;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import java.time.LocalDateTime;
-import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -17,16 +18,14 @@ public interface AppointmentRepository {
     Optional<Appointment> findById(UUID appointmentId);
     boolean existsById(UUID appointmentId);
     void deleteById(UUID appointmentId);
-    boolean existsByScheduledStartLessThanAndScheduledEndGreaterThan(
+    boolean existsOverlappingAppointment(BranchId branchId, VehicleId vehicleId,
             LocalDateTime scheduledEnd, LocalDateTime scheduledStart);
-    boolean existsByIdNotAndScheduledStartLessThanAndScheduledEndGreaterThan(
-            UUID appointmentId, LocalDateTime scheduledEnd, LocalDateTime scheduledStart);
+    boolean existsOverlappingAppointmentExcludingId(
+            UUID appointmentId, BranchId branchId, VehicleId vehicleId, 
+            LocalDateTime scheduledEnd, LocalDateTime scheduledStart);
 
-    List<Appointment> findByBranchId(BranchId branchId);
-
-    List<Appointment> findByCustomerId(CustomerId customerId);
-    
-    List<Appointment> findByVehicleId(VehicleId vehicleId);
-
-    List<Appointment> findByBranchIdAndStatus(BranchId branchId, AppointmentStatus status);
+    Page<Appointment> findByBranchId(BranchId branchId, Pageable pageable);
+    Page<Appointment> findByCustomerId(CustomerId customerId, Pageable pageable);
+    Page<Appointment> findByVehicleId(VehicleId vehicleId, Pageable pageable);
+    Page<Appointment> findByBranchIdAndStatus(BranchId branchId, AppointmentStatus status, Pageable pageable);
 }

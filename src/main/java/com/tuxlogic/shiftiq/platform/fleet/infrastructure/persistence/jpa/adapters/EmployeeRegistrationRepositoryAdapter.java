@@ -7,11 +7,12 @@ import com.tuxlogic.shiftiq.platform.fleet.domain.repositories.EmployeeRegistrat
 import com.tuxlogic.shiftiq.platform.fleet.infrastructure.persistence.jpa.assemblers.EmployeeRegistrationPersistenceAssembler;
 import org.springframework.stereotype.Repository;
 
-import com.tuxlogic.shiftiq.platform.core.domain.model.valueobjects.EmployeeId;
+import com.tuxlogic.shiftiq.platform.fleet.domain.model.valueobjects.EmployeeRegistrationId;
 import com.tuxlogic.shiftiq.platform.fleet.domain.model.valueobjects.EmployeeRegistrationStatus;
 import com.tuxlogic.shiftiq.platform.shared.domain.model.valueobjects.BranchId;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import java.util.Optional;
-import java.util.List;
 import java.util.UUID;
 
 @Repository
@@ -37,7 +38,7 @@ public class EmployeeRegistrationRepositoryAdapter implements EmployeeRegistrati
     }
 
     @Override
-    public Optional<EmployeeRegistration> findById(EmployeeId id) {
+    public Optional<EmployeeRegistration> findById(EmployeeRegistrationId id) {
         return persistenceRepository.findById(id.value())
                 .map(EmployeeRegistrationPersistenceAssembler::toDomain);
     }
@@ -49,19 +50,15 @@ public class EmployeeRegistrationRepositoryAdapter implements EmployeeRegistrati
     }
 
     @Override
-    public List<EmployeeRegistration> findByBranchId(BranchId branchId) {
-        return persistenceRepository.findByBranchId(branchId.value())
-                .stream()
-                .map(EmployeeRegistrationPersistenceAssembler::toDomain)
-                .toList();
+    public Page<EmployeeRegistration> findByBranchId(BranchId branchId, Pageable pageable) {
+        return persistenceRepository.findByBranchId(branchId.value(), pageable)
+                .map(EmployeeRegistrationPersistenceAssembler::toDomain);
     }
 
     @Override
-    public List<EmployeeRegistration> findByBranchIdAndStatus(BranchId branchId, EmployeeRegistrationStatus status) {
-        return persistenceRepository.findByBranchIdAndStatus(branchId.value(), status.value())
-                .stream()
-                .map(EmployeeRegistrationPersistenceAssembler::toDomain)
-                .toList();
+    public Page<EmployeeRegistration> findByBranchIdAndStatus(BranchId branchId, EmployeeRegistrationStatus status, Pageable pageable) {
+        return persistenceRepository.findByBranchIdAndStatus(branchId.value(), status.value(), pageable)
+                .map(EmployeeRegistrationPersistenceAssembler::toDomain);
     }
 
     @Override

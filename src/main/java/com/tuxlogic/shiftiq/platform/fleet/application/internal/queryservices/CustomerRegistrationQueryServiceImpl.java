@@ -10,7 +10,8 @@ import com.tuxlogic.shiftiq.platform.fleet.domain.model.queries.GetCustomerRegis
 import com.tuxlogic.shiftiq.platform.shared.domain.model.valueobjects.BranchId;
 import org.springframework.stereotype.Service;
 
-import java.util.List;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import java.util.UUID;
 
 @Service
@@ -23,9 +24,9 @@ public class CustomerRegistrationQueryServiceImpl implements CustomerRegistratio
     }
 
     @Override
-    public Result<List<CustomerRegistration>, CustomerRegistrationQueryFailure> handle(BranchId branchId) {
+    public Result<Page<CustomerRegistration>, CustomerRegistrationQueryFailure> handle(BranchId branchId, Pageable pageable) {
         try {
-            var list = repository.findByBranchIdAndStatus(branchId, CustomerRegistrationStatus.ACTIVE.value());
+            var list = repository.findByBranchIdAndStatus(branchId, CustomerRegistrationStatus.ACTIVE.value(), pageable);
             return Result.success(list);
         } catch (IllegalArgumentException ex) {
             return Result.failure(CustomerRegistrationQueryFailure.INVALID_QUERY_PARAMS);
@@ -33,9 +34,9 @@ public class CustomerRegistrationQueryServiceImpl implements CustomerRegistratio
     }
 
     @Override
-    public Result<List<CustomerRegistration>, CustomerRegistrationQueryFailure> handle(BranchId branchId, CustomerRegistrationStatus status) {
+    public Result<Page<CustomerRegistration>, CustomerRegistrationQueryFailure> handle(BranchId branchId, CustomerRegistrationStatus status, Pageable pageable) {
         try {
-            var list = repository.findByBranchIdAndStatus(branchId, status.value());
+            var list = repository.findByBranchIdAndStatus(branchId, status.value(), pageable);
             return Result.success(list);
         } catch (IllegalArgumentException ex) {
             return Result.failure(CustomerRegistrationQueryFailure.INVALID_QUERY_PARAMS);
