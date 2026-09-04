@@ -10,6 +10,21 @@ import com.tuxlogic.shiftiq.platform.iot.infrastructure.persistence.jpa.entities
  */
 public class DtcAlertPersistenceAssembler {
 
+    public static DtcAlertPersistenceEntity toPersistenceEntity(DtcAlert domain) {
+        if (domain == null) {
+            return null;
+        }
+        DtcAlertPersistenceEntity entity = new DtcAlertPersistenceEntity();
+        entity.setId(domain.getId() != null ? domain.getId().value() : null);
+        entity.setTelemetrySnapshotId(domain.getTelemetrySnapshotId());
+        entity.setBranchId(domain.getBranchId());
+        entity.setDtcCode(domain.getDtcCode());
+        entity.setDescription(domain.getDescription());
+        entity.setSeverity(domain.getSeverity().value());
+        entity.setCreatedAt(domain.getCreatedAt());
+        return entity;
+    }
+
     public static DtcAlert toDomainEntity(DtcAlertPersistenceEntity entity) {
         if (entity == null) {
             return null;
