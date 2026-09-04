@@ -4,6 +4,7 @@ import com.tuxlogic.shiftiq.platform.iot.domain.model.commands.IngestTelemetryBa
 import com.tuxlogic.shiftiq.platform.iot.domain.model.valueobjects.Obd2DeviceId;
 import com.tuxlogic.shiftiq.platform.iot.interfaces.rest.resources.IngestTelemetryBatchResource;
 
+import java.util.Collections;
 import java.util.stream.Collectors;
 
 public class TelemetryCommandFromResourceAssembler {
@@ -20,7 +21,16 @@ public class TelemetryCommandFromResourceAssembler {
                         data.speedKmh(),
                         data.odometerKm(),
                         data.fuelLevelPercent(),
-                        data.createdAt()
+                        data.createdAt(),
+                        data.dtcCodes() == null
+                                ? Collections.emptyList()
+                                : data.dtcCodes().stream()
+                                .map(dtc -> new IngestTelemetryBatchCommand.DtcCodeData(
+                                        dtc.dtcCode(),
+                                        dtc.description(),
+                                        dtc.severity()
+                                ))
+                                .collect(Collectors.toList())
                 ))
                 .collect(Collectors.toList());
 
