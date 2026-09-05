@@ -7,7 +7,8 @@ public class UserResourceFromEntityAssembler {
     public static UserResource toResourceFromEntity(User entity) {
         return new UserResource(
                 entity.getId().value(),
-                entity.getEmail().value()
+                entity.getEmail().value(),
+                entity.getRole().name()
         );
     }
 }
