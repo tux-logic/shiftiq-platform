@@ -11,8 +11,7 @@ public class CustomerRegistrationResourceFromAggregateAssembler {
                 aggregate.getBranchId() != null ? aggregate.getBranchId().value() : null,
                 aggregate.getCustomerId(),
                 aggregate.getStatus() != null ? aggregate.getStatus().value() : null,
-                aggregate.getCreatedAt(),
-                aggregate.getDeletedAt()
+                aggregate.getCreatedAt()
         );
     }
 }

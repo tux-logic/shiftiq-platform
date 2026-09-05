@@ -3,22 +3,34 @@ package com.tuxlogic.shiftiq.platform.fleet.infrastructure.persistence.jpa.entit
 import com.tuxlogic.shiftiq.platform.shared.infrastructure.persistence.jpa.entities.AuditableAbstractPersistenceEntity;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EntityListeners;
 import jakarta.persistence.Table;
 import lombok.Getter;
+import lombok.NoArgsConstructor;
 import lombok.Setter;
 import org.hibernate.annotations.SQLDelete;
 import org.hibernate.annotations.SQLRestriction;
+import org.springframework.data.domain.Persistable;
+import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.util.UUID;
 
 @Entity
 @Table(name = "employee_registrations")
 @Getter
 @Setter
+@NoArgsConstructor
+@EntityListeners(AuditingEntityListener.class)
 @SQLDelete(sql = "UPDATE employee_registrations SET deleted_at = NOW() WHERE id = ? AND version = ?")
 @SQLRestriction("deleted_at IS NULL")
-public class EmployeeRegistrationPersistenceEntity extends AuditableAbstractPersistenceEntity {
+public class EmployeeRegistrationPersistenceEntity extends AuditableAbstractPersistenceEntity implements Persistable<UUID> {
+
+    @Override
+    public boolean isNew() {
+        return getCreatedAt() == null;
+    }
 
     @Column(name = "employee_id", nullable = false)
     private UUID employeeId;

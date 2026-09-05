@@ -8,8 +8,7 @@ public record CustomerRegistrationResource(
         UUID branchId,
         UUID customerId,
         String status,
-        Instant createdAt,
-        Instant deletedAt
+        Instant createdAt
 ) {
 }
 

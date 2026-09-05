@@ -13,6 +13,7 @@ import java.util.UUID;
 public interface EmployeeRegistrationRepository {
     EmployeeRegistration save(EmployeeRegistration registration);
     Optional<EmployeeRegistration> findById(EmployeeRegistrationId id);
+    Optional<EmployeeRegistration> findById(UUID id);
     Optional<EmployeeRegistration> findByEmployeeId(UUID employeeId);
     Page<EmployeeRegistration> findByBranchId(BranchId branchId, Pageable pageable);
     Page<EmployeeRegistration> findByBranchIdAndStatus(BranchId branchId, EmployeeRegistrationStatus status, Pageable pageable);

@@ -136,7 +136,7 @@ public class EmployeeRegistrationsController {
         var result = commandService.handle(command);
 
         return result.fold(
-                registration -> ResponseEntity.ok(EmployeeRegistrationResourceFromAggregateAssembler.toResourceFromAggregate(registration)),
+                uuid -> ResponseEntity.noContent().build(),
                 this::handleCommandFailure
         );
     }
@@ -163,6 +163,6 @@ public class EmployeeRegistrationsController {
             return ErrorResponseAssembler.toErrorResponseFromApplicationError(
                     ApplicationError.notFound("employeeRegistration", message));
         }
-        return ResponseEntity.internalServerError().build();
+        return ResponseEntity.badRequest().body("Invalid request");
     }
 }

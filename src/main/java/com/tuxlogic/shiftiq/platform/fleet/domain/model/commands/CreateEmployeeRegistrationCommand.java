@@ -1,7 +1,7 @@
 package com.tuxlogic.shiftiq.platform.fleet.domain.model.commands;
 
-import com.tuxlogic.shiftiq.platform.core.domain.model.valueobjects.EmployeeId;
 import com.tuxlogic.shiftiq.platform.shared.domain.model.valueobjects.BranchId;
+import com.tuxlogic.shiftiq.platform.shared.domain.model.valueobjects.EmployeeId;
 
 import java.math.BigDecimal;
 

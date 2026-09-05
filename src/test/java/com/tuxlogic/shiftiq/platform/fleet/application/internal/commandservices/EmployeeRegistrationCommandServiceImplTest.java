@@ -62,8 +62,9 @@ class EmployeeRegistrationCommandServiceImplTest {
 
         // Assert
         assertTrue(result.isSuccess());
-        assertEquals(EmployeeRegistrationStatus.INACTIVE, result.success().get().getStatus());
-        assertNotNull(result.success().get().getDeletedAt());
+        assertEquals(registrationId.value(), result.success().get());
+        assertEquals(EmployeeRegistrationStatus.INACTIVE, registration.getStatus());
+        assertNotNull(registration.getDeletedAt());
         verify(repository, times(1)).save(registration);
     }
 

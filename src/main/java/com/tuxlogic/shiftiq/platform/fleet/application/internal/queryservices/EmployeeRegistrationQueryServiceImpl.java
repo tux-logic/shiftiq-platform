@@ -11,8 +11,10 @@ import com.tuxlogic.shiftiq.platform.fleet.domain.repositories.EmployeeRegistrat
 import com.tuxlogic.shiftiq.platform.shared.application.result.Result;
 import org.springframework.data.domain.Page;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
+@Transactional(readOnly = true)
 public class EmployeeRegistrationQueryServiceImpl implements EmployeeRegistrationQueryService {
 
     private final EmployeeRegistrationRepository employeeRegistrationRepository;

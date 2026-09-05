@@ -6,6 +6,7 @@ import com.tuxlogic.shiftiq.platform.fleet.domain.model.aggregates.Appointment;
 import com.tuxlogic.shiftiq.platform.fleet.domain.model.commands.CreateAppointmentCommand;
 import com.tuxlogic.shiftiq.platform.fleet.domain.model.commands.DeleteAppointmentCommand;
 import com.tuxlogic.shiftiq.platform.fleet.domain.model.commands.UpdateAppointmentCommand;
+import com.tuxlogic.shiftiq.platform.fleet.domain.model.valueobjects.AppointmentDuration;
 import com.tuxlogic.shiftiq.platform.fleet.domain.repositories.AppointmentRepository;
 import com.tuxlogic.shiftiq.platform.shared.application.result.Result;
 import org.springframework.stereotype.Service;
@@ -27,7 +28,7 @@ public class AppointmentCommandServiceImpl implements AppointmentCommandService 
     public Result<Appointment, AppointmentCommandFailure> handle(CreateAppointmentCommand command) {
         try {
             var scheduledStart = command.scheduledStart();
-            var scheduledEnd = scheduledStart.plusHours(1);
+            var scheduledEnd = AppointmentDuration.defaultDuration().calculateEnd(scheduledStart);
 
             boolean overlap = appointmentRepository.existsOverlappingAppointment(
                     command.branchId(),
@@ -68,7 +69,7 @@ public class AppointmentCommandServiceImpl implements AppointmentCommandService 
             }
 
             var scheduledStart = command.scheduledStart();
-            var scheduledEnd = scheduledStart.plusHours(1);
+            var scheduledEnd = AppointmentDuration.defaultDuration().calculateEnd(scheduledStart);
 
             boolean overlap = appointmentRepository.existsOverlappingAppointmentExcludingId(
                     command.appointmentId(),

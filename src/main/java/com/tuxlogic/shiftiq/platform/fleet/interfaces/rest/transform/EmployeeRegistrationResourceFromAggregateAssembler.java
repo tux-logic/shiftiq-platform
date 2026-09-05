@@ -15,8 +15,7 @@ public class EmployeeRegistrationResourceFromAggregateAssembler {
                 aggregate.getSalary(),
                 aggregate.getStatus() != null ? aggregate.getStatus().value() : null,
                 aggregate.getCreatedAt(),
-                aggregate.getUpdatedAt(),
-                aggregate.getDeletedAt()
+                aggregate.getUpdatedAt()
         );
     }
 }

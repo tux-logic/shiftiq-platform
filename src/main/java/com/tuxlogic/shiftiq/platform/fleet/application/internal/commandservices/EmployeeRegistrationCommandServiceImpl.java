@@ -11,6 +11,8 @@ import com.tuxlogic.shiftiq.platform.shared.application.result.Result;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.UUID;
+
 @Service
 public class EmployeeRegistrationCommandServiceImpl implements EmployeeRegistrationCommandService {
 
@@ -43,30 +45,38 @@ public class EmployeeRegistrationCommandServiceImpl implements EmployeeRegistrat
     @Override
     @Transactional
     public Result<EmployeeRegistration, EmployeeRegistrationCommandFailure> handle(UpdateEmployeeRegistrationCommand command) {
-        var registrationOptional = repository.findById(command.id());
-        if (registrationOptional.isEmpty()) {
-            return Result.failure(EmployeeRegistrationCommandFailure.REGISTRATION_NOT_FOUND);
-        }
+        try {
+            var registrationOptional = repository.findById(command.id());
+            if (registrationOptional.isEmpty()) {
+                return Result.failure(EmployeeRegistrationCommandFailure.REGISTRATION_NOT_FOUND);
+            }
 
-        var registration = registrationOptional.get();
-        registration.update(command.speciality(), command.specialityName(), command.salary());
-        
-        var savedRegistration = repository.save(registration);
-        return Result.success(savedRegistration);
+            var registration = registrationOptional.get();
+            registration.update(command.speciality(), command.specialityName(), command.salary());
+            
+            var savedRegistration = repository.save(registration);
+            return Result.success(savedRegistration);
+        } catch (IllegalArgumentException ex) {
+            return Result.failure(EmployeeRegistrationCommandFailure.INVALID_REGISTRATION_DATA);
+        }
     }
 
     @Override
     @Transactional
-    public Result<EmployeeRegistration, EmployeeRegistrationCommandFailure> handle(DeleteEmployeeRegistrationCommand command) {
-        var registrationOptional = repository.findById(command.id());
-        if (registrationOptional.isEmpty()) {
-            return Result.failure(EmployeeRegistrationCommandFailure.REGISTRATION_NOT_FOUND);
-        }
+    public Result<UUID, EmployeeRegistrationCommandFailure> handle(DeleteEmployeeRegistrationCommand command) {
+        try {
+            var registrationOptional = repository.findById(command.id());
+            if (registrationOptional.isEmpty()) {
+                return Result.failure(EmployeeRegistrationCommandFailure.REGISTRATION_NOT_FOUND);
+            }
 
-        var registration = registrationOptional.get();
-        registration.deactivate();
-        
-        var savedRegistration = repository.save(registration);
-        return Result.success(savedRegistration);
+            var registration = registrationOptional.get();
+            registration.deactivate();
+            
+            var savedRegistration = repository.save(registration);
+            return Result.success(savedRegistration.getId().value());
+        } catch (IllegalArgumentException ex) {
+            return Result.failure(EmployeeRegistrationCommandFailure.INVALID_REGISTRATION_DATA);
+        }
     }
 }

@@ -7,6 +7,7 @@ import com.tuxlogic.shiftiq.platform.fleet.domain.model.commands.CreateCustomerR
 import com.tuxlogic.shiftiq.platform.fleet.domain.model.commands.DeleteCustomerRegistrationCommand;
 import com.tuxlogic.shiftiq.platform.fleet.domain.model.commands.UpdateCustomerRegistrationCommand;
 import com.tuxlogic.shiftiq.platform.fleet.domain.repositories.CustomerRegistrationRepository;
+import com.tuxlogic.shiftiq.platform.fleet.domain.model.valueobjects.CustomerRegistrationStatus;
 import com.tuxlogic.shiftiq.platform.shared.application.result.Result;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -52,7 +53,7 @@ public class CustomerRegistrationCommandServiceImpl implements CustomerRegistrat
             var registration = opt.get();
 
             // Only status update supported for now (deactivate)
-            if (command.status().value().equals("INACTIVE")) {
+            if (command.status().value().equals(CustomerRegistrationStatus.INACTIVE.value())) {
                 registration.deactivate();
             }
 

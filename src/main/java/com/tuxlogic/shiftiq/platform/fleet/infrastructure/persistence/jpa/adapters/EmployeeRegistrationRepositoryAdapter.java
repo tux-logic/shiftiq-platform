@@ -44,6 +44,12 @@ public class EmployeeRegistrationRepositoryAdapter implements EmployeeRegistrati
     }
 
     @Override
+    public Optional<EmployeeRegistration> findById(UUID id) {
+        return persistenceRepository.findById(id)
+                .map(EmployeeRegistrationPersistenceAssembler::toDomain);
+    }
+
+    @Override
     public Optional<EmployeeRegistration> findByEmployeeId(UUID employeeId) {
         return persistenceRepository.findByEmployeeId(employeeId)
                 .map(EmployeeRegistrationPersistenceAssembler::toDomain);

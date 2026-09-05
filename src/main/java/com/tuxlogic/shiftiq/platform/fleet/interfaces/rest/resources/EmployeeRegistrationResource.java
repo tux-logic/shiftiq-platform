@@ -13,6 +13,5 @@ public record EmployeeRegistrationResource(
         BigDecimal salary,
         String status,
         Instant createdAt,
-        Instant updatedAt,
-        Instant deletedAt) {
+        Instant updatedAt) {
 }

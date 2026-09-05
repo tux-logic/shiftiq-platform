@@ -1,5 +1,6 @@
 package com.tuxlogic.shiftiq.platform.fleet.domain.model.aggregates;
 
+import com.tuxlogic.shiftiq.platform.fleet.domain.model.valueobjects.AppointmentDuration;
 import com.tuxlogic.shiftiq.platform.fleet.domain.model.valueobjects.AppointmentStatus;
 import com.tuxlogic.shiftiq.platform.fleet.domain.model.valueobjects.AppointmentSummary;
 import com.tuxlogic.shiftiq.platform.shared.domain.model.aggregates.AbstractDomainAggregateRoot;
@@ -89,7 +90,7 @@ public class Appointment extends AbstractDomainAggregateRoot<Appointment> {
         this.customerId = customerId;
         this.vehicleId = vehicleId;
         this.scheduledStart = scheduledStart;
-        this.scheduledEnd = scheduledStart.plusHours(1);
+        this.scheduledEnd = AppointmentDuration.defaultDuration().calculateEnd(scheduledStart);
         this.status = AppointmentStatus.PENDING;
         this.notes = notes;
     }
@@ -122,7 +123,7 @@ public class Appointment extends AbstractDomainAggregateRoot<Appointment> {
         this.customerId = customerId;
         this.vehicleId = vehicleId;
         this.scheduledStart = scheduledStart;
-        this.scheduledEnd = scheduledStart.plusHours(1);
+        this.scheduledEnd = AppointmentDuration.defaultDuration().calculateEnd(scheduledStart);
         this.status = status;
         this.notes = notes;
     }
