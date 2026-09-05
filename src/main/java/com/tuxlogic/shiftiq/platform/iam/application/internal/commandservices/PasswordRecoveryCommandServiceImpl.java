@@ -15,7 +15,10 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.UUID;
 
+import org.springframework.transaction.annotation.Transactional;
+
 @Service
+@Transactional
 public class PasswordRecoveryCommandServiceImpl implements PasswordRecoveryCommandService {
 
     private final UserRepository userRepository;

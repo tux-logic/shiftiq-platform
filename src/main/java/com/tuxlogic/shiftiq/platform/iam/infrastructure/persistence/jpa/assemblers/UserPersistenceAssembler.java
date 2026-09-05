@@ -23,6 +23,7 @@ public final class UserPersistenceAssembler {
         entity.setPasswordHash(user.getPassword().value());
         entity.setGoogleId(user.getGoogleId() != null ? user.getGoogleId().value() : null);
         entity.setStatus(user.getStatus());
+        entity.setDeletedAt(user.getDeletedAt());
         return entity;
     }
 

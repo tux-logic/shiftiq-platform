@@ -321,7 +321,7 @@ CREATE TABLE users
 (
     id              uuid         NOT NULL UNIQUE,
     email           varchar(100) NOT NULL UNIQUE,
-    password_hash   varchar(255) NOT NULL UNIQUE,
+    password_hash   varchar(255) NOT NULL,
     google_id       varchar(255) UNIQUE,
     status          varchar(20)  NOT NULL DEFAULT 'ACTIVE',
     created_at      timestamp    NOT NULL,
@@ -330,6 +330,8 @@ CREATE TABLE users
     version         bigint       NOT NULL DEFAULT 0,
     PRIMARY KEY (id)
 );
+
+CREATE INDEX idx_users_deleted_at ON users (deleted_at);
 
 COMMENT ON COLUMN users.status IS 'enum: ACTIVE, INACTIVE';
 

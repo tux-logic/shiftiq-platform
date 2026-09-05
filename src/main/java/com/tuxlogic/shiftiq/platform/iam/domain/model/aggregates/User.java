@@ -66,6 +66,7 @@ public class User extends AbstractDomainAggregateRoot<User> {
     
     public void deactivate() {
         this.status = "INACTIVE";
+        this.deletedAt = Instant.now();
     }
 
     public void changePassword(Password newPassword) {
