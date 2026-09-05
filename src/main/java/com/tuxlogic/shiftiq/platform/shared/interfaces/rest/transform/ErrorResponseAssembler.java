@@ -113,6 +113,7 @@ public final class ErrorResponseAssembler {
     public static HttpStatusCode toStatusFromErrorCode(String errorCode) {
         return switch (errorCode) {
             case "VALIDATION_ERROR" -> HttpStatus.BAD_REQUEST;
+            case "ACCESS_DENIED" -> HttpStatus.FORBIDDEN;
             case String s when s.endsWith("_NOT_FOUND") -> HttpStatus.NOT_FOUND;
             case "BUSINESS_RULE_VIOLATION" -> HttpStatusCode.valueOf(422);
             case String s when s.endsWith("_CONFLICT") -> HttpStatus.CONFLICT;
