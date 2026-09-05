@@ -86,7 +86,7 @@ public class TokenServiceImpl implements BearerTokenService {
     }
 
     @Override
-    public String getBearerToken(HttpServletRequest request) {
+    public String getBearerTokenFrom(HttpServletRequest request) {
         String header = request.getHeader("Authorization");
         if (header != null && header.startsWith("Bearer ")) {
             return header.substring(7);
