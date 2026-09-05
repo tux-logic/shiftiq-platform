@@ -8,6 +8,9 @@ import com.tuxlogic.shiftiq.platform.iam.domain.repositories.PasswordRecoveryTok
 import com.tuxlogic.shiftiq.platform.iam.domain.repositories.UserRepository;
 import com.tuxlogic.shiftiq.platform.iam.application.commandservices.PasswordRecoveryCommandService;
 import com.tuxlogic.shiftiq.platform.iam.application.internal.outboundservices.email.EmailService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.nio.charset.StandardCharsets;
@@ -21,38 +24,55 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional
 public class PasswordRecoveryCommandServiceImpl implements PasswordRecoveryCommandService {
 
+    private static final Logger LOGGER = LoggerFactory.getLogger(PasswordRecoveryCommandServiceImpl.class);
+
     private final UserRepository userRepository;
     private final PasswordRecoveryTokenRepository tokenRepository;
     private final EmailService emailService;
     private final HashingService hashingService;
+    private final int tokenExpirationMinutes;
 
-    public PasswordRecoveryCommandServiceImpl(UserRepository userRepository, PasswordRecoveryTokenRepository tokenRepository, EmailService emailService, HashingService hashingService) {
+    public PasswordRecoveryCommandServiceImpl(
+            UserRepository userRepository,
+            PasswordRecoveryTokenRepository tokenRepository,
+            EmailService emailService,
+            HashingService hashingService,
+            @Value("${password.recovery.token.expiration.minutes:60}") int tokenExpirationMinutes) {
         this.userRepository = userRepository;
         this.tokenRepository = tokenRepository;
         this.emailService = emailService;
         this.hashingService = hashingService;
+        this.tokenExpirationMinutes = tokenExpirationMinutes;
     }
 
     @Override
     public void handle(GeneratePasswordRecoveryTokenCommand command) {
         var user = userRepository.findByEmail(command.email().value())
-                .orElseThrow(() -> new IllegalArgumentException("iam.error.user.notFound"));
+                .orElseThrow(() -> {
+                    LOGGER.warn("Password recovery requested for non-existent email: {}", command.email().value());
+                    return new IllegalArgumentException("iam.error.user.notFound");
+                });
 
         String rawToken = UUID.randomUUID().toString();
         String tokenHash = hashToken(rawToken);
-        var token = new PasswordRecoveryToken(tokenHash, user.getId().value(), 60); // 60 minutes
+        var token = new PasswordRecoveryToken(tokenHash, user.getId().value(), tokenExpirationMinutes);
         tokenRepository.save(token);
 
         emailService.sendPasswordRecoveryEmail(user.getEmail().value(), rawToken);
+        LOGGER.info("Password recovery token generated and sent for user ID: {}", user.getId().value());
     }
 
     @Override
     public void handle(ResetPasswordCommand command) {
         String tokenHash = hashToken(command.token());
         var tokenEntity = tokenRepository.findByTokenHash(tokenHash)
-                .orElseThrow(() -> new IllegalArgumentException("iam.error.token.invalidOrExpired"));
+                .orElseThrow(() -> {
+                    LOGGER.warn("Reset password attempt failed: token not found");
+                    return new IllegalArgumentException("iam.error.token.invalidOrExpired");
+                });
 
         if (!tokenEntity.isValid()) {
+            LOGGER.warn("Reset password attempt failed: token expired or used for user ID: {}", tokenEntity.getUserId());
             throw new IllegalArgumentException("iam.error.token.expiredOrUsed");
         }
 
@@ -64,6 +84,7 @@ public class PasswordRecoveryCommandServiceImpl implements PasswordRecoveryComma
 
         tokenEntity.markAsUsed();
         tokenRepository.save(tokenEntity);
+        LOGGER.info("Password reset successfully for user ID: {}", user.getId().value());
     }
 
     private String hashToken(String rawToken) {
@@ -85,3 +106,4 @@ public class PasswordRecoveryCommandServiceImpl implements PasswordRecoveryComma
         }
     }
 }
+
