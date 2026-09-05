@@ -22,18 +22,13 @@ public final class UserPersistenceAssembler {
         entity.setEmail(user.getEmail().value());
         entity.setPasswordHash(user.getPassword().value());
         entity.setGoogleId(user.getGoogleId() != null ? user.getGoogleId().value() : null);
-        entity.setStatus(user.getStatus() != null ? user.getStatus().name() : "ACTIVE");
+        entity.setStatus(user.getStatus() != null ? user.getStatus() : UserStatus.ACTIVE);
         entity.setDeletedAt(user.getDeletedAt());
         return entity;
     }
 
     public static User toDomain(UserPersistenceEntity entity) {
-        UserStatus status;
-        try {
-            status = entity.getStatus() != null ? UserStatus.valueOf(entity.getStatus().toUpperCase()) : UserStatus.ACTIVE;
-        } catch (IllegalArgumentException e) {
-            status = UserStatus.ACTIVE;
-        }
+        UserStatus status = entity.getStatus() != null ? entity.getStatus() : UserStatus.ACTIVE;
 
         return new User(
                 new UserId(entity.getId()),

@@ -47,11 +47,12 @@ public class PasswordRecoveryCommandServiceImpl implements PasswordRecoveryComma
 
     @Override
     public void handle(GeneratePasswordRecoveryTokenCommand command) {
-        var user = userRepository.findByEmail(command.email().value())
-                .orElseThrow(() -> {
-                    LOGGER.warn("Password recovery requested for non-existent email: {}", command.email().value());
-                    return new IllegalArgumentException("iam.error.user.notFound");
-                });
+        var userOptional = userRepository.findByEmail(command.email().value());
+        if (userOptional.isEmpty()) {
+            LOGGER.warn("Password recovery requested for non-existent email: {}", command.email().value());
+            return;
+        }
+        var user = userOptional.get();
 
         String rawToken = UUID.randomUUID().toString();
         String tokenHash = hashToken(rawToken);

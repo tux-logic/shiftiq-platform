@@ -2,7 +2,8 @@ package com.tuxlogic.shiftiq.platform.iam.domain.model.entities;
 
 import lombok.Getter;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.UUID;
 
 /**
@@ -14,8 +15,8 @@ public class PasswordRecoveryToken {
 
     private UUID id;
     private String tokenHash;
-    private LocalDateTime createdAt;
-    private LocalDateTime expiresAt;
+    private Instant createdAt;
+    private Instant expiresAt;
     private boolean isUsed;
     private UUID userId;
 
@@ -26,12 +27,12 @@ public class PasswordRecoveryToken {
         this.id = UUID.randomUUID();
         this.tokenHash = tokenHash;
         this.userId = userId;
-        this.createdAt = LocalDateTime.now();
-        this.expiresAt = this.createdAt.plusMinutes(expirationMinutes);
+        this.createdAt = Instant.now();
+        this.expiresAt = this.createdAt.plus(expirationMinutes, ChronoUnit.MINUTES);
         this.isUsed = false;
     }
 
-    public PasswordRecoveryToken(UUID id, String tokenHash, UUID userId, LocalDateTime createdAt, LocalDateTime expiresAt, boolean isUsed) {
+    public PasswordRecoveryToken(UUID id, String tokenHash, UUID userId, Instant createdAt, Instant expiresAt, boolean isUsed) {
         this.id = id;
         this.tokenHash = tokenHash;
         this.userId = userId;
@@ -41,7 +42,7 @@ public class PasswordRecoveryToken {
     }
 
     public boolean isValid() {
-        return !isUsed && LocalDateTime.now().isBefore(expiresAt);
+        return !isUsed && Instant.now().isBefore(expiresAt);
     }
 
     public void markAsUsed() {
