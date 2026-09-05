@@ -1,5 +1,6 @@
 package com.tuxlogic.shiftiq.platform.iam.infrastructure.persistence.jpa.entities;
 
+import com.tuxlogic.shiftiq.platform.iam.domain.model.valueobjects.Roles;
 import com.tuxlogic.shiftiq.platform.iam.domain.model.valueobjects.UserStatus;
 import com.tuxlogic.shiftiq.platform.shared.infrastructure.persistence.jpa.entities.AuditableAbstractPersistenceEntity;
 import jakarta.persistence.Column;
@@ -33,6 +34,10 @@ public class UserPersistenceEntity extends AuditableAbstractPersistenceEntity {
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false, length = 20)
     private UserStatus status = UserStatus.ACTIVE;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "role", nullable = false, length = 30)
+    private Roles role = Roles.ROLE_USER;
 
     @Column(name = "deleted_at")
     private Instant deletedAt;

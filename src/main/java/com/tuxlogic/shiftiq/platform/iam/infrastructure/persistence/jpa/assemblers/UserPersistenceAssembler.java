@@ -8,6 +8,8 @@ import com.tuxlogic.shiftiq.platform.iam.domain.model.valueobjects.UserId;
 import com.tuxlogic.shiftiq.platform.iam.domain.model.valueobjects.UserStatus;
 import com.tuxlogic.shiftiq.platform.iam.infrastructure.persistence.jpa.entities.UserPersistenceEntity;
 
+import com.tuxlogic.shiftiq.platform.iam.domain.model.valueobjects.Roles;
+
 public final class UserPersistenceAssembler {
 
     private UserPersistenceAssembler() {}
@@ -23,12 +25,14 @@ public final class UserPersistenceAssembler {
         entity.setPasswordHash(user.getPassword().value());
         entity.setGoogleId(user.getGoogleId() != null ? user.getGoogleId().value() : null);
         entity.setStatus(user.getStatus() != null ? user.getStatus() : UserStatus.ACTIVE);
+        entity.setRole(user.getRole() != null ? user.getRole() : Roles.ROLE_USER);
         entity.setDeletedAt(user.getDeletedAt());
         return entity;
     }
 
     public static User toDomain(UserPersistenceEntity entity) {
         UserStatus status = entity.getStatus() != null ? entity.getStatus() : UserStatus.ACTIVE;
+        Roles role = entity.getRole() != null ? entity.getRole() : Roles.ROLE_USER;
 
         return new User(
                 new UserId(entity.getId()),
@@ -36,6 +40,7 @@ public final class UserPersistenceAssembler {
                 new Password(entity.getPasswordHash()),
                 entity.getGoogleId() != null ? new GoogleId(entity.getGoogleId()) : null,
                 status,
+                role,
                 entity.getCreatedAt(),
                 entity.getUpdatedAt(),
                 entity.getDeletedAt(),

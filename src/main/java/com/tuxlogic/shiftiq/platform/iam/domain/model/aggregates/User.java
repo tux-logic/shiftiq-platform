@@ -7,6 +7,7 @@ import com.tuxlogic.shiftiq.platform.iam.domain.model.events.UserSignedUpEvent;
 import com.tuxlogic.shiftiq.platform.iam.domain.model.valueobjects.EmailAddress;
 import com.tuxlogic.shiftiq.platform.iam.domain.model.valueobjects.GoogleId;
 import com.tuxlogic.shiftiq.platform.iam.domain.model.valueobjects.Password;
+import com.tuxlogic.shiftiq.platform.iam.domain.model.valueobjects.Roles;
 import com.tuxlogic.shiftiq.platform.iam.domain.model.valueobjects.UserId;
 import com.tuxlogic.shiftiq.platform.iam.domain.model.valueobjects.UserStatus;
 import com.tuxlogic.shiftiq.platform.shared.domain.model.aggregates.AbstractDomainAggregateRoot;
@@ -27,6 +28,7 @@ public class User extends AbstractDomainAggregateRoot<User> {
     private Password password;
     private GoogleId googleId;
     private UserStatus status;
+    private Roles role;
     private Instant createdAt;
     private Instant updatedAt;
     private Instant deletedAt;
@@ -35,14 +37,16 @@ public class User extends AbstractDomainAggregateRoot<User> {
     public User() {
         this.id = new UserId(UUID.randomUUID());
         this.status = UserStatus.ACTIVE;
+        this.role = Roles.ROLE_USER;
     }
 
-    public User(UserId id, EmailAddress email, Password password, GoogleId googleId, UserStatus status, Instant createdAt, Instant updatedAt, Instant deletedAt, Long version) {
+    public User(UserId id, EmailAddress email, Password password, GoogleId googleId, UserStatus status, Roles role, Instant createdAt, Instant updatedAt, Instant deletedAt, Long version) {
         this.id = id;
         this.email = email;
         this.password = password;
         this.googleId = googleId;
         this.status = status != null ? status : UserStatus.ACTIVE;
+        this.role = role != null ? role : Roles.ROLE_USER;
         this.createdAt = createdAt;
         this.updatedAt = updatedAt;
         this.deletedAt = deletedAt;
@@ -65,6 +69,17 @@ public class User extends AbstractDomainAggregateRoot<User> {
     public User(EmailAddress email, Password password, GoogleId googleId) {
         this(email, password);
         this.googleId = googleId;
+    }
+
+    public Roles getRole() {
+        return this.role != null ? this.role : Roles.ROLE_USER;
+    }
+
+    public void assignRole(Roles role) {
+        if (role == null) {
+            throw new IllegalArgumentException("iam.error.role.required");
+        }
+        this.role = role;
     }
 
     public void deactivate() {

@@ -324,6 +324,7 @@ CREATE TABLE users
     password_hash   varchar(255) NOT NULL,
     google_id       varchar(255) UNIQUE,
     status          varchar(20)  NOT NULL DEFAULT 'ACTIVE',
+    role            varchar(30)  NOT NULL DEFAULT 'ROLE_USER',
     created_at      timestamp    NOT NULL,
     updated_at      timestamp    NOT NULL,
     deleted_at      timestamp   ,

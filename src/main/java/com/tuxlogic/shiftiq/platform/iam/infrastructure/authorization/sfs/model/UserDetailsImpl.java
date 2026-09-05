@@ -37,7 +37,8 @@ public class UserDetailsImpl implements UserDetails {
     }
 
     public static UserDetailsImpl build(User user) {
-        GrantedAuthority authority = new SimpleGrantedAuthority("ROLE_USER");
+        String roleName = user.getRole() != null ? user.getRole().name() : "ROLE_USER";
+        GrantedAuthority authority = new SimpleGrantedAuthority(roleName);
         boolean enabled = user.getStatus() == UserStatus.ACTIVE;
 
         return new UserDetailsImpl(
