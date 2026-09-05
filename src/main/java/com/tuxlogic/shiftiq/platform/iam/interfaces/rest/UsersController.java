@@ -15,8 +15,10 @@ import com.tuxlogic.shiftiq.platform.iam.interfaces.rest.resources.SignUpResourc
 import com.tuxlogic.shiftiq.platform.iam.interfaces.rest.transform.SignUpCommandFromResourceAssembler;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.UUID;
@@ -24,6 +26,7 @@ import java.util.UUID;
 @RestController
 @RequestMapping("/api/v1/users")
 @Tag(name = "Users", description = "User Management Endpoints")
+@PreAuthorize("isAuthenticated()")
 public class UsersController {
 
     private final UserCommandService userCommandService;
@@ -36,7 +39,8 @@ public class UsersController {
 
     @PostMapping
     @Operation(summary = "Sign up", description = "Register a new user")
-    public ResponseEntity<UserResource> signUp(@RequestBody SignUpResource signUpResource) {
+    @PreAuthorize("permitAll()")
+    public ResponseEntity<UserResource> signUp(@Valid @RequestBody SignUpResource signUpResource) {
         var signUpCommand = SignUpCommandFromResourceAssembler.toCommandFromResource(signUpResource);
         var user = userCommandService.handle(signUpCommand);
         if (user.isEmpty()) {
@@ -48,6 +52,7 @@ public class UsersController {
 
     @Operation(summary = "Get user by ID", description = "Retrieves the details of a specific user")
     @GetMapping("/{userId}")
+    @PreAuthorize("isAuthenticated() and @userSecurityService.isCurrentUser(#userId)")
     public ResponseEntity<UserResource> getUserById(@PathVariable UUID userId) {
         var query = new GetUserByIdQuery(new com.tuxlogic.shiftiq.platform.iam.domain.model.valueobjects.UserId(userId));
         var user = userQueryService.handle(query);
@@ -76,7 +81,8 @@ public class UsersController {
 
     @Operation(summary = "Update user email", description = "Updates the email address of a specific user and returns a new authentication token")
     @PutMapping("/{userId}/email")
-    public ResponseEntity<AuthenticatedUserResource> updateUserEmail(@PathVariable UUID userId, @RequestBody UpdateUserEmailResource resource) {
+    @PreAuthorize("isAuthenticated() and @userSecurityService.isCurrentUser(#userId)")
+    public ResponseEntity<AuthenticatedUserResource> updateUserEmail(@PathVariable UUID userId, @Valid @RequestBody UpdateUserEmailResource resource) {
         var command = UpdateUserEmailCommandFromResourceAssembler.toCommandFromResource(userId, resource);
         var authenticatedUser = userCommandService.handle(command);
 
@@ -90,7 +96,8 @@ public class UsersController {
 
     @Operation(summary = "Update user password", description = "Updates the password of a specific user")
     @PutMapping("/{userId}/password")
-    public ResponseEntity<?> updateUserPassword(@PathVariable UUID userId, @RequestBody UpdateUserPasswordResource resource) {
+    @PreAuthorize("isAuthenticated() and @userSecurityService.isCurrentUser(#userId)")
+    public ResponseEntity<?> updateUserPassword(@PathVariable UUID userId, @Valid @RequestBody UpdateUserPasswordResource resource) {
         var command = UpdateUserPasswordCommandFromResourceAssembler.toCommandFromResource(userId, resource);
         var user = userCommandService.handle(command);
 

@@ -65,6 +65,24 @@ public class GlobalExceptionHandler {
     }
 
     /**
+     * Handles access denied exceptions when authenticated user lacks permissions.
+     * Maps to a 403 FORBIDDEN response.
+     *
+     * @param ex the access denied exception
+     * @return error response with FORBIDDEN status
+     */
+    @ExceptionHandler(org.springframework.security.access.AccessDeniedException.class)
+    public ResponseEntity<?> handleAccessDeniedException(org.springframework.security.access.AccessDeniedException ex) {
+        String detailMessage = resolveMessageOrDefault("error.access-denied.message", "Access denied: insufficient permissions");
+        var applicationError = new ApplicationError(
+                "ACCESS_DENIED",
+                detailMessage,
+                ex.getMessage()
+        );
+        return ErrorResponseAssembler.toErrorResponseFromApplicationError(applicationError);
+    }
+
+    /**
      * Handles unexpected runtime exceptions not caught by specific handlers.
      * Maps to a generic unexpected error response.
      *

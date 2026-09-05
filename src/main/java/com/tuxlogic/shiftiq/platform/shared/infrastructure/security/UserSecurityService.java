@@ -1,7 +1,6 @@
 package com.tuxlogic.shiftiq.platform.shared.infrastructure.security;
 
 import com.tuxlogic.shiftiq.platform.iam.infrastructure.authorization.sfs.model.UserDetailsImpl;
-import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
@@ -9,14 +8,20 @@ import org.springframework.stereotype.Service;
 import java.util.UUID;
 
 /**
- * Service to validate multi-tenancy access ensuring requested branchId is validated against the authenticated user session.
+ * Security evaluation bean exposed to SpEL expressions for checking user permissions and preventing IDOR.
  */
-@Service("multiTenancySecurityService")
-public class MultiTenancySecurityService {
+@Service("userSecurityService")
+public class UserSecurityService {
 
-    public boolean isAuthorizedForBranch(UUID branchId) {
-        if (branchId == null) {
-            return true;
+    /**
+     * Checks whether the given userId matches the ID of the currently authenticated user session.
+     *
+     * @param userId the UUID of the target user
+     * @return true if the authenticated user matches userId, false otherwise
+     */
+    public boolean isCurrentUser(UUID userId) {
+        if (userId == null) {
+            return false;
         }
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         if (authentication == null || !authentication.isAuthenticated()) {
@@ -24,14 +29,8 @@ public class MultiTenancySecurityService {
         }
         Object principal = authentication.getPrincipal();
         if (principal instanceof UserDetailsImpl userDetails) {
-            return userDetails.getBranchIds() != null && userDetails.getBranchIds().contains(branchId);
+            return userId.equals(userDetails.getId());
         }
         return false;
-    }
-
-    public void validateBranchAccess(UUID branchId) {
-        if (!isAuthorizedForBranch(branchId)) {
-            throw new AccessDeniedException("Unauthorized access for requested branch identifier: " + branchId);
-        }
     }
 }

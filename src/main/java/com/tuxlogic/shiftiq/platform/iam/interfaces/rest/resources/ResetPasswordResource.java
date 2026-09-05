@@ -1,4 +1,14 @@
 package com.tuxlogic.shiftiq.platform.iam.interfaces.rest.resources;
 
-public record ResetPasswordResource(String token, String newPassword) {
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
+
+public record ResetPasswordResource(
+        @NotBlank(message = "iam.error.token.required")
+        String token,
+
+        @NotBlank(message = "iam.error.password.required")
+        @Size(min = 8, message = "iam.error.password.length")
+        String newPassword
+) {
 }

@@ -19,11 +19,15 @@ import java.util.function.Function;
 @Service
 public class TokenServiceImpl implements BearerTokenService {
 
-    @Value("${authorization.jwt.secret}")
-    private String secret;
+    private final String secret;
+    private final int expirationDays;
 
-    @Value("${authorization.jwt.expiration.days}")
-    private int expirationDays;
+    public TokenServiceImpl(
+            @Value("${authorization.jwt.secret}") String secret,
+            @Value("${authorization.jwt.expiration.days:30}") int expirationDays) {
+        this.secret = secret;
+        this.expirationDays = expirationDays;
+    }
 
     @Override
     @SuppressWarnings("unused")
@@ -40,6 +44,8 @@ public class TokenServiceImpl implements BearerTokenService {
         return Jwts.builder()
                 .claims(extraClaims)
                 .subject(username)
+                .issuer("shiftiq-platform")
+                .audience().add("shiftiq-users").and()
                 .issuedAt(new Date(System.currentTimeMillis()))
                 .expiration(new Date(System.currentTimeMillis() + expirationDays * 24L * 60L * 60L * 1000L))
                 .signWith(getSignInKey(), Jwts.SIG.HS256)
@@ -61,15 +67,6 @@ public class TokenServiceImpl implements BearerTokenService {
         }
     }
 
-    @Override
-    public String getBearerTokenFrom(HttpServletRequest request) {
-        String authorizationHeader = request.getHeader("Authorization");
-        if (authorizationHeader != null && authorizationHeader.startsWith("Bearer ")) {
-            return authorizationHeader.substring(7);
-        }
-        return null;
-    }
-
     private <T> T extractClaim(String token, Function<Claims, T> claimsResolver) {
         final Claims claims = extractAllClaims(token);
         return claimsResolver.apply(claims);
@@ -86,5 +83,14 @@ public class TokenServiceImpl implements BearerTokenService {
     private SecretKey getSignInKey() {
         byte[] keyBytes = Decoders.BASE64.decode(secret);
         return Keys.hmacShaKeyFor(keyBytes);
+    }
+
+    @Override
+    public String getBearerTokenFrom(HttpServletRequest request) {
+        String header = request.getHeader("Authorization");
+        if (header != null && header.startsWith("Bearer ")) {
+            return header.substring(7);
+        }
+        return null;
     }
 }

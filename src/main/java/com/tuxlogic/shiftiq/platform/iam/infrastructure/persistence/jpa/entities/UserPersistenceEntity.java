@@ -1,15 +1,27 @@
 package com.tuxlogic.shiftiq.platform.iam.infrastructure.persistence.jpa.entities;
 
+import com.tuxlogic.shiftiq.platform.iam.domain.model.valueobjects.Roles;
+import com.tuxlogic.shiftiq.platform.iam.domain.model.valueobjects.UserStatus;
 import com.tuxlogic.shiftiq.platform.shared.infrastructure.persistence.jpa.entities.AuditableAbstractPersistenceEntity;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.Table;
 import jakarta.persistence.Version;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
+import jakarta.persistence.CollectionTable;
+import jakarta.persistence.ElementCollection;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.JoinColumn;
+
 import java.time.Instant;
+import java.util.HashSet;
+import java.util.Set;
+import java.util.UUID;
 
 @Entity
 @Table(name = "users")
@@ -21,14 +33,27 @@ public class UserPersistenceEntity extends AuditableAbstractPersistenceEntity {
     @Column(name = "email", nullable = false, unique = true, length = 100)
     private String email;
 
-    @Column(name = "password_hash", nullable = false, unique = true)
+    @Column(name = "password_hash", nullable = false)
     private String passwordHash;
 
     @Column(name = "google_id", unique = true)
     private String googleId;
 
+    @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false, length = 20)
-    private String status = "ACTIVE";
+    private UserStatus status = UserStatus.ACTIVE;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "role", nullable = false, length = 30)
+    private Roles role = Roles.ROLE_USER;
+
+    @ElementCollection(fetch = FetchType.EAGER)
+    @CollectionTable(
+            name = "user_branches",
+            joinColumns = @JoinColumn(name = "user_id")
+    )
+    @Column(name = "branch_id")
+    private Set<UUID> branchIds = new HashSet<>();
 
     @Column(name = "deleted_at")
     private Instant deletedAt;

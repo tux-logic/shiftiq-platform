@@ -1,9 +1,9 @@
 package com.tuxlogic.shiftiq.platform.iam.domain.model.entities;
 
 import lombok.Getter;
-import lombok.Setter;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.UUID;
 
 /**
@@ -13,22 +13,11 @@ import java.util.UUID;
 @Getter
 public class PasswordRecoveryToken {
 
-    @Setter
     private UUID id;
-
-    @Setter
     private String tokenHash;
-
-    @Setter
-    private LocalDateTime createdAt;
-
-    @Setter
-    private LocalDateTime expiresAt;
-
-    @Setter
+    private Instant createdAt;
+    private Instant expiresAt;
     private boolean isUsed;
-
-    @Setter
     private UUID userId;
 
     public PasswordRecoveryToken() {
@@ -38,13 +27,22 @@ public class PasswordRecoveryToken {
         this.id = UUID.randomUUID();
         this.tokenHash = tokenHash;
         this.userId = userId;
-        this.createdAt = LocalDateTime.now();
-        this.expiresAt = this.createdAt.plusMinutes(expirationMinutes);
+        this.createdAt = Instant.now();
+        this.expiresAt = this.createdAt.plus(expirationMinutes, ChronoUnit.MINUTES);
         this.isUsed = false;
     }
 
+    public PasswordRecoveryToken(UUID id, String tokenHash, UUID userId, Instant createdAt, Instant expiresAt, boolean isUsed) {
+        this.id = id;
+        this.tokenHash = tokenHash;
+        this.userId = userId;
+        this.createdAt = createdAt;
+        this.expiresAt = expiresAt;
+        this.isUsed = isUsed;
+    }
+
     public boolean isValid() {
-        return !isUsed && LocalDateTime.now().isBefore(expiresAt);
+        return !isUsed && Instant.now().isBefore(expiresAt);
     }
 
     public void markAsUsed() {

@@ -321,9 +321,10 @@ CREATE TABLE users
 (
     id              uuid         NOT NULL UNIQUE,
     email           varchar(100) NOT NULL UNIQUE,
-    password_hash   varchar(255) NOT NULL UNIQUE,
+    password_hash   varchar(255) NOT NULL,
     google_id       varchar(255) UNIQUE,
     status          varchar(20)  NOT NULL DEFAULT 'ACTIVE',
+    role            varchar(30)  NOT NULL DEFAULT 'ROLE_USER',
     created_at      timestamp    NOT NULL,
     updated_at      timestamp    NOT NULL,
     deleted_at      timestamp   ,
@@ -331,7 +332,16 @@ CREATE TABLE users
     PRIMARY KEY (id)
 );
 
+CREATE INDEX idx_users_deleted_at ON users (deleted_at);
+
 COMMENT ON COLUMN users.status IS 'enum: ACTIVE, INACTIVE';
+
+CREATE TABLE user_branches
+(
+    user_id   uuid NOT NULL,
+    branch_id uuid NOT NULL,
+    PRIMARY KEY (user_id, branch_id)
+);
 
 CREATE TABLE vehicle_registrations
 (

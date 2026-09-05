@@ -5,8 +5,9 @@ import com.tuxlogic.shiftiq.platform.iam.domain.repositories.UserRepository;
 import com.tuxlogic.shiftiq.platform.iam.infrastructure.persistence.jpa.assemblers.UserPersistenceAssembler;
 import com.tuxlogic.shiftiq.platform.iam.infrastructure.persistence.jpa.entities.UserPersistenceEntity;
 import com.tuxlogic.shiftiq.platform.iam.infrastructure.persistence.jpa.repositories.UserPersistenceRepository;
-
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Repository;
+
 import java.util.Optional;
 import java.util.UUID;
 
@@ -14,9 +15,11 @@ import java.util.UUID;
 public class UserRepositoryImpl implements UserRepository {
 
     private final UserPersistenceRepository userPersistenceRepository;
+    private final ApplicationEventPublisher eventPublisher;
 
-    public UserRepositoryImpl(UserPersistenceRepository userPersistenceRepository) {
+    public UserRepositoryImpl(UserPersistenceRepository userPersistenceRepository, ApplicationEventPublisher eventPublisher) {
         this.userPersistenceRepository = userPersistenceRepository;
+        this.eventPublisher = eventPublisher;
     }
 
     @Override
@@ -30,11 +33,15 @@ public class UserRepositoryImpl implements UserRepository {
         
         UserPersistenceAssembler.toEntity(user, entity);
         userPersistenceRepository.save(entity);
+
+        // Publish domain events post-save
+        user.domainEvents().forEach(eventPublisher::publishEvent);
+        user.clearDomainEvents();
     }
 
     @Override
     public Optional<User> findById(UUID id) {
-        return userPersistenceRepository.findById(id).map(UserPersistenceAssembler::toDomain);
+        return userPersistenceRepository.findByIdAndNotDeleted(id).map(UserPersistenceAssembler::toDomain);
     }
 
     @Override
