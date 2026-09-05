@@ -10,6 +10,9 @@ import com.tuxlogic.shiftiq.platform.iam.application.commandservices.PasswordRec
 import com.tuxlogic.shiftiq.platform.iam.application.internal.outboundservices.email.EmailService;
 import org.springframework.stereotype.Service;
 
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.util.UUID;
 
 @Service
@@ -33,7 +36,8 @@ public class PasswordRecoveryCommandServiceImpl implements PasswordRecoveryComma
                 .orElseThrow(() -> new IllegalArgumentException("iam.error.user.notFound"));
 
         String rawToken = UUID.randomUUID().toString();
-        var token = new PasswordRecoveryToken(rawToken, user.getId().value(), 60); // 60 minutes
+        String tokenHash = hashToken(rawToken);
+        var token = new PasswordRecoveryToken(tokenHash, user.getId().value(), 60); // 60 minutes
         tokenRepository.save(token);
 
         emailService.sendPasswordRecoveryEmail(user.getEmail().value(), rawToken);
@@ -41,7 +45,8 @@ public class PasswordRecoveryCommandServiceImpl implements PasswordRecoveryComma
 
     @Override
     public void handle(ResetPasswordCommand command) {
-        var tokenEntity = tokenRepository.findByTokenHash(command.token())
+        String tokenHash = hashToken(command.token());
+        var tokenEntity = tokenRepository.findByTokenHash(tokenHash)
                 .orElseThrow(() -> new IllegalArgumentException("iam.error.token.invalidOrExpired"));
 
         if (!tokenEntity.isValid()) {
@@ -56,5 +61,24 @@ public class PasswordRecoveryCommandServiceImpl implements PasswordRecoveryComma
 
         tokenEntity.markAsUsed();
         tokenRepository.save(tokenEntity);
+    }
+
+    private String hashToken(String rawToken) {
+        if (rawToken == null || rawToken.isBlank()) {
+            return "";
+        }
+        try {
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            byte[] hash = digest.digest(rawToken.getBytes(StandardCharsets.UTF_8));
+            StringBuilder hexString = new StringBuilder();
+            for (byte b : hash) {
+                String hex = Integer.toHexString(0xff & b);
+                if (hex.length() == 1) hexString.append('0');
+                hexString.append(hex);
+            }
+            return hexString.toString();
+        } catch (NoSuchAlgorithmException e) {
+            throw new RuntimeException("Error hashing password recovery token", e);
+        }
     }
 }
