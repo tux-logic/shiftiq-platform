@@ -13,7 +13,15 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
+import jakarta.persistence.CollectionTable;
+import jakarta.persistence.ElementCollection;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.JoinColumn;
+
 import java.time.Instant;
+import java.util.HashSet;
+import java.util.Set;
+import java.util.UUID;
 
 @Entity
 @Table(name = "users")
@@ -38,6 +46,14 @@ public class UserPersistenceEntity extends AuditableAbstractPersistenceEntity {
     @Enumerated(EnumType.STRING)
     @Column(name = "role", nullable = false, length = 30)
     private Roles role = Roles.ROLE_USER;
+
+    @ElementCollection(fetch = FetchType.EAGER)
+    @CollectionTable(
+            name = "user_branches",
+            joinColumns = @JoinColumn(name = "user_id")
+    )
+    @Column(name = "branch_id")
+    private Set<UUID> branchIds = new HashSet<>();
 
     @Column(name = "deleted_at")
     private Instant deletedAt;
