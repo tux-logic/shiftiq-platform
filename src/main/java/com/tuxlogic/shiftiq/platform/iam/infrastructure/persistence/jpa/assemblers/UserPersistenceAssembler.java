@@ -1,12 +1,12 @@
 package com.tuxlogic.shiftiq.platform.iam.infrastructure.persistence.jpa.assemblers;
 
 import com.tuxlogic.shiftiq.platform.iam.domain.model.aggregates.User;
-import com.tuxlogic.shiftiq.platform.iam.infrastructure.persistence.jpa.entities.UserPersistenceEntity;
-
 import com.tuxlogic.shiftiq.platform.iam.domain.model.valueobjects.EmailAddress;
 import com.tuxlogic.shiftiq.platform.iam.domain.model.valueobjects.GoogleId;
 import com.tuxlogic.shiftiq.platform.iam.domain.model.valueobjects.Password;
 import com.tuxlogic.shiftiq.platform.iam.domain.model.valueobjects.UserId;
+import com.tuxlogic.shiftiq.platform.iam.domain.model.valueobjects.UserStatus;
+import com.tuxlogic.shiftiq.platform.iam.infrastructure.persistence.jpa.entities.UserPersistenceEntity;
 
 public final class UserPersistenceAssembler {
 
@@ -22,18 +22,25 @@ public final class UserPersistenceAssembler {
         entity.setEmail(user.getEmail().value());
         entity.setPasswordHash(user.getPassword().value());
         entity.setGoogleId(user.getGoogleId() != null ? user.getGoogleId().value() : null);
-        entity.setStatus(user.getStatus());
+        entity.setStatus(user.getStatus() != null ? user.getStatus().name() : "ACTIVE");
         entity.setDeletedAt(user.getDeletedAt());
         return entity;
     }
 
     public static User toDomain(UserPersistenceEntity entity) {
+        UserStatus status;
+        try {
+            status = entity.getStatus() != null ? UserStatus.valueOf(entity.getStatus().toUpperCase()) : UserStatus.ACTIVE;
+        } catch (IllegalArgumentException e) {
+            status = UserStatus.ACTIVE;
+        }
+
         return new User(
                 new UserId(entity.getId()),
                 new EmailAddress(entity.getEmail()),
                 new Password(entity.getPasswordHash()),
                 entity.getGoogleId() != null ? new GoogleId(entity.getGoogleId()) : null,
-                entity.getStatus(),
+                status,
                 entity.getCreatedAt(),
                 entity.getUpdatedAt(),
                 entity.getDeletedAt(),

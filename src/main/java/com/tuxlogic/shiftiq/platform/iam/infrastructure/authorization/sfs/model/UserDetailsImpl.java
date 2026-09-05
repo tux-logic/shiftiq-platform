@@ -1,8 +1,8 @@
 package com.tuxlogic.shiftiq.platform.iam.infrastructure.authorization.sfs.model;
 
 import com.tuxlogic.shiftiq.platform.iam.domain.model.aggregates.User;
+import com.tuxlogic.shiftiq.platform.iam.domain.model.valueobjects.UserStatus;
 import com.fasterxml.jackson.annotation.JsonIgnore;
-import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
@@ -13,7 +13,6 @@ import java.util.Collections;
 import java.util.UUID;
 
 @Getter
-@EqualsAndHashCode
 public class UserDetailsImpl implements UserDetails {
 
     private final UUID id;
@@ -39,7 +38,7 @@ public class UserDetailsImpl implements UserDetails {
 
     public static UserDetailsImpl build(User user) {
         GrantedAuthority authority = new SimpleGrantedAuthority("ROLE_USER");
-        boolean enabled = "ACTIVE".equals(user.getStatus());
+        boolean enabled = user.getStatus() == UserStatus.ACTIVE;
 
         return new UserDetailsImpl(
                 user.getId().value(),
