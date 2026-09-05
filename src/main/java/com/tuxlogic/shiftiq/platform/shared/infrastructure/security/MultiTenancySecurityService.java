@@ -12,14 +12,7 @@ import org.springframework.stereotype.Service;
 import java.util.UUID;
 
 /**
- * Service to validate multi-tenancy access ensuring the requested branchId is validated
- * against the authenticated user session.
- *
- * <p><b>NOTE</b>: Full branch-membership validation is pending until IAM provides
- * {@code UserDetailsImpl#getBranchIds()}.
- * TODO: Implement branch validation after IAM update — replace the authentication-only check
- * in {@link #isAuthorizedForBranch} with a real membership lookup once the field is available.
- * </p>
+ * Service to validate multi-tenancy access ensuring requested branchId is validated against the authenticated user session.
  */
 @Service("multiTenancySecurityService")
 public class MultiTenancySecurityService {
@@ -39,11 +32,6 @@ public class MultiTenancySecurityService {
 
     /**
      * Verifies that the currently authenticated user has access to the requested branch.
-     *
-     * <p>TEMPORARY: Currently only checks that the request comes from an authenticated user.
-     * TODO: Implement branch validation after IAM update — compare {@code branchId} against
-     * {@code ((UserDetailsImpl) principal).getBranchIds()} once that field exists.
-     * </p>
      */
     public boolean isAuthorizedForBranch(UUID branchId) {
         if (branchId == null) {
@@ -54,13 +42,10 @@ public class MultiTenancySecurityService {
             return false;
         }
         Object principal = authentication.getPrincipal();
-        if (!(principal instanceof UserDetailsImpl)) {
-            return false;
+        if (principal instanceof UserDetailsImpl userDetails) {
+            return userDetails.getBranchIds() != null && userDetails.getBranchIds().contains(branchId);
         }
-        // TODO: Implement branch validation after IAM update
-        // Uncomment and adapt once UserDetailsImpl exposes getBranchIds():
-        //   return ((UserDetailsImpl) principal).getBranchIds().contains(branchId);
-        return true;
+        return false;
     }
 
     /**
