@@ -336,6 +336,13 @@ CREATE INDEX idx_users_deleted_at ON users (deleted_at);
 
 COMMENT ON COLUMN users.status IS 'enum: ACTIVE, INACTIVE';
 
+CREATE TABLE user_branches
+(
+    user_id   uuid NOT NULL,
+    branch_id uuid NOT NULL,
+    PRIMARY KEY (user_id, branch_id)
+);
+
 CREATE TABLE vehicle_registrations
 (
     id         uuid        NOT NULL UNIQUE,

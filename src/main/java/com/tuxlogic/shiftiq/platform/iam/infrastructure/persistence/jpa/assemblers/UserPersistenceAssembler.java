@@ -10,6 +10,9 @@ import com.tuxlogic.shiftiq.platform.iam.infrastructure.persistence.jpa.entities
 
 import com.tuxlogic.shiftiq.platform.iam.domain.model.valueobjects.Roles;
 
+import java.util.Collections;
+import java.util.HashSet;
+
 public final class UserPersistenceAssembler {
 
     private UserPersistenceAssembler() {}
@@ -26,6 +29,7 @@ public final class UserPersistenceAssembler {
         entity.setGoogleId(user.getGoogleId() != null ? user.getGoogleId().value() : null);
         entity.setStatus(user.getStatus() != null ? user.getStatus() : UserStatus.ACTIVE);
         entity.setRole(user.getRole() != null ? user.getRole() : Roles.ROLE_USER);
+        entity.setBranchIds(user.getBranchIds() != null ? new HashSet<>(user.getBranchIds()) : new HashSet<>());
         entity.setDeletedAt(user.getDeletedAt());
         return entity;
     }
@@ -41,6 +45,7 @@ public final class UserPersistenceAssembler {
                 entity.getGoogleId() != null ? new GoogleId(entity.getGoogleId()) : null,
                 status,
                 role,
+                entity.getBranchIds() != null ? entity.getBranchIds() : Collections.emptySet(),
                 entity.getCreatedAt(),
                 entity.getUpdatedAt(),
                 entity.getDeletedAt(),
