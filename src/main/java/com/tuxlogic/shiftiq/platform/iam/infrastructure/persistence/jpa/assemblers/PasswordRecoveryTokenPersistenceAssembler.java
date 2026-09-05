@@ -21,13 +21,16 @@ public final class PasswordRecoveryTokenPersistenceAssembler {
     }
 
     public static PasswordRecoveryToken toDomain(PasswordRecoveryTokenPersistenceEntity entity) {
-        PasswordRecoveryToken token = new PasswordRecoveryToken();
-        token.setId(entity.getId());
-        token.setTokenHash(entity.getTokenHash());
-        token.setCreatedAt(entity.getCreatedAt());
-        token.setExpiresAt(entity.getExpiresAt());
-        token.setUsed(entity.isUsed());
-        token.setUserId(entity.getUserId());
-        return token;
+        if (entity == null) {
+            return null;
+        }
+        return new PasswordRecoveryToken(
+                entity.getId(),
+                entity.getTokenHash(),
+                entity.getUserId(),
+                entity.getCreatedAt(),
+                entity.getExpiresAt(),
+                entity.isUsed()
+        );
     }
 }
