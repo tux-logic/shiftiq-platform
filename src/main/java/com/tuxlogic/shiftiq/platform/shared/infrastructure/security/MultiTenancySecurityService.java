@@ -23,7 +23,10 @@ public class MultiTenancySecurityService {
             return false;
         }
         Object principal = authentication.getPrincipal();
-        return principal instanceof UserDetailsImpl;
+        if (principal instanceof UserDetailsImpl userDetails) {
+            return userDetails.getBranchIds() != null && userDetails.getBranchIds().contains(branchId);
+        }
+        return false;
     }
 
     public void validateBranchAccess(UUID branchId) {
