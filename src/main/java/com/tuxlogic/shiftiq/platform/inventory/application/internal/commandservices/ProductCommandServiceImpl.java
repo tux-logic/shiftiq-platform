@@ -11,6 +11,8 @@ import com.tuxlogic.shiftiq.platform.inventory.domain.model.entities.ProductBatc
 import com.tuxlogic.shiftiq.platform.inventory.domain.model.valueobjects.ProductCommandFailure;
 import com.tuxlogic.shiftiq.platform.inventory.domain.repositories.ProductRepository;
 import com.tuxlogic.shiftiq.platform.shared.application.result.Result;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -19,6 +21,8 @@ import java.util.UUID;
 
 @Service
 public class ProductCommandServiceImpl implements ProductCommandService {
+
+    private static final Logger log = LoggerFactory.getLogger(ProductCommandServiceImpl.class);
     private final ProductRepository productRepository;
 
     public ProductCommandServiceImpl(ProductRepository productRepository) {
@@ -29,6 +33,7 @@ public class ProductCommandServiceImpl implements ProductCommandService {
     @Transactional
     public Result<Product, ProductCommandFailure> handle(CreateProductCommand command) {
         if (productRepository.existsByBranchIdAndSku(command.branchId(), command.sku().value())) {
+            log.warn("Create product failed: duplicate SKU '{}' for branch '{}'", command.sku().value(), command.branchId());
             return Result.failure(ProductCommandFailure.DUPLICATE_SKU);
         }
 
@@ -44,8 +49,11 @@ public class ProductCommandServiceImpl implements ProductCommandService {
                     command.minimumStock().value()
             );
             product.refreshLowStockAlert();
-            return Result.success(productRepository.save(product));
+            Product savedProduct = productRepository.save(product);
+            log.info("Created product ID '{}' for branch '{}'", savedProduct.getId(), savedProduct.getBranchId());
+            return Result.success(savedProduct);
         } catch (IllegalArgumentException e) {
+            log.warn("Create product failed due to invalid data: {}", e.getMessage());
             return Result.failure(ProductCommandFailure.INVALID_PRODUCT_DATA);
         }
     }
@@ -53,22 +61,29 @@ public class ProductCommandServiceImpl implements ProductCommandService {
     @Override
     @Transactional
     public Result<ProductBatch, ProductCommandFailure> handle(AddBatchToProductCommand command) {
-        var product = productRepository.findById(command.productId());
-        if (product.isEmpty()) {
+        var productOpt = productRepository.findById(command.productId());
+        if (productOpt.isEmpty()) {
+            log.warn("Add batch failed: product ID '{}' not found", command.productId());
             return Result.failure(ProductCommandFailure.PRODUCT_NOT_FOUND);
         }
 
+        Product product = productOpt.get();
         try {
-            var movementBatch = product.get().applyStockMovement(command.quantity(), command.acquisitionCost());
-            var savedProduct = productRepository.save(product.get());
+            var movementBatch = product.applyStockMovement(command.quantity(), command.acquisitionCost());
+            var savedProduct = productRepository.save(product);
+            log.info("Applied stock movement of {} for product ID '{}'. New stock: {}",
+                    command.quantity(), savedProduct.getId(), savedProduct.getCurrentStock().value());
+
             if (movementBatch.isPresent()) {
                 var savedBatch = savedProduct.getBatches().get(savedProduct.getBatches().size() - 1);
                 return Result.success(savedBatch);
             }
             return Result.success(ProductBatch.forStockAdjustment(command.quantity(), command.acquisitionCost(), savedProduct.getCurrentStock().value()));
         } catch (InsufficientStockException e) {
+            log.warn("Add batch failed: insufficient stock for product ID '{}'", command.productId());
             return Result.failure(ProductCommandFailure.INSUFFICIENT_STOCK);
         } catch (IllegalArgumentException e) {
+            log.warn("Add batch failed due to invalid data for product ID '{}': {}", command.productId(), e.getMessage());
             return Result.failure(ProductCommandFailure.INVALID_PRODUCT_DATA);
         }
     }
@@ -76,21 +91,24 @@ public class ProductCommandServiceImpl implements ProductCommandService {
     @Override
     @Transactional
     public Result<Product, ProductCommandFailure> handle(UpdateProductCommand command) {
-        var product = productRepository.findById(command.productId());
-        if (product.isEmpty()) {
+        var productOpt = productRepository.findById(command.productId());
+        if (productOpt.isEmpty()) {
+            log.warn("Update product failed: product ID '{}' not found", command.productId());
             return Result.failure(ProductCommandFailure.PRODUCT_NOT_FOUND);
         }
 
+        Product product = productOpt.get();
         if (productRepository.existsByBranchIdAndSkuAndIdNot(
-                product.get().getBranchId(),
+                product.getBranchId(),
                 command.sku().value(),
                 command.productId()
         )) {
+            log.warn("Update product failed: duplicate SKU '{}' for branch '{}'", command.sku().value(), product.getBranchId());
             return Result.failure(ProductCommandFailure.DUPLICATE_SKU);
         }
 
         try {
-            product.get().updateDetails(
+            product.updateDetails(
                     command.name(),
                     command.category(),
                     command.sku(),
@@ -98,8 +116,11 @@ public class ProductCommandServiceImpl implements ProductCommandService {
                     command.description(),
                     command.minimumStock().value()
             );
-            return Result.success(productRepository.save(product.get()));
+            Product savedProduct = productRepository.save(product);
+            log.info("Updated details for product ID '{}'", savedProduct.getId());
+            return Result.success(savedProduct);
         } catch (IllegalArgumentException e) {
+            log.warn("Update product failed due to invalid data: {}", e.getMessage());
             return Result.failure(ProductCommandFailure.INVALID_PRODUCT_DATA);
         }
     }
@@ -108,13 +129,16 @@ public class ProductCommandServiceImpl implements ProductCommandService {
     @Transactional
     public Result<Void, ProductCommandFailure> handle(DeleteProductCommand command) {
         if (!productRepository.existsById(command.productId())) {
+            log.warn("Delete product failed: product ID '{}' not found", command.productId());
             return Result.failure(ProductCommandFailure.PRODUCT_NOT_FOUND);
         }
 
         try {
             productRepository.deleteById(command.productId());
+            log.info("Soft-deleted product ID '{}'", command.productId());
             return Result.success(null);
         } catch (DataIntegrityViolationException e) {
+            log.warn("Delete product failed: product ID '{}' is in use", command.productId());
             return Result.failure(ProductCommandFailure.PRODUCT_IN_USE);
         }
     }
