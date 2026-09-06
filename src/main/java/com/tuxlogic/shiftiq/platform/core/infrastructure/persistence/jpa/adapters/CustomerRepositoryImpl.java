@@ -9,9 +9,11 @@ import com.tuxlogic.shiftiq.platform.core.infrastructure.persistence.jpa.entitie
 import com.tuxlogic.shiftiq.platform.core.infrastructure.persistence.jpa.repositories.CustomerPersistenceRepository;
 
 import org.springframework.stereotype.Repository;
+import org.springframework.transaction.annotation.Transactional;
 import java.util.Optional;
 
 @Repository
+@Transactional(readOnly = true)
 public class CustomerRepositoryImpl implements CustomerRepository {
 
     private final CustomerPersistenceRepository customerPersistenceRepository;
@@ -21,6 +23,7 @@ public class CustomerRepositoryImpl implements CustomerRepository {
     }
 
     @Override
+    @Transactional
     public Customer save(Customer customer) {
         CustomerPersistenceEntity entity;
         if (customer.getId() != null) {
@@ -55,10 +58,14 @@ public class CustomerRepositoryImpl implements CustomerRepository {
     }
 
     @Override
+    @Transactional
     public void delete(Customer customer) {
-        if (customer.getId() != null) {
-            customerPersistenceRepository.findById(customer.getId().value()).ifPresent(customerPersistenceRepository::delete);
+        if (customer.getId() == null) {
+            throw new IllegalArgumentException("Customer ID cannot be null for deletion");
         }
+        CustomerPersistenceEntity entity = customerPersistenceRepository.findById(customer.getId().value())
+                .orElseThrow(() -> new IllegalArgumentException("Customer not found with ID: " + customer.getId().value()));
+        customerPersistenceRepository.delete(entity);
     }
 }
 

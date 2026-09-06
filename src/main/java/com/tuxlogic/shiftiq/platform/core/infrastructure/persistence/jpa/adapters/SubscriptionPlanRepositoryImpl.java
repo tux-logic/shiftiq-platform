@@ -8,11 +8,13 @@ import com.tuxlogic.shiftiq.platform.core.infrastructure.persistence.jpa.entitie
 import com.tuxlogic.shiftiq.platform.core.infrastructure.persistence.jpa.repositories.SubscriptionPlanPersistenceRepository;
 
 import org.springframework.stereotype.Repository;
+import org.springframework.transaction.annotation.Transactional;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
 @Repository
+@Transactional(readOnly = true)
 public class SubscriptionPlanRepositoryImpl implements SubscriptionPlanRepository {
 
     private final SubscriptionPlanPersistenceRepository subscriptionPlanPersistenceRepository;
@@ -22,6 +24,7 @@ public class SubscriptionPlanRepositoryImpl implements SubscriptionPlanRepositor
     }
 
     @Override
+    @Transactional
     public SubscriptionPlan save(SubscriptionPlan subscriptionPlan) {
         SubscriptionPlanPersistenceEntity entity;
         if (subscriptionPlan.getId() != null) {

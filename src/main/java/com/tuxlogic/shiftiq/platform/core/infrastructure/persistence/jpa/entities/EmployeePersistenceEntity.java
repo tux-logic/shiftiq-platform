@@ -50,7 +50,4 @@ public class EmployeePersistenceEntity extends AuditableAbstractPersistenceEntit
 
     @Column(name = "deleted_at")
     private Instant deletedAt;
-
-    @Version
-    private Long version;
 }

@@ -9,9 +9,11 @@ import com.tuxlogic.shiftiq.platform.core.infrastructure.persistence.jpa.entitie
 import com.tuxlogic.shiftiq.platform.core.infrastructure.persistence.jpa.repositories.OwnerPersistenceRepository;
 
 import org.springframework.stereotype.Repository;
+import org.springframework.transaction.annotation.Transactional;
 import java.util.Optional;
 
 @Repository
+@Transactional(readOnly = true)
 public class OwnerRepositoryImpl implements OwnerRepository {
 
     private final OwnerPersistenceRepository ownerPersistenceRepository;
@@ -21,6 +23,7 @@ public class OwnerRepositoryImpl implements OwnerRepository {
     }
 
     @Override
+    @Transactional
     public Owner save(Owner owner) {
         OwnerPersistenceEntity entity;
         if (owner.getId() != null) {
@@ -60,9 +63,13 @@ public class OwnerRepositoryImpl implements OwnerRepository {
     }
 
     @Override
+    @Transactional
     public void delete(Owner owner) {
-        if (owner.getId() != null) {
-            ownerPersistenceRepository.findById(owner.getId().value()).ifPresent(ownerPersistenceRepository::delete);
+        if (owner.getId() == null) {
+            throw new IllegalArgumentException("Owner ID cannot be null for deletion");
         }
+        OwnerPersistenceEntity entity = ownerPersistenceRepository.findById(owner.getId().value())
+                .orElseThrow(() -> new IllegalArgumentException("Owner not found with ID: " + owner.getId().value()));
+        ownerPersistenceRepository.delete(entity);
     }
 }

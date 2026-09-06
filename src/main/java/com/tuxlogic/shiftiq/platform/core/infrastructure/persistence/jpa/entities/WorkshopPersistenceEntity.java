@@ -47,7 +47,4 @@ public class WorkshopPersistenceEntity extends AuditableAbstractPersistenceEntit
 
     @Column(name = "deleted_at")
     private Instant deletedAt;
-
-    @Version
-    private Long version;
 }

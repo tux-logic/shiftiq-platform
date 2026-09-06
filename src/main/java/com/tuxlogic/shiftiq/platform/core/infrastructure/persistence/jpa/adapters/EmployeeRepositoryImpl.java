@@ -9,9 +9,11 @@ import com.tuxlogic.shiftiq.platform.core.infrastructure.persistence.jpa.entitie
 import com.tuxlogic.shiftiq.platform.core.infrastructure.persistence.jpa.repositories.EmployeePersistenceRepository;
 
 import org.springframework.stereotype.Repository;
+import org.springframework.transaction.annotation.Transactional;
 import java.util.Optional;
 
 @Repository
+@Transactional(readOnly = true)
 public class EmployeeRepositoryImpl implements EmployeeRepository {
 
     private final EmployeePersistenceRepository employeePersistenceRepository;
@@ -21,6 +23,7 @@ public class EmployeeRepositoryImpl implements EmployeeRepository {
     }
 
     @Override
+    @Transactional
     public Employee save(Employee employee) {
         EmployeePersistenceEntity entity;
         if (employee.getId() != null) {
@@ -55,9 +58,13 @@ public class EmployeeRepositoryImpl implements EmployeeRepository {
     }
 
     @Override
+    @Transactional
     public void delete(Employee employee) {
-        if (employee.getId() != null) {
-            employeePersistenceRepository.findById(employee.getId().value()).ifPresent(employeePersistenceRepository::delete);
+        if (employee.getId() == null) {
+            throw new IllegalArgumentException("Employee ID cannot be null for deletion");
         }
+        EmployeePersistenceEntity entity = employeePersistenceRepository.findById(employee.getId().value())
+                .orElseThrow(() -> new IllegalArgumentException("Employee not found with ID: " + employee.getId().value()));
+        employeePersistenceRepository.delete(entity);
     }
 }

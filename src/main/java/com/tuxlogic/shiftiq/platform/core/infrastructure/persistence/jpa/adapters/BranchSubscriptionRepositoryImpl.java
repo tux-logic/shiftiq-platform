@@ -13,8 +13,10 @@ import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
 import org.springframework.stereotype.Repository;
+import org.springframework.transaction.annotation.Transactional;
 
 @Repository
+@Transactional(readOnly = true)
 public class BranchSubscriptionRepositoryImpl implements BranchSubscriptionRepository {
 
     private final BranchSubscriptionPersistenceRepository branchSubscriptionPersistenceRepository;
@@ -24,6 +26,7 @@ public class BranchSubscriptionRepositoryImpl implements BranchSubscriptionRepos
     }
 
     @Override
+    @Transactional
     public BranchSubscription save(BranchSubscription branchSubscription) {
         BranchSubscriptionPersistenceEntity entity;
         if (branchSubscription.getId() != null) {
