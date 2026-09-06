@@ -8,6 +8,7 @@ import com.tuxlogic.shiftiq.platform.iot.domain.model.aggregates.Obd2DeviceRegis
 import com.tuxlogic.shiftiq.platform.iot.domain.model.aggregates.TelemetrySnapshot;
 import com.tuxlogic.shiftiq.platform.iot.domain.model.commands.IngestTelemetryBatchCommand;
 import com.tuxlogic.shiftiq.platform.iot.domain.model.valueobjects.DtcAlertSeverity;
+import com.tuxlogic.shiftiq.platform.iot.domain.model.valueobjects.TelemetrySnapshotId;
 import com.tuxlogic.shiftiq.platform.iot.domain.repositories.DtcAlertRepository;
 import com.tuxlogic.shiftiq.platform.iot.domain.repositories.Obd2DeviceRegistrationRepository;
 import com.tuxlogic.shiftiq.platform.iot.domain.repositories.Obd2DeviceRepository;
@@ -78,6 +79,10 @@ public class TelemetryCommandServiceImpl implements TelemetryCommandService {
             List<TelemetrySnapshot> savedSnapshots = telemetrySnapshotRepository.saveAll(snapshotsToSave);
 
             // 5. Generate DTC alerts reported alongside each snapshot, if any
+            if (savedSnapshots.size() != command.snapshots().size()) {
+                throw new IllegalStateException("iot.error.telemetry.snapshotCountMismatch");
+            }
+
             List<DtcAlert> alertsToSave = new ArrayList<>();
             for (int i = 0; i < savedSnapshots.size(); i++) {
                 var dtcCodes = command.snapshots().get(i).dtcCodes();
@@ -87,7 +92,7 @@ public class TelemetryCommandServiceImpl implements TelemetryCommandService {
                 UUID snapshotId = savedSnapshots.get(i).getId().value();
                 for (var dtc : dtcCodes) {
                     alertsToSave.add(new DtcAlert(
-                            snapshotId,
+                            new TelemetrySnapshotId(snapshotId),
                             registration.getBranchId(),
                             dtc.dtcCode(),
                             dtc.description(),
