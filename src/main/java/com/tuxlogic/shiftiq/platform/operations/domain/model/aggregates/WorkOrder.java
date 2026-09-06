@@ -5,6 +5,7 @@ import com.tuxlogic.shiftiq.platform.operations.domain.model.entities.WorkOrderT
 import com.tuxlogic.shiftiq.platform.operations.domain.model.events.TaskCompletedEvent;
 import com.tuxlogic.shiftiq.platform.operations.domain.model.events.TaskReopenedEvent;
 import com.tuxlogic.shiftiq.platform.operations.domain.model.events.TaskStartedEvent;
+import com.tuxlogic.shiftiq.platform.operations.domain.model.events.WorkOrderCompletedEvent;
 import com.tuxlogic.shiftiq.platform.operations.domain.model.events.WorkOrderPaidEvent;
 import com.tuxlogic.shiftiq.platform.operations.domain.model.valueobjects.*;
 import com.tuxlogic.shiftiq.platform.shared.domain.model.events.ProductReservationCanceledEvent;
@@ -198,6 +199,7 @@ public class WorkOrder extends AbstractDomainAggregateRoot<WorkOrder> {
             throw new IllegalStateException(OperationsMessageKeys.WORK_ORDER_PENDING_TASKS_EXIST);
         }
         this.status = this.status.transitionTo(WorkOrderStatus.COMPLETED);
+        this.registerEvent(new WorkOrderCompletedEvent(this, this.branchId, this.id, this.appointmentId, this.totalAmount));
     }
 
     public void markAsPaid() {

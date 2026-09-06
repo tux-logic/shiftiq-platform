@@ -165,4 +165,18 @@ public class WorkOrderTasksController {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
         }
     }
+
+    @PostMapping("/{taskId}/assign-mechanic")
+    @Operation(summary = "Assign a mechanic to a task", description = "Assigns or reassigns a mechanic/employee to a specific mechanic task")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<?> assignMechanicToTask(@PathVariable UUID taskId, @RequestParam UUID mechanicId) {
+        try {
+            UUID id = validateTaskAccess(taskId);
+            var command = new AssignMechanicToTaskCommand(new WorkOrderId(id), new WorkOrderTaskId(taskId), new com.tuxlogic.shiftiq.platform.operations.domain.model.valueobjects.MechanicId(mechanicId));
+            var result = commandService.handle(command);
+            return toResponse(result);
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
+        }
+    }
 }
