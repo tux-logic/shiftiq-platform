@@ -1,6 +1,7 @@
 package com.tuxlogic.shiftiq.platform.iot.domain.model.events;
 
 import com.tuxlogic.shiftiq.platform.iot.domain.model.valueobjects.DtcAlertSeverity;
+import com.tuxlogic.shiftiq.platform.iot.domain.model.valueobjects.TelemetrySnapshotId;
 import com.tuxlogic.shiftiq.platform.shared.domain.model.valueobjects.BranchId;
 
 import java.util.UUID;
@@ -12,7 +13,7 @@ import java.util.UUID;
 public record DtcAlertTriggeredEvent(
         UUID dtcAlertId,
         BranchId branchId,
-        UUID telemetrySnapshotId,
+        TelemetrySnapshotId telemetrySnapshotId,
         String dtcCode,
         DtcAlertSeverity severity
 ) {
