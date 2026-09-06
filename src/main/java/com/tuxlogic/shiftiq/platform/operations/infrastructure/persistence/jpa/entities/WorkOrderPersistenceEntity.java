@@ -31,7 +31,6 @@ import java.util.UUID;
 @NoArgsConstructor
 
 @Entity
-@EntityListeners(AuditingEntityListener.class)
 @Table(name = "work_orders")
 @SQLDelete(sql = "UPDATE work_orders SET deleted_at = CURRENT_TIMESTAMP WHERE id = ? AND version = ?")
 @SQLRestriction("deleted_at IS NULL")
@@ -91,7 +90,4 @@ public class WorkOrderPersistenceEntity extends AuditableAbstractPersistenceEnti
     @LastModifiedBy
     @Column(name = "updated_by")
     private UUID updatedBy;
-
-    @Version
-    private Long version;
 }

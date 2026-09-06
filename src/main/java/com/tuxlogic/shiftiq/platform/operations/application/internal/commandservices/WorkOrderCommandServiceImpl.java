@@ -2,16 +2,20 @@ package com.tuxlogic.shiftiq.platform.operations.application.internal.commandser
 
 import com.tuxlogic.shiftiq.platform.operations.application.commandservices.WorkOrderCommandFailure;
 import com.tuxlogic.shiftiq.platform.operations.application.commandservices.WorkOrderCommandService;
+import com.tuxlogic.shiftiq.platform.operations.application.outboundservices.ExternalProductService;
 import com.tuxlogic.shiftiq.platform.operations.domain.model.aggregates.WorkOrder;
 import com.tuxlogic.shiftiq.platform.operations.domain.model.commands.*;
+import com.tuxlogic.shiftiq.platform.operations.domain.model.valueobjects.OperationsMessageKeys;
 import com.tuxlogic.shiftiq.platform.operations.domain.model.valueobjects.WorkOrderId;
-import com.tuxlogic.shiftiq.platform.operations.domain.repositories.WorkOrderRepository;
 import com.tuxlogic.shiftiq.platform.operations.domain.repositories.ServiceRepository;
-import com.tuxlogic.shiftiq.platform.inventory.application.queryservices.ProductQueryService;
-import com.tuxlogic.shiftiq.platform.inventory.domain.model.queries.GetProductByIdQuery;
+import com.tuxlogic.shiftiq.platform.operations.domain.repositories.WorkOrderRepository;
 import com.tuxlogic.shiftiq.platform.shared.application.result.Result;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.util.function.Supplier;
 
 /**
  * Internal application service implementing {@link WorkOrderCommandService}.
@@ -21,57 +25,56 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class WorkOrderCommandServiceImpl implements WorkOrderCommandService {
 
+    private static final Logger LOGGER = LoggerFactory.getLogger(WorkOrderCommandServiceImpl.class);
+
     private final WorkOrderRepository workOrderRepository;
     private final ServiceRepository serviceRepository;
-    private final ProductQueryService productQueryService;
+    private final ExternalProductService externalProductService;
 
-    /**
-     * Constructor injection of the dependencies
-     */
-    public WorkOrderCommandServiceImpl(WorkOrderRepository workOrderRepository, ServiceRepository serviceRepository, ProductQueryService productQueryService) {
+    public WorkOrderCommandServiceImpl(WorkOrderRepository workOrderRepository,
+                                       ServiceRepository serviceRepository,
+                                       ExternalProductService externalProductService) {
         this.workOrderRepository = workOrderRepository;
         this.serviceRepository = serviceRepository;
-        this.productQueryService = productQueryService;
+        this.externalProductService = externalProductService;
     }
 
-    /**
-     * Handles the UpdateWorkOrderDetailsCommand by loading the Work Order aggregate, invoking the updateDetails method on it, and saving the changes.
-     * @param command The command object containing the Work Order ID and the new diagnostic and mileage details to be updated.
-     * @return A Result object containing either the updated Work Order on success or a WorkOrderCommandFailure on failure, with appropriate error handling for not found and invalid state scenarios.
-     */
-    @Override
-    @Transactional
-    public Result<WorkOrder, WorkOrderCommandFailure> handle(UpdateWorkOrderDetailsCommand command) {
+    private Result<WorkOrder, WorkOrderCommandFailure> executeCommand(Supplier<WorkOrder> action) {
         try {
-            WorkOrder workOrder = findWorkOrderOrThrow(command.workOrderId());
-
-            workOrder.updateDetails(command.diagnosticSummary(), command.mileageIn());
-
-            WorkOrder savedWorkOrder = workOrderRepository.save(workOrder);
+            WorkOrder savedWorkOrder = action.get();
             return Result.success(savedWorkOrder);
         } catch (IllegalArgumentException e) {
+            LOGGER.warn("Work order command failed - Not Found: {}", e.getMessage());
             return Result.failure(new WorkOrderCommandFailure.NotFound(e.getMessage()));
         } catch (IllegalStateException e) {
+            LOGGER.warn("Work order command failed - Invalid State: {}", e.getMessage());
             return Result.failure(new WorkOrderCommandFailure.InvalidState(e.getMessage()));
+        } catch (Exception e) {
+            LOGGER.error("Unexpected error processing work order command", e);
+            return Result.failure(new WorkOrderCommandFailure.InvalidState(OperationsMessageKeys.UNEXPECTED_ERROR));
         }
     }
 
-    /**
-     * Handles the CreateWorkOrderCommand by validating business rules (such as ensuring no duplicate work order for the same appointment), instantiating a new Work Order aggregate with the provided details, and saving it to the repository. The method returns a Result object that encapsulates either the newly created Work Order on success or a WorkOrderCommandFailure on failure, with specific handling for duplicate entries and validation errors.
-     * @param command The command object containing all necessary information to create a new Work Order.
-     * @return A Result object containing either the created Work Order on success or a WorkOrderCommandFailure on failure, with appropriate error handling for duplicate work orders and validation issues.
-     */
+    @Override
+    @Transactional
+    public Result<WorkOrder, WorkOrderCommandFailure> handle(UpdateWorkOrderDetailsCommand command) {
+        return executeCommand(() -> {
+            WorkOrder workOrder = findWorkOrderOrThrow(command.workOrderId());
+            workOrder.updateDetails(command.diagnosticSummary(), command.mileageIn());
+            return workOrderRepository.save(workOrder);
+        });
+    }
+
     @Override
     @Transactional
     public Result<WorkOrder, WorkOrderCommandFailure> handle(CreateWorkOrderCommand command) {
-        try {
-            if (workOrderRepository.existsByAppointmentId(command.appointmentId())) {
-                return Result.failure(new WorkOrderCommandFailure.Duplicate(
-                        "operations.error.workOrder.alreadyExistsForAppointment"));
-            }
+        if (workOrderRepository.existsByAppointmentId(command.appointmentId())) {
+            LOGGER.warn("Duplicate work order attempt for appointmentId: {}", command.appointmentId().value());
+            return Result.failure(new WorkOrderCommandFailure.Duplicate(OperationsMessageKeys.WORK_ORDER_ALREADY_EXISTS_FOR_APPOINTMENT));
+        }
 
+        return executeCommand(() -> {
             int nextInternalNumber = workOrderRepository.findMaxInternalNumberByBranchId(command.branchId()) + 1;
-
             WorkOrder workOrder = new WorkOrder(
                     command.appointmentId(),
                     command.branchId(),
@@ -81,203 +84,101 @@ public class WorkOrderCommandServiceImpl implements WorkOrderCommandService {
                     command.diagnosticSummary(),
                     command.mileageIn()
             );
-
-            WorkOrder savedWorkOrder = workOrderRepository.save(workOrder);
-            return Result.success(savedWorkOrder);
-
-        } catch (IllegalArgumentException e) {
-            return Result.failure(new WorkOrderCommandFailure.NotFound(e.getMessage()));
-        } catch (IllegalStateException e) {
-            return Result.failure(new WorkOrderCommandFailure.InvalidState(e.getMessage()));
-        }
+            return workOrderRepository.save(workOrder);
+        });
     }
 
-    /**
-     * Handles the AddTaskToWorkOrderCommand by loading the specified Work Order aggregate, invoking the addTask method with the provided task details, and saving the updated aggregate back to the repository. The method returns a Result object that encapsulates either the updated Work Order on success or a WorkOrderCommandFailure on failure, with specific handling for not found and invalid state scenarios.
-     * @param command The command object containing the Work Order ID and the details of the Task to be added (service, mechanic, description, labor price).
-     * @return A Result object containing either the updated Work Order on success or a WorkOrderCommandFailure on failure, with appropriate error handling for not found and invalid state scenarios.
-     */
     @Override
     @Transactional
     public Result<WorkOrder, WorkOrderCommandFailure> handle(AddTaskToWorkOrderCommand command) {
-        try {
+        return executeCommand(() -> {
             WorkOrder workOrder = findWorkOrderOrThrow(command.workOrderId());
             var service = serviceRepository.findById(command.serviceId())
-                    .orElseThrow(() -> new IllegalArgumentException("operations.error.service.notFound"));
+                    .orElseThrow(() -> new IllegalArgumentException(OperationsMessageKeys.SERVICE_NOT_FOUND));
             workOrder.addTask(command.serviceId(), command.mechanicId(), command.description(), service.getPrice());
-            WorkOrder savedWorkOrder = workOrderRepository.save(workOrder);
-            return Result.success(savedWorkOrder);
-
-        } catch (IllegalArgumentException e) {
-            return Result.failure(new WorkOrderCommandFailure.NotFound(e.getMessage()));
-        } catch (IllegalStateException e) {
-            return Result.failure(new WorkOrderCommandFailure.InvalidState(e.getMessage()));
-        }
+            return workOrderRepository.save(workOrder);
+        });
     }
 
-    /**
-     * Handles the AddProductToTaskCommand by loading the specified Work Order aggregate, invoking the addProductToTask method with the provided product details, and saving the updated aggregate back to the repository. The method returns a Result object that encapsulates either the updated Work Order on success or a WorkOrderCommandFailure on failure, with specific handling for not found and invalid state scenarios.
-     * @param command The command object containing the Work Order ID, Task ID, and the details of the Product to be added (product ID, quantity).
-     * @return A Result object containing either the updated Work Order on success or a WorkOrderCommandFailure on failure, with appropriate error handling for not found and invalid state scenarios.
-     */
     @Override
     @Transactional
     public Result<WorkOrder, WorkOrderCommandFailure> handle(AddProductToTaskCommand command) {
-        try {
+        return executeCommand(() -> {
             WorkOrder workOrder = findWorkOrderOrThrow(command.workOrderId());
-            var product = productQueryService.handle(new GetProductByIdQuery(command.productId().value()))
-                    .orElseThrow(() -> new IllegalArgumentException("operations.error.product.notFound"));
-            workOrder.addProductToTask(command.taskId(), command.productId(), command.quantity(), product.getCurrentSellingPrice());
-            WorkOrder savedWorkOrder = workOrderRepository.save(workOrder);
-            return Result.success(savedWorkOrder);
-
-        } catch (IllegalArgumentException e) {
-            return Result.failure(new WorkOrderCommandFailure.NotFound(e.getMessage()));
-        } catch (IllegalStateException e) {
-            return Result.failure(new WorkOrderCommandFailure.InvalidState(e.getMessage()));
-        }
+            var sellingPrice = externalProductService.getProductSellingPrice(command.productId().value())
+                    .orElseThrow(() -> new IllegalArgumentException(OperationsMessageKeys.PRODUCT_NOT_FOUND));
+            workOrder.addProductToTask(command.taskId(), command.productId(), command.quantity(), sellingPrice);
+            return workOrderRepository.save(workOrder);
+        });
     }
 
-    /**
-     * Handles the RemoveProductFromTaskCommand by loading the specified Work Order aggregate, invoking the removeProductFromTask method with the provided identifiers, and saving the updated aggregate back to the repository. The method returns a Result object that encapsulates either the updated Work Order on success or a WorkOrderCommandFailure on failure, with specific handling for not found and invalid state scenarios.
-     * @param command The command object containing the Work Order ID, Task ID, and the Product ID of the product to be removed.
-     * @return A Result object containing either the updated Work Order on success or a WorkOrderCommandFailure on failure, with appropriate error handling for not found and invalid state scenarios.
-     */
     @Override
     @Transactional
     public Result<WorkOrder, WorkOrderCommandFailure> handle(RemoveProductFromTaskCommand command) {
-        try {
+        return executeCommand(() -> {
             WorkOrder workOrder = findWorkOrderOrThrow(command.workOrderId());
-
             workOrder.removeProductFromTask(command.taskId(), command.productId());
-            WorkOrder savedWorkOrder = workOrderRepository.save(workOrder);
-            return Result.success(savedWorkOrder);
-
-        } catch (IllegalArgumentException e) {
-            return Result.failure(new WorkOrderCommandFailure.NotFound(e.getMessage()));
-        } catch (IllegalStateException e) {
-            return Result.failure(new WorkOrderCommandFailure.InvalidState(e.getMessage()));
-        }
+            return workOrderRepository.save(workOrder);
+        });
     }
 
-    /**
-     * Handles the RemoveTaskFromWorkOrderCommand by loading the specified Work Order aggregate, invoking the removeTask method with the provided Task ID, and saving the updated aggregate back to the repository. The method returns a Result object that encapsulates either the updated Work Order on success or a WorkOrderCommandFailure on failure, with specific handling for not found and invalid state scenarios.
-     * @param command The command object containing the Work Order ID and Task ID of the task to be removed.
-     * @return A Result object containing either the updated Work Order on success or a WorkOrderCommandFailure on failure, with appropriate error handling for not found and invalid state scenarios.
-     */
     @Override
     @Transactional
     public Result<WorkOrder, WorkOrderCommandFailure> handle(RemoveTaskFromWorkOrderCommand command) {
-        try {
+        return executeCommand(() -> {
             WorkOrder workOrder = findWorkOrderOrThrow(command.workOrderId());
             workOrder.removeTask(command.taskId());
-            WorkOrder savedWorkOrder = workOrderRepository.save(workOrder);
-            return Result.success(savedWorkOrder);
-
-        } catch (IllegalArgumentException e) {
-            return Result.failure(new WorkOrderCommandFailure.NotFound(e.getMessage()));
-        } catch (IllegalStateException e) {
-            return Result.failure(new WorkOrderCommandFailure.InvalidState(e.getMessage()));
-        }
+            return workOrderRepository.save(workOrder);
+        });
     }
 
-    /**
-     * Handles the StartTaskCommand by loading the specified Work Order aggregate, invoking the startTask method with the provided Task ID, and saving the updated aggregate back to the repository. The method returns a Result object that encapsulates either the updated Work Order on success or a WorkOrderCommandFailure on failure, with specific handling for not found and invalid state scenarios.
-     * @param command The command object containing the Work Order ID and Task ID of the task to be started.
-     * @return A Result object containing either the updated Work Order on success or a WorkOrderCommandFailure on failure, with appropriate error handling for not found and invalid state scenarios.
-     */
     @Override
     @Transactional
     public Result<WorkOrder, WorkOrderCommandFailure> handle(StartTaskCommand command) {
-        try {
+        return executeCommand(() -> {
             WorkOrder workOrder = findWorkOrderOrThrow(command.workOrderId());
             workOrder.startTask(command.taskId());
-            WorkOrder savedWorkOrder = workOrderRepository.save(workOrder);
-            return Result.success(savedWorkOrder);
-
-        } catch (IllegalArgumentException e) {
-            return Result.failure(new WorkOrderCommandFailure.NotFound(e.getMessage()));
-        } catch (IllegalStateException e) {
-            return Result.failure(new WorkOrderCommandFailure.InvalidState(e.getMessage()));
-        }
+            return workOrderRepository.save(workOrder);
+        });
     }
 
-    /**
-     * Handles the CompleteTaskCommand by loading the specified Work Order aggregate, invoking the completeTask method with the provided Task ID, and saving the updated aggregate back to the repository. The method returns a Result object that encapsulates either the updated Work Order on success or a WorkOrderCommandFailure on failure, with specific handling for not found and invalid state scenarios.
-     * @param command The command object containing the Work Order ID and Task ID of the task to be completed.
-     * @return A Result object containing either the updated Work Order on success or a WorkOrderCommandFailure on failure, with appropriate error handling for not found and invalid state scenarios.
-     */
     @Override
     @Transactional
     public Result<WorkOrder, WorkOrderCommandFailure> handle(CompleteTaskCommand command) {
-        try {
+        return executeCommand(() -> {
             WorkOrder workOrder = findWorkOrderOrThrow(command.workOrderId());
             workOrder.completeTask(command.taskId());
-            WorkOrder savedWorkOrder = workOrderRepository.save(workOrder);
-            return Result.success(savedWorkOrder);
-
-        } catch (IllegalArgumentException e) {
-            return Result.failure(new WorkOrderCommandFailure.NotFound(e.getMessage()));
-        } catch (IllegalStateException e) {
-            return Result.failure(new WorkOrderCommandFailure.InvalidState(e.getMessage()));
-        }
+            return workOrderRepository.save(workOrder);
+        });
     }
 
-    /**
-     * Handles the ReopenTaskCommand by loading the specified Work Order aggregate, invoking the reopenTask method with the provided Task ID, and saving the updated aggregate back to the repository. The method returns a Result object that encapsulates either the updated Work Order on success or a WorkOrderCommandFailure on failure, with specific handling for not found and invalid state scenarios.
-     * @param command The command object containing the Work Order ID and Task ID of the task to be reopened.
-     * @return A Result object containing either the updated Work Order on success or a WorkOrderCommandFailure on failure, with appropriate error handling for not found and invalid state scenarios.
-     */
     @Override
     @Transactional
     public Result<WorkOrder, WorkOrderCommandFailure> handle(ReopenTaskCommand command) {
-        try {
+        return executeCommand(() -> {
             WorkOrder workOrder = findWorkOrderOrThrow(command.workOrderId());
-
             workOrder.reopenTask(command.taskId());
-            WorkOrder savedWorkOrder = workOrderRepository.save(workOrder);
-            return Result.success(savedWorkOrder);
-
-        } catch (IllegalArgumentException e) {
-            return Result.failure(new WorkOrderCommandFailure.NotFound(e.getMessage()));
-        } catch (IllegalStateException e) {
-            return Result.failure(new WorkOrderCommandFailure.InvalidState(e.getMessage()));
-        }
+            return workOrderRepository.save(workOrder);
+        });
     }
 
-    /**
-     * Handles the MarkWorkOrderAsPaidCommand by loading the specified Work Order aggregate, invoking the markAsPaid method to transition the work order to a paid state (which also triggers the physical inventory deduction), and saving the updated aggregate back to the repository. The method returns a Result object that encapsulates either the updated Work Order on success or a WorkOrderCommandFailure on failure, with specific handling for not found and invalid state scenarios.
-     * @param command The command object containing the Work Order ID of the work order to be marked as paid.
-     * @return A Result object containing either the updated Work Order on success or a WorkOrderCommandFailure on failure, with appropriate error handling for not found and invalid state scenarios.
-     */
     @Override
     @Transactional
     public Result<WorkOrder, WorkOrderCommandFailure> handle(MarkWorkOrderAsPaidCommand command) {
-        try {
+        return executeCommand(() -> {
             WorkOrder workOrder = findWorkOrderOrThrow(command.workOrderId());
             workOrder.markAsPaid();
-            WorkOrder savedWorkOrder = workOrderRepository.save(workOrder);
-            return Result.success(savedWorkOrder);
-
-        } catch (IllegalArgumentException e) {
-            return Result.failure(new WorkOrderCommandFailure.NotFound(e.getMessage()));
-        } catch (IllegalStateException e) {
-            return Result.failure(new WorkOrderCommandFailure.InvalidState(e.getMessage()));
-        }
+            return workOrderRepository.save(workOrder);
+        });
     }
 
-    /**
-     * Handles the UpdateWorkOrderTaskDetailsCommand by loading the specified Work Order aggregate, invoking the updateTaskDetails method with the provided Task ID and new details, and saving the updated aggregate back to the repository. The method returns a Result object that encapsulates either the updated Work Order on success or a WorkOrderCommandFailure on failure, with specific handling for not found and invalid state scenarios.
-     * @param command The command object containing the Work Order ID, Task ID, and the new details for the task (service ID, mechanic ID, description, labor price) to be updated.
-     * @return A Result object containing either the updated Work Order on success or a WorkOrderCommandFailure on failure, with appropriate error handling for not found and invalid state scenarios.
-     */
     @Override
     @Transactional
     public Result<WorkOrder, WorkOrderCommandFailure> handle(UpdateWorkOrderTaskDetailsCommand command) {
-        try {
+        return executeCommand(() -> {
             WorkOrder workOrder = findWorkOrderOrThrow(command.workOrderId());
             var service = serviceRepository.findById(command.serviceId())
-                    .orElseThrow(() -> new IllegalArgumentException("operations.error.service.notFound"));
+                    .orElseThrow(() -> new IllegalArgumentException(OperationsMessageKeys.SERVICE_NOT_FOUND));
             workOrder.updateTaskDetails(
                     command.taskId(),
                     command.serviceId(),
@@ -285,67 +186,36 @@ public class WorkOrderCommandServiceImpl implements WorkOrderCommandService {
                     command.description(),
                     service.getPrice()
             );
-            WorkOrder savedWorkOrder = workOrderRepository.save(workOrder);
-            return Result.success(savedWorkOrder);
-        } catch (IllegalArgumentException e) {
-            return Result.failure(new WorkOrderCommandFailure.NotFound(e.getMessage()));
-        } catch (IllegalStateException e) {
-            return Result.failure(new WorkOrderCommandFailure.InvalidState(e.getMessage()));
-        }
+            return workOrderRepository.save(workOrder);
+        });
     }
 
-    /**
-     * Handles the UpdateProductQuantityInTaskCommand by loading the specified Work Order aggregate, invoking the updateProductQuantityInTask method with the provided Task ID, Product ID, and new quantity, and saving the updated aggregate back to the repository. The method returns a Result object that encapsulates either the updated Work Order on success or a WorkOrderCommandFailure on failure, with specific handling for not found and invalid state scenarios.
-     * @param command The command object containing the Work Order ID, Task ID, Product ID, and the new quantity for the product to be updated.
-     * @return A Result object containing either the updated Work Order on success or a WorkOrderCommandFailure on failure, with appropriate error handling for not found and invalid state scenarios.
-     */
     @Override
     @Transactional
     public Result<WorkOrder, WorkOrderCommandFailure> handle(UpdateProductQuantityInTaskCommand command) {
-        try {
+        return executeCommand(() -> {
             WorkOrder workOrder = findWorkOrderOrThrow(command.workOrderId());
             workOrder.updateProductQuantityInTask(
                     command.taskId(),
                     command.productId(),
                     command.newQuantity()
             );
-            WorkOrder savedWorkOrder = workOrderRepository.save(workOrder);
-            return Result.success(savedWorkOrder);
-        } catch (IllegalArgumentException e) {
-            return Result.failure(new WorkOrderCommandFailure.NotFound(e.getMessage()));
-        } catch (IllegalStateException e) {
-            return Result.failure(new WorkOrderCommandFailure.InvalidState(e.getMessage()));
-        }
+            return workOrderRepository.save(workOrder);
+        });
     }
 
-    /**
-     * Handles the DeleteWorkOrderCommand by loading the specified Work Order aggregate, invoking the delete method to mark the work order as deleted (soft delete), and saving the updated aggregate back to the repository. The method returns a Result object that encapsulates either the updated Work Order on success or a WorkOrderCommandFailure on failure, with specific handling for not found and invalid state scenarios.
-     * @param command The command object containing the Work Order ID of the work order to be deleted.
-     * @return A Result object containing either the updated Work Order on success or a WorkOrderCommandFailure on failure, with appropriate error handling for not found and invalid state scenarios.
-     */
     @Override
     @Transactional
     public Result<WorkOrder, WorkOrderCommandFailure> handle(DeleteWorkOrderCommand command) {
-        try {
+        return executeCommand(() -> {
             WorkOrder workOrder = findWorkOrderOrThrow(command.workOrderId());
             workOrder.delete();
-            WorkOrder savedWorkOrder = workOrderRepository.save(workOrder);
-            return Result.success(savedWorkOrder);
-        } catch (IllegalArgumentException e) {
-            return Result.failure(new WorkOrderCommandFailure.NotFound(e.getMessage()));
-        } catch (IllegalStateException e) {
-            return Result.failure(new WorkOrderCommandFailure.InvalidState(e.getMessage()));
-        }
+            return workOrderRepository.save(workOrder);
+        });
     }
 
-    /**
-     * Utility method to find a Work Order by its ID or throw an IllegalArgumentException if not found. This method is used across multiple command handlers to ensure consistent error handling when a Work Order cannot be found in the repository.
-     * @param workOrderId The WorkOrderId of the Work Order to be retrieved.
-     * @return The Work Order aggregate if found.
-     * @throws IllegalArgumentException if the Work Order with the specified ID is not found in the repository, with a message indicating that the work order was not found.
-     */
     private WorkOrder findWorkOrderOrThrow(WorkOrderId workOrderId) {
         return workOrderRepository.findById(workOrderId)
-                .orElseThrow(() -> new IllegalArgumentException("operations.error.workOrder.notFound"));
+                .orElseThrow(() -> new IllegalArgumentException(OperationsMessageKeys.WORK_ORDER_NOT_FOUND));
     }
 }

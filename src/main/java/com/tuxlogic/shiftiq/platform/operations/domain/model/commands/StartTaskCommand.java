@@ -10,4 +10,9 @@ import com.tuxlogic.shiftiq.platform.operations.domain.model.valueobjects.WorkOr
  * @param taskId
  * @author Joel Huamani Estefanero
  */
-public record StartTaskCommand(WorkOrderId workOrderId, WorkOrderTaskId taskId) {}
+public record StartTaskCommand(WorkOrderId workOrderId, WorkOrderTaskId taskId) {
+    public StartTaskCommand {
+        if (workOrderId == null) throw new IllegalArgumentException("operations.error.command.workOrderId.required");
+        if (taskId == null) throw new IllegalArgumentException("operations.error.command.taskId.required");
+    }
+}

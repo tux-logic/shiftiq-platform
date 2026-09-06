@@ -28,7 +28,6 @@ import java.util.List;
 @NoArgsConstructor
 
 @Entity
-@EntityListeners(AuditingEntityListener.class)
 @Table(name = "work_order_tasks")
 @SQLDelete(sql = "UPDATE work_order_tasks SET deleted_at = CURRENT_TIMESTAMP WHERE id = ? AND version = ?")
 @SQLRestriction("deleted_at IS NULL")
@@ -81,7 +80,4 @@ public class WorkOrderTaskPersistenceEntity extends AuditableAbstractPersistence
     @LastModifiedBy
     @Column(name = "updated_by")
     private java.util.UUID updatedBy;
-
-    @Version
-    private Long version;
 }

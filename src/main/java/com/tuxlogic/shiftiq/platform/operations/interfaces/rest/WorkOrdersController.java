@@ -26,6 +26,8 @@ import java.util.UUID;
 
 import org.springframework.security.access.prepost.PreAuthorize;
 
+import com.tuxlogic.shiftiq.platform.shared.infrastructure.security.MultiTenancySecurityService;
+
 /**
  * REST controller for managing workshop work orders and mechanic tasks. This controller provides endpoints for creating, updating, retrieving, and deleting work orders, as well as managing the tasks and products associated with those work orders. It uses a command-query separation approach, delegating command handling to the WorkOrderCommandService and query handling to the WorkOrderQueryService. The controller also utilizes a MessageSource for internationalization of response messages.
  * @author Joel Huamani Estefanero
@@ -38,13 +40,16 @@ public class WorkOrdersController {
 
     private final WorkOrderCommandService commandService;
     private final WorkOrderQueryService queryService;
+    private final MultiTenancySecurityService multiTenancySecurityService;
     private final MessageSource messageSource;
 
     public WorkOrdersController(WorkOrderCommandService commandService,
                                 WorkOrderQueryService queryService,
+                                MultiTenancySecurityService multiTenancySecurityService,
                                 MessageSource messageSource) {
         this.commandService = commandService;
         this.queryService = queryService;
+        this.multiTenancySecurityService = multiTenancySecurityService;
         this.messageSource = messageSource;
     }
 
@@ -62,8 +67,17 @@ public class WorkOrdersController {
         return ResponseEntityFromWorkOrderCommandResultAssembler.toResponseEntityFromResult(result, messageSource, branchCode, status);
     }
 
+    private void validateWorkOrderAccess(UUID id) {
+        var query = new GetWorkOrderByIdQuery(new WorkOrderId(id));
+        var workOrder = queryService.handle(query);
+        if (workOrder.isPresent()) {
+            multiTenancySecurityService.validateBranchAccess(workOrder.get().getBranchId().value());
+        }
+    }
+
     @PostMapping
     @Operation(summary = "Create a new Work Order", description = "Creates a new Work Order for a specific branch and vehicle")
+    @PreAuthorize("isAuthenticated() and @multiTenancySecurityService.isAuthorizedForBranch(#resource.branchId())")
     public ResponseEntity<?> createWorkOrder(@Valid @RequestBody CreateWorkOrderResource resource) {
         var command = WorkOrderCommandFromResourceAssembler.toCommandFromResource(resource);
         var result = commandService.handle(command);
@@ -73,6 +87,7 @@ public class WorkOrdersController {
     @PostMapping("/{id}/tasks")
     @Operation(summary = "Add a mechanic task to a Work Order", description = "Adds a new mechanic task to an existing Work Order")
     public ResponseEntity<?> addTaskToWorkOrder(@PathVariable UUID id, @Valid @RequestBody AddTaskResource resource) {
+        validateWorkOrderAccess(id);
         var command = WorkOrderCommandFromResourceAssembler.toCommandFromResource(id, resource);
         var result = commandService.handle(command);
         return toResponse(result, HttpStatus.CREATED);
@@ -82,6 +97,7 @@ public class WorkOrdersController {
     @Operation(summary = "Update mechanic task details", description = "Updates the details of a specific mechanic task")
     public ResponseEntity<?> updateWorkOrderTaskDetails(@PathVariable UUID id, @PathVariable UUID taskId,
                                                         @Valid @RequestBody UpdateWorkOrderTaskDetailsResource resource) {
+        validateWorkOrderAccess(id);
         var command = WorkOrderCommandFromResourceAssembler.toCommandFromResource(id, taskId, resource);
         var result = commandService.handle(command);
         return toResponse(result);
@@ -90,6 +106,7 @@ public class WorkOrdersController {
     @DeleteMapping("/{id}/tasks/{taskId}")
     @Operation(summary = "Remove a task from the Work Order", description = "Removes a task from the Work Order, releasing all its stock reservations")
     public ResponseEntity<?> removeTaskFromWorkOrder(@PathVariable UUID id, @PathVariable UUID taskId) {
+        validateWorkOrderAccess(id);
         var command = new RemoveTaskFromWorkOrderCommand(new WorkOrderId(id), new WorkOrderTaskId(taskId));
         var result = commandService.handle(command);
         return toResponse(result);
@@ -98,6 +115,7 @@ public class WorkOrdersController {
     @DeleteMapping("/{id}")
     @Operation(summary = "Soft delete a Work Order", description = "Soft deletes a Work Order, releasing all active stock reservations")
     public ResponseEntity<?> deleteWorkOrder(@PathVariable UUID id) {
+        validateWorkOrderAccess(id);
         var command = new DeleteWorkOrderCommand(new WorkOrderId(id));
         var result = commandService.handle(command);
         return toResponse(result);
@@ -106,6 +124,7 @@ public class WorkOrdersController {
     @GetMapping("/{id}")
     @Operation(summary = "Get a Work Order by ID", description = "Retrieves the details of a specific Work Order")
     public ResponseEntity<?> getWorkOrderById(@PathVariable UUID id) {
+        validateWorkOrderAccess(id);
         var query = new GetWorkOrderByIdQuery(new WorkOrderId(id));
         var workOrder = queryService.handle(query);
 
@@ -117,10 +136,10 @@ public class WorkOrdersController {
 
     @GetMapping
     @Operation(summary = "Get Work Orders", description = "Retrieves a list of all Work Orders, optionally filtered by branchId or vehicleId")
-    @PreAuthorize("isAuthenticated() and @multiTenancySecurityService.isAuthorizedForBranch(#branchId)")
     public ResponseEntity<?> getWorkOrders(@RequestParam(required = false) UUID branchId,
                                            @RequestParam(required = false) UUID vehicleId) {
         if (branchId != null) {
+            multiTenancySecurityService.validateBranchAccess(branchId);
             var query = new GetWorkOrdersByBranchIdQuery(new BranchId(branchId));
             List<WorkOrder> list = queryService.handle(query);
             String branchCode = queryService.getBranchCode(branchId);
@@ -131,6 +150,9 @@ public class WorkOrdersController {
         } else if (vehicleId != null) {
             var query = new GetWorkOrdersByVehicleIdQuery(new VehicleId(vehicleId));
             List<WorkOrder> list = queryService.handle(query);
+            if (!list.isEmpty()) {
+                multiTenancySecurityService.validateBranchAccess(list.get(0).getBranchId().value());
+            }
             List<WorkOrderResource> resources = list.stream()
                     .map(value -> {
                         String branchCode = queryService.getBranchCode(value.getBranchId().value());
@@ -147,6 +169,7 @@ public class WorkOrdersController {
     @Operation(summary = "Update Work Order details", description = "Updates the diagnostic summary and mileage of a Work Order")
     public ResponseEntity<?> updateWorkOrderDetails(@PathVariable UUID id,
                                                     @Valid @RequestBody UpdateWorkOrderDetailsResource resource) {
+        validateWorkOrderAccess(id);
         var command = WorkOrderCommandFromResourceAssembler.toCommandFromResource(id, resource);
         var result = commandService.handle(command);
         return toResponse(result);

@@ -15,4 +15,10 @@ public record RemoveProductFromTaskCommand(
         WorkOrderId workOrderId,
         WorkOrderTaskId taskId,
         ProductId productId
-) {}
+) {
+    public RemoveProductFromTaskCommand {
+        if (workOrderId == null) throw new IllegalArgumentException("operations.error.command.workOrderId.required");
+        if (taskId == null) throw new IllegalArgumentException("operations.error.command.taskId.required");
+        if (productId == null) throw new IllegalArgumentException("operations.error.command.productId.required");
+    }
+}

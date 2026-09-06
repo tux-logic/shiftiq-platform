@@ -23,6 +23,9 @@ import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
+import com.tuxlogic.shiftiq.platform.operations.domain.model.queries.GetServiceByIdQuery;
+import com.tuxlogic.shiftiq.platform.shared.infrastructure.security.MultiTenancySecurityService;
+import jakarta.validation.Valid;
 import org.springframework.security.access.prepost.PreAuthorize;
 
 @RestController
@@ -33,15 +36,28 @@ public class ServicesController {
 
     private final ServiceCommandService serviceCommandService;
     private final ServiceQueryService serviceQueryService;
+    private final MultiTenancySecurityService multiTenancySecurityService;
 
-    public ServicesController(ServiceCommandService serviceCommandService, ServiceQueryService serviceQueryService) {
+    public ServicesController(ServiceCommandService serviceCommandService,
+                              ServiceQueryService serviceQueryService,
+                              MultiTenancySecurityService multiTenancySecurityService) {
         this.serviceCommandService = serviceCommandService;
         this.serviceQueryService = serviceQueryService;
+        this.multiTenancySecurityService = multiTenancySecurityService;
+    }
+
+    private void validateServiceAccess(UUID serviceId) {
+        var query = new GetServiceByIdQuery(new ServiceId(serviceId));
+        var service = serviceQueryService.handle(query);
+        if (service.isPresent()) {
+            multiTenancySecurityService.validateBranchAccess(service.get().getBranchId().value());
+        }
     }
 
     @Operation(summary = "Create a new service", description = "Creates a new service with the provided details")
     @PostMapping
-    public ResponseEntity<ServiceResource> createService(@RequestBody CreateServiceResource resource) {
+    @PreAuthorize("isAuthenticated() and @multiTenancySecurityService.isAuthorizedForBranch(#resource.branchId())")
+    public ResponseEntity<ServiceResource> createService(@Valid @RequestBody CreateServiceResource resource) {
         var command = CreateServiceCommandFromResourceAssembler.toCommandFromResource(resource);
         var service = serviceCommandService.handle(command);
         if (service.isEmpty()) {
@@ -54,7 +70,8 @@ public class ServicesController {
 
     @Operation(summary = "Update a service", description = "Updates an existing service using the service ID")
     @PutMapping("/{serviceId}")
-    public ResponseEntity<ServiceResource> updateService(@PathVariable UUID serviceId, @RequestBody UpdateServiceResource resource) {
+    public ResponseEntity<ServiceResource> updateService(@PathVariable UUID serviceId, @Valid @RequestBody UpdateServiceResource resource) {
+        validateServiceAccess(serviceId);
         var command = UpdateServiceCommandFromResourceAssembler.toCommandFromResource(serviceId, resource);
         var service = serviceCommandService.handle(command);
         if (service.isEmpty()) {
@@ -68,9 +85,10 @@ public class ServicesController {
     @Operation(summary = "Delete a service", description = "Deletes an existing service using the service ID")
     @DeleteMapping("/{serviceId}")
     public ResponseEntity<?> deleteService(@PathVariable UUID serviceId) {
+        validateServiceAccess(serviceId);
         var command = new DeleteServiceCommand(new ServiceId(serviceId));
         serviceCommandService.handle(command);
-        return ResponseEntity.ok().build();
+        return ResponseEntity.noContent().build();
     }
 
     @Operation(summary = "Get services by branch ID", description = "Retrieves all services belonging to a specific branch")

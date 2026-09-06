@@ -84,7 +84,7 @@ public class WorkOrderTask {
      */
     public void addProduct(ProductId productId, Quantity quantity, Money unitPrice) {
         if (this.status == WorkOrderTaskStatus.COMPLETED) {
-            throw new IllegalStateException("operations.error.task.cannotModifyCompletedTask");
+            throw new IllegalStateException(OperationsMessageKeys.TASK_CANNOT_MODIFY_COMPLETED);
         }
 
         Optional<WorkOrderTaskProduct> existingProduct = this.products.stream()
@@ -108,13 +108,13 @@ public class WorkOrderTask {
      */
     public void removeProduct(ProductId productId) {
         if (this.status == WorkOrderTaskStatus.COMPLETED) {
-            throw new IllegalStateException("operations.error.task.cannotModifyCompletedTask");
+            throw new IllegalStateException(OperationsMessageKeys.TASK_CANNOT_MODIFY_COMPLETED);
         }
 
         WorkOrderTaskProduct product = this.products.stream()
                 .filter(p -> p.getProductId().equals(productId) && !p.isDeleted())
                 .findFirst()
-                .orElseThrow(() -> new IllegalArgumentException("operations.error.taskProduct.notFound"));
+                .orElseThrow(() -> new IllegalArgumentException(OperationsMessageKeys.TASK_PRODUCT_NOT_FOUND));
 
         this.price = this.price.minus(product.getTotalAmount());
         this.products.remove(product);
@@ -157,7 +157,7 @@ public class WorkOrderTask {
      */
     public void updateDetails(ServiceId serviceId, MechanicId mechanicId, TaskDescription description, Money newLaborPrice) {
         if (this.status == WorkOrderTaskStatus.COMPLETED) {
-            throw new IllegalStateException("operations.error.task.cannotModifyCompletedTask");
+            throw new IllegalStateException(OperationsMessageKeys.TASK_CANNOT_MODIFY_COMPLETED);
         }
         this.serviceId = serviceId;
         this.assignedMechanicId = mechanicId;
@@ -177,13 +177,13 @@ public class WorkOrderTask {
      */
     public Quantity updateProductQuantity(ProductId productId, Quantity newQuantity) {
         if (this.status == WorkOrderTaskStatus.COMPLETED) {
-            throw new IllegalStateException("operations.error.task.cannotModifyCompletedTask");
+            throw new IllegalStateException(OperationsMessageKeys.TASK_CANNOT_MODIFY_COMPLETED);
         }
 
         WorkOrderTaskProduct product = this.products.stream()
                 .filter(p -> p.getProductId().equals(productId) && !p.isDeleted())
                 .findFirst()
-                .orElseThrow(() -> new IllegalArgumentException("operations.error.taskProduct.notFound"));
+                .orElseThrow(() -> new IllegalArgumentException(OperationsMessageKeys.TASK_PRODUCT_NOT_FOUND));
 
         Quantity oldQuantity = product.getQuantity();
         Money oldTotalAmount = product.getTotalAmount();
@@ -201,5 +201,9 @@ public class WorkOrderTask {
      */
     public boolean isDeleted() {
         return this.deletedAt != null;
+    }
+
+    public List<WorkOrderTaskProduct> getProducts() {
+        return this.products != null ? java.util.Collections.unmodifiableList(this.products) : java.util.Collections.emptyList();
     }
 }

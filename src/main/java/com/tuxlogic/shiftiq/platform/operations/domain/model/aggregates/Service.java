@@ -64,4 +64,12 @@ public class Service extends AbstractDomainAggregateRoot<Service> {
         this.name = name;
         this.price = price;
     }
+
+    public void delete() {
+        this.deletedAt = Instant.now();
+    }
+
+    public boolean isDeleted() {
+        return this.deletedAt != null;
+    }
 }
