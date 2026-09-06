@@ -54,8 +54,7 @@ public class ProductCommandServiceImpl implements ProductCommandService {
             log.info("Created product ID '{}' for branch '{}'", savedProduct.getId(), savedProduct.getBranchId());
             return Result.success(savedProduct);
         } catch (IllegalArgumentException e) {
-            log.warn("Create product failed due to invalid data: {}", e.getMessage());
-            return Result.failure(ProductCommandFailure.INVALID_PRODUCT_DATA);
+            return handleInvalidData("Create product", e);
         }
     }
 
@@ -83,8 +82,7 @@ public class ProductCommandServiceImpl implements ProductCommandService {
             log.warn("Add batch failed: insufficient stock for product ID '{}'", command.productId());
             return Result.failure(ProductCommandFailure.INSUFFICIENT_STOCK);
         } catch (IllegalArgumentException e) {
-            log.warn("Add batch failed due to invalid data for product ID '{}': {}", command.productId(), e.getMessage());
-            return Result.failure(ProductCommandFailure.INVALID_PRODUCT_DATA);
+            return handleInvalidData("Add batch", e);
         }
     }
 
@@ -119,8 +117,7 @@ public class ProductCommandServiceImpl implements ProductCommandService {
             log.info("Updated details for product ID '{}'", savedProduct.getId());
             return Result.success(savedProduct);
         } catch (IllegalArgumentException e) {
-            log.warn("Update product failed due to invalid data: {}", e.getMessage());
-            return Result.failure(ProductCommandFailure.INVALID_PRODUCT_DATA);
+            return handleInvalidData("Update product", e);
         }
     }
 
@@ -148,5 +145,10 @@ public class ProductCommandServiceImpl implements ProductCommandService {
             log.warn("{} failed: product ID '{}' not found", actionName, productId);
         }
         return productOpt;
+    }
+
+    private <T> Result<T, ProductCommandFailure> handleInvalidData(String actionName, IllegalArgumentException e) {
+        log.warn("{} failed due to invalid data: {}", actionName, e.getMessage());
+        return Result.failure(ProductCommandFailure.INVALID_PRODUCT_DATA);
     }
 }
