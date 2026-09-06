@@ -135,15 +135,17 @@ public class Obd2DevicesController {
         return ResponseEntityFromObd2DeviceCommandResultAssembler.toResponseEntityFromResult(result, HttpStatus.OK, messageSource);
     }
 
+    private static final String STATUS_AVAILABLE = "available";
+
     @GetMapping
-    @Operation(summary = "Get OBD2 devices by branch", description = "Retrieves all registered OBD2 devices under a specific branch. Use ?status=available to filter by availability.")
+    @Operation(summary = "Get OBD2 devices for a branch", description = "Retrieves all OBD2 devices for a specific branch. Filter by ?status=available to get unlinked devices.")
     @PreAuthorize("isAuthenticated() and @multiTenancySecurityService.isAuthorizedForBranch(#branchId)")
     public ResponseEntity<List<Obd2DeviceResource>> getObd2Devices(
             @RequestParam UUID branchId,
             @RequestParam(required = false) String status
     ) {
         List<Obd2Device> devices;
-        if ("available".equalsIgnoreCase(status)) {
+        if (STATUS_AVAILABLE.equalsIgnoreCase(status)) {
             devices = queryService.handle(new GetAvailableObd2DevicesQuery(new BranchId(branchId)));
         } else {
             devices = queryService.handle(new GetObd2DevicesByBranchIdQuery(new BranchId(branchId)));
@@ -156,7 +158,7 @@ public class Obd2DevicesController {
 
     @GetMapping("/{deviceId}/telemetry-snapshots/latest")
     @Operation(summary = "Get latest telemetry snapshot for a device", description = "Retrieves the most recent telemetry capture from a specific OBD2 device")
-    public ResponseEntity<?> getLatestTelemetrySnapshot(@PathVariable UUID deviceId) {
+    public ResponseEntity<TelemetrySnapshotResource> getLatestTelemetrySnapshot(@PathVariable UUID deviceId) {
         validateAndGetDevice(deviceId);
         var query = new GetLatestTelemetrySnapshotQuery(new Obd2DeviceId(deviceId));
         var result = telemetryQueryService.handle(query);
@@ -164,13 +166,7 @@ public class Obd2DevicesController {
         return result
                 .map(snapshot -> ResponseEntity.ok(
                         TelemetrySnapshotResourceFromAggregateAssembler.toResourceFromAggregate(snapshot)))
-                .<ResponseEntity<?>>map(r -> r)
-                .orElseGet(() -> {
-                    var status = HttpStatus.NOT_FOUND;
-                    return ResponseEntity.status(status).body(
-                            ProblemDetail.forStatusAndDetail(status, "No telemetry snapshot found for device " + deviceId)
-                    );
-                });
+                .orElseGet(() -> ResponseEntity.notFound().build());
     }
 
     @GetMapping("/{deviceId}/telemetry-snapshots")

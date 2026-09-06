@@ -108,6 +108,8 @@ public class VehiclesController {
         throw new AccessDeniedException("Unauthorized access for requested vehicle identifier: " + vehicleId);
     }
 
+    private static final String STATUS_AVAILABLE_FOR_LINKING = "available-for-linking";
+
     @GetMapping
     @Operation(summary = "Get vehicles by branch and status", description = "Retrieves vehicles under a specific branch. Use ?status=available-for-linking to get vehicles available for OBD2 device linking.")
     @PreAuthorize("isAuthenticated() and @multiTenancySecurityService.isAuthorizedForBranch(#branchId)")
@@ -115,7 +117,7 @@ public class VehiclesController {
             @RequestParam UUID branchId,
             @RequestParam String status) {
 
-        if ("available-for-linking".equalsIgnoreCase(status)) {
+        if (STATUS_AVAILABLE_FOR_LINKING.equalsIgnoreCase(status)) {
             var query = new GetVehiclesAvailableForLinkingQuery(new BranchId(branchId));
             var list = vehicleQueryService.handle(query);
             var resources = list.stream()
