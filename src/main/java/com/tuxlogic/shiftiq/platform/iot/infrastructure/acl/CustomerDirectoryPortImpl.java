@@ -39,6 +39,18 @@ public class CustomerDirectoryPortImpl implements CustomerDirectoryPort {
     }
 
     @Override
+    public List<UUID> findUserIdsByCustomerIds(List<UUID> customerIds) {
+        if (customerIds == null || customerIds.isEmpty()) {
+            return List.of();
+        }
+        return customerIds.stream()
+                .map(this::findUserIdByCustomerId)
+                .flatMap(Optional::stream)
+                .distinct()
+                .toList();
+    }
+
+    @Override
     public List<UUID> findActiveCustomerIdsByBranchId(BranchId branchId) {
         var result = customerRegistrationQueryService.handle(branchId, CustomerRegistrationStatus.ACTIVE);
         return result.success().orElseGet(List::of).stream()

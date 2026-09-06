@@ -9,6 +9,7 @@ import com.tuxlogic.shiftiq.platform.shared.domain.model.valueobjects.VehicleId;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
 import java.util.Optional;
 
 @Repository
@@ -53,5 +54,17 @@ public class VehicleRepositoryImpl implements VehicleRepository {
     @Transactional
     public void delete(VehicleId id) {
         persistenceRepository.deleteById(id.value());
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<Vehicle> findAllByIds(List<VehicleId> ids) {
+        if (ids == null || ids.isEmpty()) {
+            return List.of();
+        }
+        var uuids = ids.stream().map(VehicleId::value).toList();
+        return persistenceRepository.findAllById(uuids).stream()
+                .map(VehiclePersistenceAssembler::toDomainEntity)
+                .toList();
     }
 }

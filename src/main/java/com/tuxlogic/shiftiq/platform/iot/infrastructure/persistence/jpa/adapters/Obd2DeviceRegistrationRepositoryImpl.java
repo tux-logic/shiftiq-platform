@@ -16,6 +16,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 @Repository
 public class Obd2DeviceRegistrationRepositoryImpl implements Obd2DeviceRegistrationRepository {
@@ -73,5 +75,17 @@ public class Obd2DeviceRegistrationRepositoryImpl implements Obd2DeviceRegistrat
                 .stream()
                 .map(Obd2DeviceRegistrationPersistenceAssembler::toDomainEntity)
                 .toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Set<VehicleId> findVehicleIdsWithActiveRegistration(List<VehicleId> vehicleIds) {
+        if (vehicleIds == null || vehicleIds.isEmpty()) {
+            return Set.of();
+        }
+        return persistenceRepository.findAllByVehicleIdInAndStatus(vehicleIds, Obd2RegistrationStatus.ACTIVE.value())
+                .stream()
+                .map(Obd2DeviceRegistrationPersistenceEntity::getVehicleId)
+                .collect(Collectors.toSet());
     }
 }

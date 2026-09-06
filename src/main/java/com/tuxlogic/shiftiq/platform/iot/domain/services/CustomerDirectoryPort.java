@@ -13,5 +13,6 @@ import java.util.UUID;
  */
 public interface CustomerDirectoryPort {
     Optional<UUID> findUserIdByCustomerId(UUID customerId);
+    List<UUID> findUserIdsByCustomerIds(List<UUID> customerIds);
     List<UUID> findActiveCustomerIdsByBranchId(BranchId branchId);
 }

@@ -57,4 +57,15 @@ public class VehicleRegistrationRepositoryImpl implements VehicleRegistrationRep
                 .map(VehicleRegistrationPersistenceAssembler::toDomainEntity)
                 .toList();
     }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<VehicleRegistration> findAllActiveByUserIds(List<UUID> userIds) {
+        if (userIds == null || userIds.isEmpty()) {
+            return List.of();
+        }
+        return persistenceRepository.findAllByUserIdInAndStatus(userIds, VehicleRegistrationStatus.ACTIVE.value()).stream()
+                .map(VehicleRegistrationPersistenceAssembler::toDomainEntity)
+                .toList();
+    }
 }

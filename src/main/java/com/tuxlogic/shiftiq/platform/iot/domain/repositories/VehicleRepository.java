@@ -45,4 +45,11 @@ public interface VehicleRepository {
      * @param id the unique identifier of the vehicle
      */
     void delete(VehicleId id);
+
+    /**
+     * Finds all vehicles by a list of unique identifiers in batch.
+     * @param ids the list of vehicle IDs
+     * @return the list of found vehicles
+     */
+    List<Vehicle> findAllByIds(List<VehicleId> ids);
 }
