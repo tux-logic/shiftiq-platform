@@ -33,6 +33,7 @@ public class Workshop extends AbstractDomainAggregateRoot<Workshop> {
     public Workshop(WorkshopId id, OwnerId ownerId, String businessName, String brandName, TaxId taxId, int mileageIntervalConfig, Instant createdAt, Instant updatedAt, Instant deletedAt, Long version) {
         if (businessName == null || businessName.isBlank()) throw new IllegalArgumentException("core.error.businessName.required");
         if (brandName == null || brandName.isBlank()) throw new IllegalArgumentException("core.error.brandName.required");
+        if (mileageIntervalConfig <= 0) throw new IllegalArgumentException("core.error.mileageIntervalConfig.mustBePositive");
         this.id = id;
         this.ownerId = ownerId;
         this.businessName = businessName;
@@ -48,6 +49,7 @@ public class Workshop extends AbstractDomainAggregateRoot<Workshop> {
     public Workshop(OwnerId ownerId, String businessName, String brandName, TaxId taxId, int mileageIntervalConfig) {
         if (businessName == null || businessName.isBlank()) throw new IllegalArgumentException("core.error.businessName.required");
         if (brandName == null || brandName.isBlank()) throw new IllegalArgumentException("core.error.brandName.required");
+        if (mileageIntervalConfig <= 0) throw new IllegalArgumentException("core.error.mileageIntervalConfig.mustBePositive");
         this.id = new WorkshopId(UUID.randomUUID());
         this.ownerId = ownerId;
         this.businessName = businessName;
@@ -60,6 +62,7 @@ public class Workshop extends AbstractDomainAggregateRoot<Workshop> {
     public void update(String businessName, String brandName, TaxId taxId, int mileageIntervalConfig) {
         if (businessName == null || businessName.isBlank()) throw new IllegalArgumentException("core.error.businessName.required");
         if (brandName == null || brandName.isBlank()) throw new IllegalArgumentException("core.error.brandName.required");
+        if (mileageIntervalConfig <= 0) throw new IllegalArgumentException("core.error.mileageIntervalConfig.mustBePositive");
 
         this.businessName = businessName;
         this.brandName = brandName;

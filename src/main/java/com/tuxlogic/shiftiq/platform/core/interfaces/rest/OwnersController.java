@@ -59,6 +59,9 @@ public class OwnersController {
     @Operation(summary = "Update an owner profile", description = "Updates an existing owner profile")
     @PutMapping("/{ownerId}")
     public ResponseEntity<OwnerResource> updateOwner(@PathVariable UUID ownerId, @Valid @RequestBody UpdateOwnerResource resource) {
+        var existing = ownerQueryService.handle(new GetOwnerByIdQuery(new OwnerId(ownerId)));
+        existing.ifPresent(o -> multiTenancySecurityService.validateUserAccess(o.getUserId().value()));
+
         var command = UpdateOwnerCommandFromResourceAssembler.toCommandFromResource(ownerId, resource);
         var owner = ownerCommandService.handle(command);
         if (owner.isEmpty()) {
@@ -78,6 +81,7 @@ public class OwnersController {
             return ResponseEntity.notFound().build();
         }
 
+        multiTenancySecurityService.validateUserAccess(owner.get().getUserId().value());
         var ownerResource = OwnerResourceFromEntityAssembler.toResourceFromEntity(owner.get());
         return ResponseEntity.ok(ownerResource);
     }
@@ -85,6 +89,7 @@ public class OwnersController {
     @Operation(summary = "Get an owner profile by User ID", description = "Retrieves the details of a specific owner profile using the User ID")
     @GetMapping
     public ResponseEntity<OwnerResource> getOwnerByUserId(@RequestParam(name = "userId") UUID userId) {
+        multiTenancySecurityService.validateUserAccess(userId);
         var query = new GetOwnerByUserIdQuery(new UserId(userId));
         var owner = ownerQueryService.handle(query);
         if (owner.isEmpty()) {
@@ -98,6 +103,9 @@ public class OwnersController {
     @Operation(summary = "Delete an owner profile", description = "Deletes an existing owner profile")
     @DeleteMapping("/{ownerId}")
     public ResponseEntity<?> deleteOwner(@PathVariable UUID ownerId) {
+        var existing = ownerQueryService.handle(new GetOwnerByIdQuery(new OwnerId(ownerId)));
+        existing.ifPresent(o -> multiTenancySecurityService.validateUserAccess(o.getUserId().value()));
+
         var command = new DeleteOwnerCommand(new OwnerId(ownerId));
         ownerCommandService.handle(command);
         return ResponseEntity.noContent().build();

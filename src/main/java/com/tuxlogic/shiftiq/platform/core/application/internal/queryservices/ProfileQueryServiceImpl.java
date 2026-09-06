@@ -18,6 +18,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
+import java.util.concurrent.CompletableFuture;
+
 @Service
 @Transactional(readOnly = true)
 public class ProfileQueryServiceImpl implements ProfileQueryService {
@@ -44,16 +46,20 @@ public class ProfileQueryServiceImpl implements ProfileQueryService {
     @Override
     public List<String> handle(GetProfileRolesByUserIdQuery query) {
         log.debug("Fetching profile roles for user ID: {}", query.userId());
-        List<String> roles = new ArrayList<>();
+        
+        CompletableFuture<Boolean> isCustomer = CompletableFuture.supplyAsync(() -> customerRepository.existsByUserId(query.userId()));
+        CompletableFuture<Boolean> isOwner = CompletableFuture.supplyAsync(() -> ownerRepository.existsByUserId(query.userId()));
+        CompletableFuture<Boolean> isEmployee = CompletableFuture.supplyAsync(() -> employeeRepository.existsByUserId(query.userId()));
 
-        if (customerRepository.existsByUserId(query.userId())) {
-            roles.add(ROLE_CUSTOMER);
-        }
-        if (ownerRepository.existsByUserId(query.userId())) {
-            roles.add(ROLE_OWNER);
-        }
-        if (employeeRepository.existsByUserId(query.userId())) {
-            roles.add(ROLE_EMPLOYEE);
+        CompletableFuture.allOf(isCustomer, isOwner, isEmployee).join();
+
+        List<String> roles = new ArrayList<>();
+        try {
+            if (isCustomer.get()) roles.add(ROLE_CUSTOMER);
+            if (isOwner.get()) roles.add(ROLE_OWNER);
+            if (isEmployee.get()) roles.add(ROLE_EMPLOYEE);
+        } catch (Exception e) {
+            log.error("Error evaluating user roles concurrently: {}", e.getMessage());
         }
 
         return roles;
@@ -62,24 +68,37 @@ public class ProfileQueryServiceImpl implements ProfileQueryService {
     @Override
     public Optional<ProfileSummary> handle(GetProfileByDocumentNumberQuery query) {
         log.debug("Searching profile by document number: {}", query.documentNumber());
-        var customer = customerRepository.findByDocumentNumber(query.documentNumber());
-        if (customer.isPresent()) {
-            var c = customer.get();
-            String firstName = c.getName() != null ? c.getName().firstName() : c.getBusinessName();
-            String lastName = c.getName() != null ? c.getName().lastName() : "";
-            return Optional.of(new ProfileSummary(c.getId().value(), c.getUserId().value(), firstName, lastName, c.getDocument().getDocumentType().name(), c.getDocument().getDocumentNumber(), ROLE_CUSTOMER));
-        }
 
-        var employee = employeeRepository.findByDocumentNumber(query.documentNumber());
-        if (employee.isPresent()) {
-            var e = employee.get();
-            return Optional.of(new ProfileSummary(e.getId().value(), e.getUserId().value(), e.getName().firstName(), e.getName().lastName(), e.getDocument().getDocumentType().name(), e.getDocument().getDocumentNumber(), ROLE_EMPLOYEE));
-        }
+        CompletableFuture<Optional<ProfileSummary>> customerFuture = CompletableFuture.supplyAsync(() ->
+                customerRepository.findByDocumentNumber(query.documentNumber())
+                        .map(c -> {
+                            String firstName = c.getName() != null ? c.getName().firstName() : c.getBusinessName();
+                            String lastName = c.getName() != null ? c.getName().lastName() : "";
+                            return new ProfileSummary(c.getId().value(), c.getUserId().value(), firstName, lastName, c.getDocument().getDocumentType().name(), c.getDocument().getDocumentNumber(), ROLE_CUSTOMER);
+                        })
+        );
 
-        var owner = ownerRepository.findByDocumentNumber(query.documentNumber());
-        if (owner.isPresent()) {
-            var o = owner.get();
-            return Optional.of(new ProfileSummary(o.getId().value(), o.getUserId().value(), o.getName().firstName(), o.getName().lastName(), o.getDocument().getDocumentType().name(), o.getDocument().getDocumentNumber(), ROLE_OWNER));
+        CompletableFuture<Optional<ProfileSummary>> employeeFuture = CompletableFuture.supplyAsync(() ->
+                employeeRepository.findByDocumentNumber(query.documentNumber())
+                        .map(e -> new ProfileSummary(e.getId().value(), e.getUserId().value(), e.getName().firstName(), e.getName().lastName(), e.getDocument().getDocumentType().name(), e.getDocument().getDocumentNumber(), ROLE_EMPLOYEE))
+        );
+
+        CompletableFuture<Optional<ProfileSummary>> ownerFuture = CompletableFuture.supplyAsync(() ->
+                ownerRepository.findByDocumentNumber(query.documentNumber())
+                        .map(o -> new ProfileSummary(o.getId().value(), o.getUserId().value(), o.getName().firstName(), o.getName().lastName(), o.getDocument().getDocumentType().name(), o.getDocument().getDocumentNumber(), ROLE_OWNER))
+        );
+
+        CompletableFuture.allOf(customerFuture, employeeFuture, ownerFuture).join();
+
+        try {
+            var cOpt = customerFuture.get();
+            if (cOpt.isPresent()) return cOpt;
+            var eOpt = employeeFuture.get();
+            if (eOpt.isPresent()) return eOpt;
+            var oOpt = ownerFuture.get();
+            if (oOpt.isPresent()) return oOpt;
+        } catch (Exception e) {
+            log.error("Error searching profile by document number concurrently: {}", e.getMessage());
         }
 
         return Optional.empty();

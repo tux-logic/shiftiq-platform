@@ -60,6 +60,9 @@ public class EmployeesController {
     @Operation(summary = "Update an employee profile", description = "Updates an existing employee profile")
     @PutMapping("/{employeeId}")
     public ResponseEntity<EmployeeResource> updateEmployee(@PathVariable UUID employeeId, @Valid @RequestBody UpdateEmployeeResource resource) {
+        var existing = employeeQueryService.handle(new GetEmployeeByIdQuery(new EmployeeId(employeeId)));
+        existing.ifPresent(e -> multiTenancySecurityService.validateUserAccess(e.getUserId().value()));
+
         var command = UpdateEmployeeCommandFromResourceAssembler.toCommandFromResource(employeeId, resource);
         var employee = employeeCommandService.handle(command);
         if (employee.isEmpty()) {
@@ -79,6 +82,7 @@ public class EmployeesController {
             return ResponseEntity.notFound().build();
         }
 
+        multiTenancySecurityService.validateUserAccess(employee.get().getUserId().value());
         var employeeResource = EmployeeResourceFromEntityAssembler.toResourceFromEntity(employee.get());
         return ResponseEntity.ok(employeeResource);
     }
@@ -86,6 +90,7 @@ public class EmployeesController {
     @Operation(summary = "Get an employee profile by User ID", description = "Retrieves the details of a specific employee profile using the User ID")
     @GetMapping(params = "userId")
     public ResponseEntity<EmployeeResource> getEmployeeByUserId(@RequestParam(name = "userId") UUID userId) {
+        multiTenancySecurityService.validateUserAccess(userId);
         var query = new GetEmployeeByUserIdQuery(new UserId(userId));
         var employee = employeeQueryService.handle(query);
         if (employee.isEmpty()) {
@@ -105,6 +110,7 @@ public class EmployeesController {
             return ResponseEntity.notFound().build();
         }
 
+        multiTenancySecurityService.validateUserAccess(employee.get().getUserId().value());
         var employeeResource = EmployeeResourceFromEntityAssembler.toResourceFromEntity(employee.get());
         return ResponseEntity.ok(employeeResource);
     }
@@ -112,6 +118,9 @@ public class EmployeesController {
     @Operation(summary = "Delete an employee profile", description = "Deletes an existing employee profile")
     @DeleteMapping("/{employeeId}")
     public ResponseEntity<?> deleteEmployee(@PathVariable UUID employeeId) {
+        var existing = employeeQueryService.handle(new GetEmployeeByIdQuery(new EmployeeId(employeeId)));
+        existing.ifPresent(e -> multiTenancySecurityService.validateUserAccess(e.getUserId().value()));
+
         var command = new DeleteEmployeeCommand(new EmployeeId(employeeId));
         employeeCommandService.handle(command);
         return ResponseEntity.noContent().build();

@@ -59,6 +59,9 @@ public class CustomersController {
     @Operation(summary = "Update a customer profile", description = "Updates an existing customer profile")
     @PutMapping("/{customerId}")
     public ResponseEntity<CustomerResource> updateCustomer(@PathVariable UUID customerId, @Valid @RequestBody UpdateCustomerResource resource) {
+        var existing = customerQueryService.handle(new GetCustomerByIdQuery(new CustomerId(customerId)));
+        existing.ifPresent(c -> multiTenancySecurityService.validateUserAccess(c.getUserId().value()));
+
         var command = UpdateCustomerCommandFromResourceAssembler.toCommandFromResource(customerId, resource);
         var customer = customerCommandService.handle(command);
         if (customer.isEmpty()) {
@@ -78,6 +81,7 @@ public class CustomersController {
             return ResponseEntity.notFound().build();
         }
 
+        multiTenancySecurityService.validateUserAccess(customer.get().getUserId().value());
         var customerResource = CustomerResourceFromEntityAssembler.toResourceFromEntity(customer.get());
         return ResponseEntity.ok(customerResource);
     }
@@ -85,6 +89,7 @@ public class CustomersController {
     @Operation(summary = "Get a customer profile by User ID", description = "Retrieves the details of a specific customer profile using the User ID")
     @GetMapping
     public ResponseEntity<CustomerResource> getCustomerByUserId(@RequestParam(name = "userId") UUID userId) {
+        multiTenancySecurityService.validateUserAccess(userId);
         var query = new GetCustomerByUserIdQuery(new UserId(userId));
         var customer = customerQueryService.handle(query);
         if (customer.isEmpty()) {
@@ -98,6 +103,9 @@ public class CustomersController {
     @Operation(summary = "Delete a customer profile", description = "Deletes an existing customer profile")
     @DeleteMapping("/{customerId}")
     public ResponseEntity<?> deleteCustomer(@PathVariable UUID customerId) {
+        var existing = customerQueryService.handle(new GetCustomerByIdQuery(new CustomerId(customerId)));
+        existing.ifPresent(c -> multiTenancySecurityService.validateUserAccess(c.getUserId().value()));
+
         var command = new DeleteCustomerCommand(new CustomerId(customerId));
         customerCommandService.handle(command);
         return ResponseEntity.noContent().build();

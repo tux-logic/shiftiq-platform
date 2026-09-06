@@ -15,6 +15,8 @@ import java.util.UUID;
 import com.tuxlogic.shiftiq.platform.core.domain.model.queries.GetProfileByDocumentNumberQuery;
 import com.tuxlogic.shiftiq.platform.core.domain.model.queries.responses.ProfileSummary;
 
+import com.tuxlogic.shiftiq.platform.shared.infrastructure.security.MultiTenancySecurityService;
+
 @RestController
 @RequestMapping("/api/v1/profiles")
 @Tag(name = "Profiles", description = "Operations related to user profiles")
@@ -22,14 +24,17 @@ import com.tuxlogic.shiftiq.platform.core.domain.model.queries.responses.Profile
 public class ProfilesController {
 
     private final ProfileQueryService profileQueryService;
+    private final MultiTenancySecurityService multiTenancySecurityService;
 
-    public ProfilesController(ProfileQueryService profileQueryService) {
+    public ProfilesController(ProfileQueryService profileQueryService, MultiTenancySecurityService multiTenancySecurityService) {
         this.profileQueryService = profileQueryService;
+        this.multiTenancySecurityService = multiTenancySecurityService;
     }
 
     @GetMapping("/roles")
     @Operation(summary = "Get all profile roles for a specific user ID", description = "Returns a list of roles (e.g. OWNER, CUSTOMER, EMPLOYEE) that the user currently has.")
     public ResponseEntity<List<String>> getUserProfileRoles(@RequestParam(name = "userId") UUID userId) {
+        multiTenancySecurityService.validateUserAccess(userId);
         var query = new GetProfileRolesByUserIdQuery(new UserId(userId));
         var roles = profileQueryService.handle(query);
         return ResponseEntity.ok(roles);
@@ -40,6 +45,7 @@ public class ProfilesController {
     public ResponseEntity<ProfileSummary> getProfileByDocumentNumber(@RequestParam String documentNumber) {
         var query = new GetProfileByDocumentNumberQuery(documentNumber);
         var result = profileQueryService.handle(query);
+        result.ifPresent(p -> multiTenancySecurityService.validateUserAccess(p.userId()));
         return result.map(ResponseEntity::ok)
                      .orElseGet(() -> ResponseEntity.notFound().build());
     }

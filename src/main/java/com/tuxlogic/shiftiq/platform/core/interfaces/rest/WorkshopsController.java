@@ -60,6 +60,9 @@ public class WorkshopsController {
     @Operation(summary = "Update an existing workshop", description = "Updates the details of a workshop by its ID")
     @PutMapping("/{workshopId}")
     public ResponseEntity<WorkshopResource> updateWorkshop(@PathVariable UUID workshopId, @Valid @RequestBody UpdateWorkshopResource resource) {
+        var existing = workshopQueryService.handle(new GetWorkshopByIdQuery(new WorkshopId(workshopId)));
+        existing.ifPresent(w -> multiTenancySecurityService.validateUserAccess(w.getOwnerId().value()));
+
         var command = UpdateWorkshopCommandFromResourceAssembler.toCommandFromResource(workshopId, resource);
         var workshop = workshopCommandService.handle(command);
         if (workshop.isEmpty()) {
@@ -79,6 +82,7 @@ public class WorkshopsController {
             return ResponseEntity.notFound().build();
         }
 
+        multiTenancySecurityService.validateUserAccess(workshop.get().getOwnerId().value());
         var workshopResource = WorkshopResourceFromEntityAssembler.toResourceFromEntity(workshop.get());
         return ResponseEntity.ok(workshopResource);
     }
@@ -86,6 +90,7 @@ public class WorkshopsController {
     @Operation(summary = "Get workshops by owner ID", description = "Retrieves all workshops belonging to a specific owner")
     @GetMapping
     public ResponseEntity<List<WorkshopResource>> getWorkshopsByOwnerId(@RequestParam(name = "ownerId") UUID ownerId) {
+        multiTenancySecurityService.validateUserAccess(ownerId);
         var query = new GetAllWorkshopsByOwnerIdQuery(new OwnerId(ownerId));
         var workshops = workshopQueryService.handle(query);
         
