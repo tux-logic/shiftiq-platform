@@ -16,9 +16,11 @@ import com.tuxlogic.shiftiq.platform.core.interfaces.rest.transform.OwnerResourc
 import com.tuxlogic.shiftiq.platform.core.interfaces.rest.transform.UpdateOwnerCommandFromResourceAssembler;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.UUID;
@@ -26,6 +28,7 @@ import java.util.UUID;
 @RestController
 @RequestMapping(value = "/api/v1/owners", produces = MediaType.APPLICATION_JSON_VALUE)
 @Tag(name = "Owners", description = "Owner Management Endpoints")
+@PreAuthorize("isAuthenticated()")
 public class OwnersController {
 
     private final OwnerCommandService ownerCommandService;
@@ -38,7 +41,7 @@ public class OwnersController {
 
     @Operation(summary = "Create a new owner profile", description = "Creates a new owner profile associated with a user ID")
     @PostMapping
-    public ResponseEntity<OwnerResource> createOwner(@RequestBody CreateOwnerResource resource) {
+    public ResponseEntity<OwnerResource> createOwner(@Valid @RequestBody CreateOwnerResource resource) {
         var command = CreateOwnerCommandFromResourceAssembler.toCommandFromResource(resource);
         var owner = ownerCommandService.handle(command);
         if (owner.isEmpty()) {
@@ -51,7 +54,7 @@ public class OwnersController {
 
     @Operation(summary = "Update an owner profile", description = "Updates an existing owner profile")
     @PutMapping("/{ownerId}")
-    public ResponseEntity<OwnerResource> updateOwner(@PathVariable UUID ownerId, @RequestBody UpdateOwnerResource resource) {
+    public ResponseEntity<OwnerResource> updateOwner(@PathVariable UUID ownerId, @Valid @RequestBody UpdateOwnerResource resource) {
         var command = UpdateOwnerCommandFromResourceAssembler.toCommandFromResource(ownerId, resource);
         var owner = ownerCommandService.handle(command);
         if (owner.isEmpty()) {
@@ -93,6 +96,6 @@ public class OwnersController {
     public ResponseEntity<?> deleteOwner(@PathVariable UUID ownerId) {
         var command = new DeleteOwnerCommand(new OwnerId(ownerId));
         ownerCommandService.handle(command);
-        return ResponseEntity.ok().build();
+        return ResponseEntity.noContent().build();
     }
 }

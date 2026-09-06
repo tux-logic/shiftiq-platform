@@ -6,6 +6,7 @@ import com.tuxlogic.shiftiq.platform.core.domain.model.valueobjects.UserId;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -17,6 +18,7 @@ import com.tuxlogic.shiftiq.platform.core.domain.model.queries.responses.Profile
 @RestController
 @RequestMapping("/api/v1/profiles")
 @Tag(name = "Profiles", description = "Operations related to user profiles")
+@PreAuthorize("isAuthenticated()")
 public class ProfilesController {
 
     private final ProfileQueryService profileQueryService;

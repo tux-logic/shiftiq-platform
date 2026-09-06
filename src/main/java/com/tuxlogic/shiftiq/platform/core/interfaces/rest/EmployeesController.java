@@ -17,9 +17,11 @@ import com.tuxlogic.shiftiq.platform.core.interfaces.rest.transform.EmployeeReso
 import com.tuxlogic.shiftiq.platform.core.interfaces.rest.transform.UpdateEmployeeCommandFromResourceAssembler;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.UUID;
@@ -27,6 +29,7 @@ import java.util.UUID;
 @RestController
 @RequestMapping(value = "/api/v1/employees", produces = MediaType.APPLICATION_JSON_VALUE)
 @Tag(name = "Employees", description = "Employee Management Endpoints")
+@PreAuthorize("isAuthenticated()")
 public class EmployeesController {
 
     private final EmployeeCommandService employeeCommandService;
@@ -39,7 +42,7 @@ public class EmployeesController {
 
     @Operation(summary = "Create a new employee profile", description = "Creates a new employee profile associated with a user ID")
     @PostMapping
-    public ResponseEntity<EmployeeResource> createEmployee(@RequestBody CreateEmployeeResource resource) {
+    public ResponseEntity<EmployeeResource> createEmployee(@Valid @RequestBody CreateEmployeeResource resource) {
         var command = CreateEmployeeCommandFromResourceAssembler.toCommandFromResource(resource);
         var employee = employeeCommandService.handle(command);
         if (employee.isEmpty()) {
@@ -52,7 +55,7 @@ public class EmployeesController {
 
     @Operation(summary = "Update an employee profile", description = "Updates an existing employee profile")
     @PutMapping("/{employeeId}")
-    public ResponseEntity<EmployeeResource> updateEmployee(@PathVariable UUID employeeId, @RequestBody UpdateEmployeeResource resource) {
+    public ResponseEntity<EmployeeResource> updateEmployee(@PathVariable UUID employeeId, @Valid @RequestBody UpdateEmployeeResource resource) {
         var command = UpdateEmployeeCommandFromResourceAssembler.toCommandFromResource(employeeId, resource);
         var employee = employeeCommandService.handle(command);
         if (employee.isEmpty()) {
@@ -107,6 +110,6 @@ public class EmployeesController {
     public ResponseEntity<?> deleteEmployee(@PathVariable UUID employeeId) {
         var command = new DeleteEmployeeCommand(new EmployeeId(employeeId));
         employeeCommandService.handle(command);
-        return ResponseEntity.ok().build();
+        return ResponseEntity.noContent().build();
     }
 }

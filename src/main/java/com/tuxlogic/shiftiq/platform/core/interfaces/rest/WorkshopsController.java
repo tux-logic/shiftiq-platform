@@ -15,9 +15,11 @@ import com.tuxlogic.shiftiq.platform.core.interfaces.rest.transform.UpdateWorksh
 import com.tuxlogic.shiftiq.platform.core.interfaces.rest.transform.WorkshopResourceFromEntityAssembler;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -27,6 +29,7 @@ import java.util.stream.Collectors;
 @RestController
 @RequestMapping(value = "/api/v1/workshops", produces = MediaType.APPLICATION_JSON_VALUE)
 @Tag(name = "Workshops", description = "Workshop Management Endpoints")
+@PreAuthorize("isAuthenticated()")
 public class WorkshopsController {
 
     private final WorkshopCommandService workshopCommandService;
@@ -39,7 +42,7 @@ public class WorkshopsController {
 
     @Operation(summary = "Create a new workshop", description = "Creates a new workshop")
     @PostMapping
-    public ResponseEntity<WorkshopResource> createWorkshop(@RequestBody CreateWorkshopResource resource) {
+    public ResponseEntity<WorkshopResource> createWorkshop(@Valid @RequestBody CreateWorkshopResource resource) {
         var command = CreateWorkshopCommandFromResourceAssembler.toCommandFromResource(resource);
         var workshop = workshopCommandService.handle(command);
         if (workshop.isEmpty()) {
@@ -52,7 +55,7 @@ public class WorkshopsController {
 
     @Operation(summary = "Update an existing workshop", description = "Updates the details of a workshop by its ID")
     @PutMapping("/{workshopId}")
-    public ResponseEntity<WorkshopResource> updateWorkshop(@PathVariable UUID workshopId, @RequestBody UpdateWorkshopResource resource) {
+    public ResponseEntity<WorkshopResource> updateWorkshop(@PathVariable UUID workshopId, @Valid @RequestBody UpdateWorkshopResource resource) {
         var command = UpdateWorkshopCommandFromResourceAssembler.toCommandFromResource(workshopId, resource);
         var workshop = workshopCommandService.handle(command);
         if (workshop.isEmpty()) {

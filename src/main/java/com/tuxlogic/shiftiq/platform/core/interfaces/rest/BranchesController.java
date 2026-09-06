@@ -19,11 +19,14 @@ import com.tuxlogic.shiftiq.platform.core.interfaces.rest.transform.BranchResour
 import com.tuxlogic.shiftiq.platform.core.interfaces.rest.transform.BranchSubscriptionResourceFromEntityAssembler;
 import com.tuxlogic.shiftiq.platform.core.interfaces.rest.transform.CreateBranchCommandFromResourceAssembler;
 import com.tuxlogic.shiftiq.platform.core.interfaces.rest.transform.UpdateBranchCommandFromResourceAssembler;
+import com.tuxlogic.shiftiq.platform.shared.infrastructure.security.MultiTenancySecurityService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -33,24 +36,28 @@ import java.util.stream.Collectors;
 @RestController
 @RequestMapping(value = "/api/v1/branches", produces = MediaType.APPLICATION_JSON_VALUE)
 @Tag(name = "Branches", description = "Branch Management Endpoints")
+@PreAuthorize("isAuthenticated()")
 public class BranchesController {
 
     private final BranchCommandService branchCommandService;
     private final BranchQueryService branchQueryService;
     private final SubscriptionCommandService subscriptionCommandService;
+    private final MultiTenancySecurityService multiTenancySecurityService;
 
     public BranchesController(
             BranchCommandService branchCommandService, 
             BranchQueryService branchQueryService,
-            SubscriptionCommandService subscriptionCommandService) {
+            SubscriptionCommandService subscriptionCommandService,
+            MultiTenancySecurityService multiTenancySecurityService) {
         this.branchCommandService = branchCommandService;
         this.branchQueryService = branchQueryService;
         this.subscriptionCommandService = subscriptionCommandService;
+        this.multiTenancySecurityService = multiTenancySecurityService;
     }
 
     @Operation(summary = "Create a new branch", description = "Creates a new branch associated with a specific workshop")
     @PostMapping
-    public ResponseEntity<BranchResource> createBranch(@RequestBody CreateBranchResource resource) {
+    public ResponseEntity<BranchResource> createBranch(@Valid @RequestBody CreateBranchResource resource) {
         var command = CreateBranchCommandFromResourceAssembler.toCommandFromResource(resource);
         var branch = branchCommandService.handle(command);
         if (branch.isEmpty()) {
@@ -63,7 +70,8 @@ public class BranchesController {
 
     @Operation(summary = "Update an existing branch", description = "Updates the details of a branch by its ID")
     @PutMapping("/{branchId}")
-    public ResponseEntity<BranchResource> updateBranch(@PathVariable UUID branchId, @RequestBody UpdateBranchResource resource) {
+    public ResponseEntity<BranchResource> updateBranch(@PathVariable UUID branchId, @Valid @RequestBody UpdateBranchResource resource) {
+        multiTenancySecurityService.validateBranchAccess(branchId);
         var command = UpdateBranchCommandFromResourceAssembler.toCommandFromResource(branchId, resource);
         var branch = branchCommandService.handle(command);
         if (branch.isEmpty()) {
@@ -77,6 +85,7 @@ public class BranchesController {
     @Operation(summary = "Get a branch by ID", description = "Retrieves the details of a specific branch")
     @GetMapping("/{branchId}")
     public ResponseEntity<BranchResource> getBranchById(@PathVariable UUID branchId) {
+        multiTenancySecurityService.validateBranchAccess(branchId);
         var query = new GetBranchByIdQuery(new BranchId(branchId));
         var branch = branchQueryService.handle(query);
         if (branch.isEmpty()) {
@@ -104,7 +113,8 @@ public class BranchesController {
     @PostMapping("/{branchId}/subscriptions")
     public ResponseEntity<BranchSubscriptionResource> assignSubscription(
             @PathVariable UUID branchId, 
-            @RequestBody AssignSubscriptionResource resource) {
+            @Valid @RequestBody AssignSubscriptionResource resource) {
+        multiTenancySecurityService.validateBranchAccess(branchId);
         var command = AssignSubscriptionCommandFromResourceAssembler.toCommandFromResource(branchId, resource);
         var subscription = subscriptionCommandService.handle(command);
         if (subscription.isEmpty()) {
@@ -118,6 +128,7 @@ public class BranchesController {
     @Operation(summary = "Cancel an active subscription", description = "Cancels the currently active subscription of a branch")
     @DeleteMapping("/{branchId}/subscription")
     public ResponseEntity<BranchSubscriptionResource> cancelSubscription(@PathVariable UUID branchId) {
+        multiTenancySecurityService.validateBranchAccess(branchId);
         var command = new CancelSubscriptionCommand(new BranchId(branchId));
         var subscription = subscriptionCommandService.handle(command);
         if (subscription.isEmpty()) {

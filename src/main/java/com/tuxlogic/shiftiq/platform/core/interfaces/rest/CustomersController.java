@@ -16,9 +16,11 @@ import com.tuxlogic.shiftiq.platform.core.interfaces.rest.transform.CustomerReso
 import com.tuxlogic.shiftiq.platform.core.interfaces.rest.transform.UpdateCustomerCommandFromResourceAssembler;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.UUID;
@@ -26,6 +28,7 @@ import java.util.UUID;
 @RestController
 @RequestMapping(value = "/api/v1/customers", produces = MediaType.APPLICATION_JSON_VALUE)
 @Tag(name = "Customers", description = "Customer Management Endpoints")
+@PreAuthorize("isAuthenticated()")
 public class CustomersController {
 
     private final CustomerCommandService customerCommandService;
@@ -38,7 +41,7 @@ public class CustomersController {
 
     @Operation(summary = "Create a new customer profile", description = "Creates a new customer profile associated with a user ID")
     @PostMapping
-    public ResponseEntity<CustomerResource> createCustomer(@RequestBody CreateCustomerResource resource) {
+    public ResponseEntity<CustomerResource> createCustomer(@Valid @RequestBody CreateCustomerResource resource) {
         var command = CreateCustomerCommandFromResourceAssembler.toCommandFromResource(resource);
         var customer = customerCommandService.handle(command);
         if (customer.isEmpty()) {
@@ -51,7 +54,7 @@ public class CustomersController {
 
     @Operation(summary = "Update a customer profile", description = "Updates an existing customer profile")
     @PutMapping("/{customerId}")
-    public ResponseEntity<CustomerResource> updateCustomer(@PathVariable UUID customerId, @RequestBody UpdateCustomerResource resource) {
+    public ResponseEntity<CustomerResource> updateCustomer(@PathVariable UUID customerId, @Valid @RequestBody UpdateCustomerResource resource) {
         var command = UpdateCustomerCommandFromResourceAssembler.toCommandFromResource(customerId, resource);
         var customer = customerCommandService.handle(command);
         if (customer.isEmpty()) {
@@ -93,8 +96,7 @@ public class CustomersController {
     public ResponseEntity<?> deleteCustomer(@PathVariable UUID customerId) {
         var command = new DeleteCustomerCommand(new CustomerId(customerId));
         customerCommandService.handle(command);
-        return ResponseEntity.ok().build();
+        return ResponseEntity.noContent().build();
     }
-
 }
 
