@@ -126,9 +126,9 @@ public class VehiclesController {
             return ResponseEntity.ok(resources);
         }
 
-        return ResponseEntity.status(HttpStatus.UNPROCESSABLE_ENTITY).body(
+        return ResponseEntity.status(HttpStatus.UNPROCESSABLE_CONTENT).body(
                 ProblemDetail.forStatusAndDetail(
-                        HttpStatus.UNPROCESSABLE_ENTITY,
+                        HttpStatus.UNPROCESSABLE_CONTENT,
                         messageSource.getMessage(MSG_UNSUPPORTED_VEHICLE_STATUS_FILTER, new Object[]{status}, LocaleContextHolder.getLocale())
                 )
         );

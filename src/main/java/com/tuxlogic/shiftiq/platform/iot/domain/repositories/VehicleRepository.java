@@ -1,7 +1,6 @@
 package com.tuxlogic.shiftiq.platform.iot.domain.repositories;
 
 import com.tuxlogic.shiftiq.platform.iot.domain.model.aggregates.Vehicle;
-import com.tuxlogic.shiftiq.platform.shared.domain.model.valueobjects.BranchId;
 import com.tuxlogic.shiftiq.platform.shared.domain.model.valueobjects.VehicleId;
 
 import java.util.List;

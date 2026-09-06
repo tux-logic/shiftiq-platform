@@ -12,14 +12,15 @@ import java.time.Instant;
 /**
  * Domain Aggregate Root representing an OBD2 device registered in a branch.
  */
+@Getter
 public class Obd2Device extends AbstractDomainAggregateRoot<Obd2Device> {
 
-    @Getter private Obd2DeviceId id;
-    @Getter private BranchId branchId;
-    @Getter private String macAddress;
-    @Getter private Instant lastPing;
-    @Getter private Obd2DeviceStatus status;
-    @Getter(lombok.AccessLevel.PACKAGE) private Long version;
+    private Obd2DeviceId id;
+    private BranchId branchId;
+    private String macAddress;
+    private Instant lastPing;
+    private Obd2DeviceStatus status;
+    private Long version;
 
     public Obd2Device() {
     }

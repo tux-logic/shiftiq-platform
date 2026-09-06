@@ -10,18 +10,19 @@ import java.util.UUID;
 /**
  * Domain Aggregate Root representing a Vehicle within the iot bounded context.
  */
+@Getter
 public class Vehicle extends AbstractDomainAggregateRoot<Vehicle> {
 
-    @Getter private VehicleId id;
-    @Getter private String plateNumber;
-    @Getter private String brand;
-    @Getter private String model;
-    @Getter private Integer year;
-    @Getter private String vin;
-    @Getter(lombok.AccessLevel.PACKAGE) private Long version;
-    @Getter private Instant createdAt;
-    @Getter private Instant updatedAt;
-    @Getter(lombok.AccessLevel.PACKAGE) private Instant deletedAt;
+    private VehicleId id;
+    private String plateNumber;
+    private String brand;
+    private String model;
+    private Integer year;
+    private String vin;
+    private Long version;
+    private Instant createdAt;
+    private Instant updatedAt;
+    private Instant deletedAt;
 
     public Vehicle() {
     }

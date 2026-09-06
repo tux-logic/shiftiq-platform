@@ -107,9 +107,9 @@ public class Obd2DeviceRegistrationsController {
             return ResponseEntityFromObd2DeviceRegistrationCommandResultAssembler.toResponseEntityFromResult(result, HttpStatus.OK, messageSource);
         }
 
-        return ResponseEntity.status(HttpStatus.UNPROCESSABLE_ENTITY).body(
+        return ResponseEntity.status(HttpStatus.UNPROCESSABLE_CONTENT).body(
                 ProblemDetail.forStatusAndDetail(
-                        HttpStatus.UNPROCESSABLE_ENTITY,
+                        HttpStatus.UNPROCESSABLE_CONTENT,
                         messageSource.getMessage(MSG_UNSUPPORTED_STATUS_TRANSITION, new Object[]{resource.status()}, LocaleContextHolder.getLocale())
                 )
         );
