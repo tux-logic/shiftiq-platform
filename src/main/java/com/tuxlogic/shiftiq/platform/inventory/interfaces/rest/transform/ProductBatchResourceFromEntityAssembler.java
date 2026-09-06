@@ -9,12 +9,12 @@ public class ProductBatchResourceFromEntityAssembler {
                 entity.getBatchId().toString(),
                 entity.getInitialQuantity().value(),
                 entity.getAvailableQuantity().value(),
-                entity.getAcquisitionCost().amount(),
+                entity.getAcquisitionCost() != null && entity.getAcquisitionCost().amount() != null ? entity.getAcquisitionCost().amount().doubleValue() : 0.0,
                 entity.getReceptionDate()
         );
     }
 
-    public static ProductBatchResource toResourceFromStockAdjustment(int signedQuantity, java.math.BigDecimal acquisitionCost, ProductBatch resultingBatch) {
+    public static ProductBatchResource toResourceFromStockAdjustment(int signedQuantity, Double acquisitionCost, ProductBatch resultingBatch) {
         return new ProductBatchResource(
                 resultingBatch.getBatchId().toString(),
                 signedQuantity,

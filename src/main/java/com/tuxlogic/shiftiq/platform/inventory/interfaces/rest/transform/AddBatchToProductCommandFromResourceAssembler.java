@@ -13,7 +13,7 @@ public class AddBatchToProductCommandFromResourceAssembler {
         return new AddBatchToProductCommand(
                 productId,
                 new StockMovementQuantity(resource.quantity()),
-                new Money(resource.acquisitionCost())
+                Money.of(resource.acquisitionCost() != null ? resource.acquisitionCost() : 0.0)
         );
     }
 }
