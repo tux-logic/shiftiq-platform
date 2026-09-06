@@ -20,13 +20,6 @@ public interface VehicleRepository {
     Optional<Vehicle> findById(VehicleId id);
 
     /**
-     * Finds all vehicles in a specific branch that are available for linking (unlinked).
-     * @param branchId the unique identifier of the branch
-     * @return the list of available vehicles
-     */
-    List<Vehicle> findAvailableForLinkingByBranchId(BranchId branchId);
-
-    /**
      * Saves a Vehicle aggregate.
      * @param vehicle the aggregate to save
      * @return the saved aggregate
