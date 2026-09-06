@@ -3,7 +3,7 @@ package com.tuxlogic.shiftiq.platform.inventory.domain.model.entities;
 import com.tuxlogic.shiftiq.platform.inventory.domain.model.valueobjects.InventoryQuantity;
 import com.tuxlogic.shiftiq.platform.shared.domain.model.valueobjects.Money;
 
-import java.util.Date;
+import java.time.Instant;
 import java.util.UUID;
 
 public class ProductBatch {
@@ -11,7 +11,7 @@ public class ProductBatch {
     private final InventoryQuantity initialQuantity;
     private InventoryQuantity availableQuantity;
     private final Money acquisitionCost;
-    private final Date receptionDate;
+    private final Instant receptionDate;
     private Long version;
 
     public ProductBatch(UUID batchId, InventoryQuantity initialQuantity, Money acquisitionCost) {
@@ -19,19 +19,19 @@ public class ProductBatch {
         this.initialQuantity = initialQuantity;
         this.availableQuantity = initialQuantity;
         this.acquisitionCost = acquisitionCost;
-        this.receptionDate = new Date();
+        this.receptionDate = Instant.now();
     }
 
-    private ProductBatch(UUID batchId, InventoryQuantity initialQuantity, InventoryQuantity availableQuantity, Money acquisitionCost, Date receptionDate, Long version) {
+    private ProductBatch(UUID batchId, InventoryQuantity initialQuantity, InventoryQuantity availableQuantity, Money acquisitionCost, Instant receptionDate, Long version) {
         this.batchId = batchId;
         this.initialQuantity = initialQuantity;
         this.availableQuantity = availableQuantity;
         this.acquisitionCost = acquisitionCost;
-        this.receptionDate = receptionDate != null ? receptionDate : new Date();
+        this.receptionDate = receptionDate != null ? receptionDate : Instant.now();
         this.version = version;
     }
 
-    public static ProductBatch reconstitute(UUID batchId, InventoryQuantity initialQuantity, InventoryQuantity availableQuantity, Money acquisitionCost, Date receptionDate, Long version) {
+    public static ProductBatch reconstitute(UUID batchId, InventoryQuantity initialQuantity, InventoryQuantity availableQuantity, Money acquisitionCost, Instant receptionDate, Long version) {
         return new ProductBatch(batchId, initialQuantity, availableQuantity, acquisitionCost, receptionDate, version);
     }
 
@@ -39,7 +39,7 @@ public class ProductBatch {
     public InventoryQuantity getInitialQuantity() { return initialQuantity; }
     public InventoryQuantity getAvailableQuantity() { return availableQuantity; }
     public Money getAcquisitionCost() { return acquisitionCost; }
-    public Date getReceptionDate() { return receptionDate; }
+    public Instant getReceptionDate() { return receptionDate; }
     public Long getVersion() { return version; }
     
     public void deductQuantity(InventoryQuantity amount) { this.availableQuantity = this.availableQuantity.subtract(amount); }
@@ -51,7 +51,7 @@ public class ProductBatch {
                 new InventoryQuantity(0),
                 new InventoryQuantity(resultingStock),
                 acquisitionCost,
-                new Date(),
+                Instant.now(),
                 null
         );
     }

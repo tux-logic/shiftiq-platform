@@ -5,6 +5,8 @@ import com.tuxlogic.shiftiq.platform.inventory.domain.model.entities.ProductBatc
 import com.tuxlogic.shiftiq.platform.inventory.domain.model.events.LowStockAlertClearedEvent;
 import com.tuxlogic.shiftiq.platform.inventory.domain.model.events.LowStockAlertTriggeredEvent;
 import com.tuxlogic.shiftiq.platform.inventory.domain.model.events.ProductCreatedEvent;
+import com.tuxlogic.shiftiq.platform.inventory.domain.model.events.ProductUpdatedEvent;
+import com.tuxlogic.shiftiq.platform.inventory.domain.model.events.StockMovementAppliedEvent;
 import com.tuxlogic.shiftiq.platform.inventory.domain.model.valueobjects.*;
 import com.tuxlogic.shiftiq.platform.shared.domain.model.valueobjects.BranchId;
 import com.tuxlogic.shiftiq.platform.shared.domain.model.valueobjects.Money;
@@ -94,9 +96,11 @@ public class Product extends AbstractAggregateRoot<Product> {
         if (signedQuantity > 0) {
             var batch = new ProductBatch(UUID.randomUUID(), new InventoryQuantity(signedQuantity), acquisitionCost);
             addBatch(batch);
+            registerEvent(new StockMovementAppliedEvent(this, this.branchId, this.id, signedQuantity, this.currentStock.value()));
             return Optional.of(batch);
         }
         reserveStock(new InventoryQuantity(-signedQuantity));
+        registerEvent(new StockMovementAppliedEvent(this, this.branchId, this.id, signedQuantity, this.currentStock.value()));
         return Optional.empty();
     }
 
@@ -108,6 +112,7 @@ public class Product extends AbstractAggregateRoot<Product> {
         this.description = description;
         this.minimumStock = minimumStock;
         refreshLowStockAlert();
+        registerEvent(new ProductUpdatedEvent(this, this.branchId, this.id));
     }
 
     public boolean refreshLowStockAlert() {

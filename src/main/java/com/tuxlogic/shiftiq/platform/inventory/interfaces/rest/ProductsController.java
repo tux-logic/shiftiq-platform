@@ -97,11 +97,6 @@ public class ProductsController {
             @Valid @RequestBody AddBatchToProductResource resource) {
         validateProductAccess(productId);
 
-        if (resource.quantity() == 0) {
-            String message = messageSource.getMessage("inventory.error.resource.quantity.nonZero", null, LocaleContextHolder.getLocale());
-            return ErrorResponseAssembler.toErrorResponseFromApplicationError(ApplicationError.validationError("productBatch", message));
-        }
-
         var command = AddBatchToProductCommandFromResourceAssembler.toCommandFromResource(productId, resource);
         var result = productCommandService.handle(command);
         if (result.isSuccess()) {
