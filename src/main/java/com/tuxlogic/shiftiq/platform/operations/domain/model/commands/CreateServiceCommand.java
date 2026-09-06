@@ -12,6 +12,8 @@ import com.tuxlogic.shiftiq.platform.shared.domain.model.valueobjects.Money;
  */
 public record CreateServiceCommand(BranchId branchId, String name, Money price) {
     public CreateServiceCommand {
+        if (branchId == null) throw new IllegalArgumentException("operations.error.command.branchId.required");
         if (name == null || name.isBlank()) throw new IllegalArgumentException("core.error.name.required");
+        if (price == null) throw new IllegalArgumentException("operations.error.command.price.required");
     }
 }

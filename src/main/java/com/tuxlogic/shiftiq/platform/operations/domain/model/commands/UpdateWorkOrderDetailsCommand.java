@@ -16,4 +16,10 @@ public record UpdateWorkOrderDetailsCommand(
         WorkOrderId workOrderId,
         DiagnosticSummary diagnosticSummary,
         Mileage mileageIn
-) {}
+) {
+    public UpdateWorkOrderDetailsCommand {
+        if (workOrderId == null) throw new IllegalArgumentException("operations.error.command.workOrderId.required");
+        if (diagnosticSummary == null) throw new IllegalArgumentException("operations.error.command.diagnosticSummary.required");
+        if (mileageIn == null) throw new IllegalArgumentException("operations.error.command.mileageIn.required");
+    }
+}
