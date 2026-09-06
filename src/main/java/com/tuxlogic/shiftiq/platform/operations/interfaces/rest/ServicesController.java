@@ -25,6 +25,7 @@ import java.util.stream.Collectors;
 
 import com.tuxlogic.shiftiq.platform.operations.domain.model.queries.GetServiceByIdQuery;
 import com.tuxlogic.shiftiq.platform.shared.infrastructure.security.MultiTenancySecurityService;
+import jakarta.validation.Valid;
 import org.springframework.security.access.prepost.PreAuthorize;
 
 @RestController
@@ -56,7 +57,7 @@ public class ServicesController {
     @Operation(summary = "Create a new service", description = "Creates a new service with the provided details")
     @PostMapping
     @PreAuthorize("isAuthenticated() and @multiTenancySecurityService.isAuthorizedForBranch(#resource.branchId())")
-    public ResponseEntity<ServiceResource> createService(@RequestBody CreateServiceResource resource) {
+    public ResponseEntity<ServiceResource> createService(@Valid @RequestBody CreateServiceResource resource) {
         var command = CreateServiceCommandFromResourceAssembler.toCommandFromResource(resource);
         var service = serviceCommandService.handle(command);
         if (service.isEmpty()) {
@@ -69,7 +70,7 @@ public class ServicesController {
 
     @Operation(summary = "Update a service", description = "Updates an existing service using the service ID")
     @PutMapping("/{serviceId}")
-    public ResponseEntity<ServiceResource> updateService(@PathVariable UUID serviceId, @RequestBody UpdateServiceResource resource) {
+    public ResponseEntity<ServiceResource> updateService(@PathVariable UUID serviceId, @Valid @RequestBody UpdateServiceResource resource) {
         validateServiceAccess(serviceId);
         var command = UpdateServiceCommandFromResourceAssembler.toCommandFromResource(serviceId, resource);
         var service = serviceCommandService.handle(command);

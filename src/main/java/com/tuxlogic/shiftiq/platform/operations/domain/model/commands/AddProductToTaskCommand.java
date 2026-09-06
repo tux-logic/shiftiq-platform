@@ -16,4 +16,11 @@ public record AddProductToTaskCommand(
         WorkOrderTaskId taskId,
         ProductId productId,
         Quantity quantity
-) {}
+) {
+    public AddProductToTaskCommand {
+        if (workOrderId == null) throw new IllegalArgumentException("operations.error.command.workOrderId.required");
+        if (taskId == null) throw new IllegalArgumentException("operations.error.command.taskId.required");
+        if (productId == null) throw new IllegalArgumentException("operations.error.command.productId.required");
+        if (quantity == null) throw new IllegalArgumentException("operations.error.command.quantity.required");
+    }
+}
