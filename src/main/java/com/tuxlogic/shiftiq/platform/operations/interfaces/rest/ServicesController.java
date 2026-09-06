@@ -2,6 +2,7 @@ package com.tuxlogic.shiftiq.platform.operations.interfaces.rest;
 
 import com.tuxlogic.shiftiq.platform.operations.application.commandservices.ServiceCommandService;
 import com.tuxlogic.shiftiq.platform.operations.application.queryservices.ServiceQueryService;
+import com.tuxlogic.shiftiq.platform.operations.domain.model.aggregates.Service;
 import com.tuxlogic.shiftiq.platform.operations.domain.model.commands.DeleteServiceCommand;
 import com.tuxlogic.shiftiq.platform.operations.domain.model.queries.GetAllServicesByBranchIdQuery;
 import com.tuxlogic.shiftiq.platform.operations.domain.model.valueobjects.ServiceId;
