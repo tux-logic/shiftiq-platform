@@ -202,4 +202,8 @@ public class WorkOrderTask {
     public boolean isDeleted() {
         return this.deletedAt != null;
     }
+
+    public List<WorkOrderTaskProduct> getProducts() {
+        return this.products != null ? java.util.Collections.unmodifiableList(this.products) : java.util.Collections.emptyList();
+    }
 }
