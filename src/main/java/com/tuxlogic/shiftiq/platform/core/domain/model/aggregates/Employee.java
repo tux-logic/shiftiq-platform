@@ -54,5 +54,6 @@ public class Employee extends AbstractDomainAggregateRoot<Employee> {
         this.name = name;
         this.document = document;
         this.phone = phone;
+        this.registerDomainEvent(new com.tuxlogic.shiftiq.platform.core.domain.model.events.EmployeeUpdatedEvent(this, this.id.value()));
     }
 }

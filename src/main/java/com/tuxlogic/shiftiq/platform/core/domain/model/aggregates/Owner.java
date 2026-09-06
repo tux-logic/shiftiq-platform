@@ -54,5 +54,6 @@ public class Owner extends AbstractDomainAggregateRoot<Owner> {
         this.name = name;
         this.document = document;
         this.phone = phone;
+        this.registerDomainEvent(new com.tuxlogic.shiftiq.platform.core.domain.model.events.OwnerUpdatedEvent(this, this.id.value()));
     }
 }

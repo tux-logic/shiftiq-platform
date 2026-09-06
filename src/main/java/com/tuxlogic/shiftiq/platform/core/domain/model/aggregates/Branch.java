@@ -66,6 +66,7 @@ public class Branch extends AbstractDomainAggregateRoot<Branch> {
         this.name = name;
         this.address = address;
         this.phone = phone;
+        this.registerDomainEvent(new com.tuxlogic.shiftiq.platform.core.domain.model.events.BranchUpdatedEvent(this, this.id.value()));
     }
 }
 

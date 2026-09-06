@@ -81,6 +81,7 @@ public class Customer extends AbstractDomainAggregateRoot<Customer> {
         
         this.document = document;
         this.phone = phone;
+        this.registerDomainEvent(new com.tuxlogic.shiftiq.platform.core.domain.model.events.CustomerUpdatedEvent(this, this.id.value()));
     }
 }
 

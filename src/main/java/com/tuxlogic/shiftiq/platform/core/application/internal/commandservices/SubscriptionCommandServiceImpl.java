@@ -36,12 +36,17 @@ public class SubscriptionCommandServiceImpl implements SubscriptionCommandServic
 
     @Override
     public Optional<BranchSubscription> handle(AssignSubscriptionCommand command) {
+        log.info("Processing AssignSubscriptionCommand for branch ID: {}, plan ID: {}", command.branchId(), command.planId());
         if (!branchRepository.existsById(command.branchId())) {
+            log.warn("Assign subscription failed: branch ID {} not found", command.branchId());
             throw new IllegalArgumentException("core.error.branch.notFound");
         }
 
         planRepository.findById(command.planId())
-                .orElseThrow(() -> new IllegalArgumentException("core.error.subscriptionPlan.notFound"));
+                .orElseThrow(() -> {
+                    log.warn("Assign subscription failed: plan ID {} not found", command.planId());
+                    return new IllegalArgumentException("core.error.subscriptionPlan.notFound");
+                });
 
         // Mock Payment Processing
         if (command.creditCard() != null && command.creditCard().cardNumber() != null && !command.creditCard().cardNumber().isBlank()) {
@@ -50,10 +55,9 @@ public class SubscriptionCommandServiceImpl implements SubscriptionCommandServic
             log.info("Payment successful for Branch ID: {}", command.branchId());
         }
 
-        // Todo: Validate limits when downgrading using other bounded context queries if necessary
-
         var existingSubscription = subscriptionRepository.findActiveByBranchId(command.branchId());
         existingSubscription.ifPresent(sub -> {
+            log.info("Canceling active subscription ID: {} for branch ID: {}", sub.getId(), command.branchId());
             sub.cancel(Instant.now());
             subscriptionRepository.save(sub);
         });
@@ -71,19 +75,23 @@ public class SubscriptionCommandServiceImpl implements SubscriptionCommandServic
         );
 
         var savedSubscription = subscriptionRepository.save(newSubscription);
+        log.info("Successfully assigned subscription ID: {} to branch ID: {}", savedSubscription.getId(), command.branchId());
         return Optional.of(savedSubscription);
     }
 
     @Override
     public Optional<BranchSubscription> handle(CancelSubscriptionCommand command) {
+        log.info("Processing CancelSubscriptionCommand for branch ID: {}", command.branchId());
         var existingSubscription = subscriptionRepository.findActiveByBranchId(command.branchId());
         if (existingSubscription.isEmpty()) {
+            log.warn("Cancel subscription failed: no active subscription found for branch ID {}", command.branchId());
             throw new IllegalArgumentException("core.error.branch.noActiveSubscription");
         }
 
         var sub = existingSubscription.get();
         sub.cancel(Instant.now());
         subscriptionRepository.save(sub);
+        log.info("Successfully canceled active subscription ID: {} for branch ID: {}", sub.getId(), command.branchId());
 
         return Optional.of(sub);
     }

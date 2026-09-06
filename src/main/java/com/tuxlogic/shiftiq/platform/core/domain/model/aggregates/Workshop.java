@@ -65,5 +65,6 @@ public class Workshop extends AbstractDomainAggregateRoot<Workshop> {
         this.brandName = brandName;
         this.taxId = taxId;
         this.mileageIntervalConfig = mileageIntervalConfig;
+        this.registerDomainEvent(new com.tuxlogic.shiftiq.platform.core.domain.model.events.WorkshopUpdatedEvent(this, this.id.value()));
     }
 }
