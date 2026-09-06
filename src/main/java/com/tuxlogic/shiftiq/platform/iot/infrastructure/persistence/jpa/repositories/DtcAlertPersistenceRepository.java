@@ -19,7 +19,7 @@ public interface DtcAlertPersistenceRepository extends JpaRepository<DtcAlertPer
 
     /**
      * Finds all DTC alerts generated under a specific OBD2 device registration.
-
+     */
     @Query(value = "SELECT d.* FROM dtc_alerts d " +
                    "JOIN telemetry_snapshots t ON d.telemetry_snapshot_id = t.id " +
                    "WHERE t.obd2_device_registration_id = :registrationId " +

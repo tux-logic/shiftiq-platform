@@ -8,7 +8,7 @@ import com.tuxlogic.shiftiq.platform.iot.domain.model.queries.GetTelemetrySnapsh
 import com.tuxlogic.shiftiq.platform.iot.domain.model.queries.GetVehicleTelemetrySnapshotHistoryQuery;
 import com.tuxlogic.shiftiq.platform.iot.domain.repositories.Obd2DeviceRegistrationRepository;
 import com.tuxlogic.shiftiq.platform.iot.domain.repositories.TelemetrySnapshotRepository;
-import com.tuxlogic.shiftiq.platform.iot.domain.repositories.VehicleRegistrationRepository;
+import com.tuxlogic.shiftiq.platform.iot.domain.services.ActiveRegistrationContextService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -24,16 +24,16 @@ public class TelemetryQueryServiceImpl implements TelemetryQueryService {
 
     private final TelemetrySnapshotRepository telemetrySnapshotRepository;
     private final Obd2DeviceRegistrationRepository obd2DeviceRegistrationRepository;
-    private final VehicleRegistrationRepository vehicleRegistrationRepository;
+    private final ActiveRegistrationContextService activeRegistrationContextService;
 
     public TelemetryQueryServiceImpl(
             TelemetrySnapshotRepository telemetrySnapshotRepository,
             Obd2DeviceRegistrationRepository obd2DeviceRegistrationRepository,
-            VehicleRegistrationRepository vehicleRegistrationRepository
+            ActiveRegistrationContextService activeRegistrationContextService
     ) {
         this.telemetrySnapshotRepository = telemetrySnapshotRepository;
         this.obd2DeviceRegistrationRepository = obd2DeviceRegistrationRepository;
-        this.vehicleRegistrationRepository = vehicleRegistrationRepository;
+        this.activeRegistrationContextService = activeRegistrationContextService;
     }
 
     @Override
@@ -62,24 +62,13 @@ public class TelemetryQueryServiceImpl implements TelemetryQueryService {
     @Override
     @Transactional(readOnly = true)
     public List<TelemetrySnapshot> handle(GetVehicleTelemetrySnapshotHistoryQuery query) {
-        var activeVehicleRegOpt = vehicleRegistrationRepository.findActiveByVehicleId(query.vehicleId());
-        if (activeVehicleRegOpt.isEmpty()) {
-            return Collections.emptyList();
-        }
-        var activeVehicleReg = activeVehicleRegOpt.get();
-        var startTimestamp = activeVehicleReg.getCreatedAt();
-
-        var activeObd2RegOpt = obd2DeviceRegistrationRepository.findActiveByVehicleId(query.vehicleId());
-        if (activeObd2RegOpt.isEmpty()) {
-            return Collections.emptyList();
-        }
-        var activeObd2Reg = activeObd2RegOpt.get();
-
-        return telemetrySnapshotRepository.findAllByRegistrationIdAndCreatedAtGreaterThanEqual(
-                activeObd2Reg.getId(),
-                startTimestamp,
-                query.page(),
-                query.size()
-        );
+        return activeRegistrationContextService.resolveActiveContextForVehicle(query.vehicleId())
+                .map(ctx -> telemetrySnapshotRepository.findAllByRegistrationIdAndCreatedAtGreaterThanEqual(
+                        ctx.obd2DeviceRegistrationId(),
+                        ctx.startTimestamp(),
+                        query.page(),
+                        query.size()
+                ))
+                .orElseGet(List::of);
     }
 }
