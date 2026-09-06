@@ -26,6 +26,7 @@ import java.util.UUID;
 
 import org.springframework.security.access.prepost.PreAuthorize;
 
+import com.tuxlogic.shiftiq.platform.operations.domain.model.valueobjects.OperationsMessageKeys;
 import com.tuxlogic.shiftiq.platform.shared.infrastructure.security.MultiTenancySecurityService;
 
 /**
@@ -67,12 +68,11 @@ public class WorkOrdersController {
         return ResponseEntityFromWorkOrderCommandResultAssembler.toResponseEntityFromResult(result, messageSource, branchCode, status);
     }
 
-    private void validateWorkOrderAccess(UUID id) {
-        var query = new GetWorkOrderByIdQuery(new WorkOrderId(id));
-        var workOrder = queryService.handle(query);
-        if (workOrder.isPresent()) {
-            multiTenancySecurityService.validateBranchAccess(workOrder.get().getBranchId().value());
-        }
+    private WorkOrder validateWorkOrderAccess(UUID id) {
+        WorkOrder workOrder = queryService.handle(new GetWorkOrderByIdQuery(new WorkOrderId(id)))
+                .orElseThrow(() -> new IllegalArgumentException(OperationsMessageKeys.WORK_ORDER_NOT_FOUND));
+        multiTenancySecurityService.validateBranchAccess(workOrder.getBranchId().value());
+        return workOrder;
     }
 
     @PostMapping
@@ -86,6 +86,7 @@ public class WorkOrdersController {
 
     @PostMapping("/{id}/tasks")
     @Operation(summary = "Add a mechanic task to a Work Order", description = "Adds a new mechanic task to an existing Work Order")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<?> addTaskToWorkOrder(@PathVariable UUID id, @Valid @RequestBody AddTaskResource resource) {
         validateWorkOrderAccess(id);
         var command = WorkOrderCommandFromResourceAssembler.toCommandFromResource(id, resource);
@@ -95,6 +96,7 @@ public class WorkOrdersController {
 
     @PutMapping("/{id}/tasks/{taskId}")
     @Operation(summary = "Update mechanic task details", description = "Updates the details of a specific mechanic task")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<?> updateWorkOrderTaskDetails(@PathVariable UUID id, @PathVariable UUID taskId,
                                                         @Valid @RequestBody UpdateWorkOrderTaskDetailsResource resource) {
         validateWorkOrderAccess(id);
@@ -105,6 +107,7 @@ public class WorkOrdersController {
 
     @DeleteMapping("/{id}/tasks/{taskId}")
     @Operation(summary = "Remove a task from the Work Order", description = "Removes a task from the Work Order, releasing all its stock reservations")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<?> removeTaskFromWorkOrder(@PathVariable UUID id, @PathVariable UUID taskId) {
         validateWorkOrderAccess(id);
         var command = new RemoveTaskFromWorkOrderCommand(new WorkOrderId(id), new WorkOrderTaskId(taskId));
@@ -114,6 +117,7 @@ public class WorkOrdersController {
 
     @DeleteMapping("/{id}")
     @Operation(summary = "Soft delete a Work Order", description = "Soft deletes a Work Order, releasing all active stock reservations")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<?> deleteWorkOrder(@PathVariable UUID id) {
         validateWorkOrderAccess(id);
         var command = new DeleteWorkOrderCommand(new WorkOrderId(id));
@@ -123,6 +127,7 @@ public class WorkOrdersController {
 
     @GetMapping("/{id}")
     @Operation(summary = "Get a Work Order by ID", description = "Retrieves the details of a specific Work Order")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<?> getWorkOrderById(@PathVariable UUID id) {
         validateWorkOrderAccess(id);
         var query = new GetWorkOrderByIdQuery(new WorkOrderId(id));
@@ -136,6 +141,7 @@ public class WorkOrdersController {
 
     @GetMapping
     @Operation(summary = "Get Work Orders", description = "Retrieves a list of all Work Orders, optionally filtered by branchId or vehicleId")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<?> getWorkOrders(@RequestParam(required = false) UUID branchId,
                                            @RequestParam(required = false) UUID vehicleId) {
         if (branchId != null) {
@@ -150,9 +156,7 @@ public class WorkOrdersController {
         } else if (vehicleId != null) {
             var query = new GetWorkOrdersByVehicleIdQuery(new VehicleId(vehicleId));
             List<WorkOrder> list = queryService.handle(query);
-            if (!list.isEmpty()) {
-                multiTenancySecurityService.validateBranchAccess(list.get(0).getBranchId().value());
-            }
+            list.forEach(workOrder -> multiTenancySecurityService.validateBranchAccess(workOrder.getBranchId().value()));
             List<WorkOrderResource> resources = list.stream()
                     .map(value -> {
                         String branchCode = queryService.getBranchCode(value.getBranchId().value());
@@ -167,6 +171,7 @@ public class WorkOrdersController {
 
     @PutMapping("/{id}")
     @Operation(summary = "Update Work Order details", description = "Updates the diagnostic summary and mileage of a Work Order")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<?> updateWorkOrderDetails(@PathVariable UUID id,
                                                     @Valid @RequestBody UpdateWorkOrderDetailsResource resource) {
         validateWorkOrderAccess(id);

@@ -2,6 +2,7 @@ package com.tuxlogic.shiftiq.platform.operations.interfaces.rest;
 
 import com.tuxlogic.shiftiq.platform.operations.application.commandservices.ServiceCommandService;
 import com.tuxlogic.shiftiq.platform.operations.application.queryservices.ServiceQueryService;
+import com.tuxlogic.shiftiq.platform.operations.domain.model.aggregates.Service;
 import com.tuxlogic.shiftiq.platform.operations.domain.model.commands.DeleteServiceCommand;
 import com.tuxlogic.shiftiq.platform.operations.domain.model.queries.GetAllServicesByBranchIdQuery;
 import com.tuxlogic.shiftiq.platform.operations.domain.model.valueobjects.ServiceId;
@@ -23,6 +24,7 @@ import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
+import com.tuxlogic.shiftiq.platform.operations.domain.model.valueobjects.OperationsMessageKeys;
 import com.tuxlogic.shiftiq.platform.operations.domain.model.queries.GetServiceByIdQuery;
 import com.tuxlogic.shiftiq.platform.shared.infrastructure.security.MultiTenancySecurityService;
 import jakarta.validation.Valid;
@@ -46,12 +48,11 @@ public class ServicesController {
         this.multiTenancySecurityService = multiTenancySecurityService;
     }
 
-    private void validateServiceAccess(UUID serviceId) {
-        var query = new GetServiceByIdQuery(new ServiceId(serviceId));
-        var service = serviceQueryService.handle(query);
-        if (service.isPresent()) {
-            multiTenancySecurityService.validateBranchAccess(service.get().getBranchId().value());
-        }
+    private Service validateServiceAccess(UUID serviceId) {
+        Service service = serviceQueryService.handle(new GetServiceByIdQuery(new ServiceId(serviceId)))
+                .orElseThrow(() -> new IllegalArgumentException(OperationsMessageKeys.SERVICE_NOT_FOUND));
+        multiTenancySecurityService.validateBranchAccess(service.getBranchId().value());
+        return service;
     }
 
     @Operation(summary = "Create a new service", description = "Creates a new service with the provided details")
@@ -70,6 +71,7 @@ public class ServicesController {
 
     @Operation(summary = "Update a service", description = "Updates an existing service using the service ID")
     @PutMapping("/{serviceId}")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<ServiceResource> updateService(@PathVariable UUID serviceId, @Valid @RequestBody UpdateServiceResource resource) {
         validateServiceAccess(serviceId);
         var command = UpdateServiceCommandFromResourceAssembler.toCommandFromResource(serviceId, resource);
@@ -84,6 +86,7 @@ public class ServicesController {
 
     @Operation(summary = "Delete a service", description = "Deletes an existing service using the service ID")
     @DeleteMapping("/{serviceId}")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<?> deleteService(@PathVariable UUID serviceId) {
         validateServiceAccess(serviceId);
         var command = new DeleteServiceCommand(new ServiceId(serviceId));
