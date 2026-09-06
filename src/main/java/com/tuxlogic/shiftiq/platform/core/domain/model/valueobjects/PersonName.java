@@ -1,8 +1,5 @@
 package com.tuxlogic.shiftiq.platform.core.domain.model.valueobjects;
 
-import jakarta.persistence.Embeddable;
-
-@Embeddable
 public record PersonName(String firstName, String lastName) {
 
     private static final String NOT_BLANK_FIRST_NAME_MESSAGE_KEY = "core.error.firstName.notBlank";

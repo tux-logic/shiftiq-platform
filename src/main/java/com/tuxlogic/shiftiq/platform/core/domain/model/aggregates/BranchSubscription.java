@@ -5,12 +5,14 @@ import com.tuxlogic.shiftiq.platform.core.domain.model.valueobjects.BranchSubscr
 import com.tuxlogic.shiftiq.platform.core.domain.model.valueobjects.SubscriptionPlanId;
 import com.tuxlogic.shiftiq.platform.core.domain.model.valueobjects.SubscriptionStatus;
 import com.tuxlogic.shiftiq.platform.shared.domain.model.valueobjects.BranchId;
+import com.tuxlogic.shiftiq.platform.shared.domain.model.aggregates.AbstractDomainAggregateRoot;
 
 import lombok.Getter;
 import java.util.Date;
+import java.util.UUID;
 
 @Getter
-public class BranchSubscription {
+public class BranchSubscription extends AbstractDomainAggregateRoot<BranchSubscription> {
 
     private BranchSubscriptionId id;
     private BranchId branchId;
@@ -28,6 +30,7 @@ public class BranchSubscription {
         if (startDate == null) throw new IllegalArgumentException("core.error.startDate.required");
         if (endDate == null) throw new IllegalArgumentException("core.error.endDate.required");
 
+        this.id = new BranchSubscriptionId(UUID.randomUUID());
         this.branchId = branchId;
         this.planId = planId;
         this.status = SubscriptionStatus.ACTIVE;
