@@ -3,11 +3,14 @@ package com.tuxlogic.shiftiq.platform.inventory.infrastructure.persistence.jpa.a
 import com.tuxlogic.shiftiq.platform.inventory.domain.model.aggregates.Product;
 import com.tuxlogic.shiftiq.platform.inventory.domain.repositories.ProductRepository;
 import com.tuxlogic.shiftiq.platform.inventory.infrastructure.persistence.jpa.assemblers.ProductEntityAssembler;
+import com.tuxlogic.shiftiq.platform.inventory.infrastructure.persistence.jpa.entities.ProductBatchJpaEntity;
 import com.tuxlogic.shiftiq.platform.inventory.infrastructure.persistence.jpa.entities.ProductJpaEntity;
 import com.tuxlogic.shiftiq.platform.inventory.infrastructure.persistence.jpa.repositories.ProductJpaRepository;
 import com.tuxlogic.shiftiq.platform.shared.domain.model.valueobjects.BranchId;
 import org.springframework.stereotype.Repository;
+import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -18,6 +21,7 @@ import java.util.UUID;
  * @author Adiel Sanchez
  */
 @Repository
+@Transactional(readOnly = true)
 public class ProductRepositoryAdapter implements ProductRepository {
     private final ProductJpaRepository jpaRepository;
 
@@ -26,6 +30,7 @@ public class ProductRepositoryAdapter implements ProductRepository {
     }
 
     @Override
+    @Transactional
     public Product save(Product product) {
         ProductJpaEntity entity;
         if (product.getVersion() != null) {
@@ -83,7 +88,17 @@ public class ProductRepositoryAdapter implements ProductRepository {
     }
 
     @Override
+    @Transactional
     public void deleteById(UUID id) {
-        jpaRepository.deleteById(id);
+        jpaRepository.findById(id).ifPresent(entity -> {
+            Instant now = Instant.now();
+            entity.setDeletedAt(now);
+            if (entity.getBatches() != null) {
+                for (ProductBatchJpaEntity batch : entity.getBatches()) {
+                    batch.setDeletedAt(now);
+                }
+            }
+            jpaRepository.save(entity);
+        });
     }
 }

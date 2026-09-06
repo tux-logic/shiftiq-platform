@@ -2,10 +2,10 @@ package com.tuxlogic.shiftiq.platform.operations.domain.model.aggregates;
 
 import com.tuxlogic.shiftiq.platform.operations.domain.model.entities.WorkOrderTask;
 import com.tuxlogic.shiftiq.platform.operations.domain.model.entities.WorkOrderTaskProduct;
-import com.tuxlogic.shiftiq.platform.operations.domain.model.events.ProductReservationCanceledEvent;
-import com.tuxlogic.shiftiq.platform.operations.domain.model.events.ProductReservedEvent;
 import com.tuxlogic.shiftiq.platform.operations.domain.model.events.WorkOrderPaidEvent;
 import com.tuxlogic.shiftiq.platform.operations.domain.model.valueobjects.*;
+import com.tuxlogic.shiftiq.platform.shared.domain.model.events.ProductReservationCanceledEvent;
+import com.tuxlogic.shiftiq.platform.shared.domain.model.events.ProductReservedEvent;
 import com.tuxlogic.shiftiq.platform.shared.domain.model.valueobjects.*;
 import com.tuxlogic.shiftiq.platform.shared.domain.model.aggregates.AbstractDomainAggregateRoot;
 
@@ -336,13 +336,6 @@ public class WorkOrder extends AbstractDomainAggregateRoot<WorkOrder> {
         recalculateTotalAmount();
     }
 
-    /**
-     * Updates the quantity of a specific product within a task in the work order. This method first checks if the work order is in a state that allows modifications (not COMPLETED or PAID). It then finds the specified task by its ID and calls the updateProductQuantity() method on that task, passing in the productId and the new quantity. After updating the product quantity, it recalculates the total amount for the work order to reflect any changes in the cost of the products. Additionally, it calculates the difference (delta) between the new quantity and the old quantity to determine whether to register a ProductReservedEvent (if the quantity increased) or a ProductReservationCanceledEvent (if the quantity decreased), ensuring that inventory reservations are accurately updated based on the changes made to the product quantity.
-     * @param taskId the unique identifier of the task that contains the product to be updated, which allows for identifying the correct task within the work order to modify the product quantity
-     * @param productId the unique identifier of the product whose quantity is being updated, which corresponds to a specific item that is required for the task and can affect inventory management and billing purposes
-     * @param newQuantity the new quantity to be set for the product, which indicates how many units of the product are needed for the task and can affect inventory levels and the total amount of the work order
-     * @throws IllegalStateException if the work order is in a state that does not allow modifications (COMPLETED or PAID), which prevents changes to the product quantity after the work order has been finalized
-     */
     public void updateProductQuantityInTask(WorkOrderTaskId taskId, ProductId productId, Quantity newQuantity) {
         if (this.status == WorkOrderStatus.COMPLETED || this.status == WorkOrderStatus.PAID) {
             throw new IllegalStateException("operations.error.workOrder.cannotModifyClosedOrder");
@@ -354,15 +347,12 @@ public class WorkOrder extends AbstractDomainAggregateRoot<WorkOrder> {
 
         int delta = newQuantity.value() - oldQuantity.value();
         if (delta > 0) {
-            this.registerEvent(new ProductReservedEvent(this, this.branchId, productId, new Quantity(delta)));
+            this.registerEvent(new ProductReservedEvent(this, this.branchId, productId.value(), delta));
         } else if (delta < 0) {
-            this.registerEvent(new ProductReservationCanceledEvent(this, this.branchId, productId, new Quantity(Math.abs(delta))));
+            this.registerEvent(new ProductReservationCanceledEvent(this, this.branchId, productId.value(), Math.abs(delta)));
         }
     }
 
-    /**
-     * Checks if the work order should automatically transition to IN_PROGRESS status. This method is called after starting or completing tasks to ensure that the overall work order status accurately reflects the progress of its tasks. If the current status of the work order is PENDING and a task has been started, it transitions the work order status to IN_PROGRESS. This allows for automatic state management of the work order based on the actions performed on its tasks, ensuring that the status remains consistent with the actual progress of the work being done.
-     */
     private void checkAutoCompletion() {
         if (this.status == WorkOrderStatus.PENDING) {
             this.status = WorkOrderStatus.IN_PROGRESS;

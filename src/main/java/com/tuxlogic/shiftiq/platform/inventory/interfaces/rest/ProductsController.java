@@ -42,17 +42,17 @@ import java.util.UUID;
 public class ProductsController {
     private final ProductCommandService productCommandService;
     private final ProductQueryService productQueryService;
-    private final MessageSource messageSource;
     private final MultiTenancySecurityService multiTenancySecurityService;
+    private final MessageSource messageSource;
 
     public ProductsController(ProductCommandService productCommandService,
                               ProductQueryService productQueryService,
-                              MessageSource messageSource,
-                              MultiTenancySecurityService multiTenancySecurityService) {
+                              MultiTenancySecurityService multiTenancySecurityService,
+                              MessageSource messageSource) {
         this.productCommandService = productCommandService;
         this.productQueryService = productQueryService;
-        this.messageSource = messageSource;
         this.multiTenancySecurityService = multiTenancySecurityService;
+        this.messageSource = messageSource;
     }
 
     @PostMapping
@@ -68,21 +68,26 @@ public class ProductsController {
         return toErrorResponse(result.failure().get());
     }
 
-    @GetMapping({"", "/branch/{branchId}"})
-    @Operation(summary = "Get products by branch", description = "Retrieves products for a branch with optional name, category and low-stock filters")
+    @GetMapping(params = "branchId")
+    @Operation(summary = "Get all products for a branch", description = "Retrieves products for a branch with optional name, category and low-stock filters")
+    @PreAuthorize("isAuthenticated() and @multiTenancySecurityService.isAuthorizedForBranch(#branchId)")
     public ResponseEntity<List<ProductResource>> getProductsByBranch(
-            @PathVariable(required = false) UUID branchId,
-            @RequestParam(required = false) UUID branchIdQuery,
+            @RequestParam UUID branchId,
             @RequestParam(required = false) String name,
             @RequestParam(required = false) String category,
             @RequestParam(required = false) Boolean lowStockOnly) {
-        UUID resolvedBranchId = branchId != null ? branchId : branchIdQuery;
-        if (resolvedBranchId == null) {
-            String message = messageSource.getMessage("inventory.error.query.branchId.required", null, LocaleContextHolder.getLocale());
-            return ErrorResponseAssembler.toErrorResponseFromApplicationError(ApplicationError.validationError("product", message));
-        }
-        multiTenancySecurityService.validateBranchAccess(resolvedBranchId);
-        return ResponseEntity.ok(toProductResources(resolvedBranchId, name, category, lowStockOnly));
+        return ResponseEntity.ok(toProductResources(branchId, name, category, lowStockOnly));
+    }
+
+    @GetMapping("/branch/{branchId}")
+    @Operation(summary = "Get products by branch path", description = "Catalog endpoint aligned with TS009, supporting optional filters")
+    @PreAuthorize("isAuthenticated() and @multiTenancySecurityService.isAuthorizedForBranch(#branchId)")
+    public ResponseEntity<List<ProductResource>> getProductsByBranchPath(
+            @PathVariable UUID branchId,
+            @RequestParam(required = false) String name,
+            @RequestParam(required = false) String category,
+            @RequestParam(required = false) Boolean lowStockOnly) {
+        return ResponseEntity.ok(toProductResources(branchId, name, category, lowStockOnly));
     }
 
     @PostMapping("/{productId}/batches")
@@ -90,12 +95,7 @@ public class ProductsController {
     public ResponseEntity<?> addBatchToProduct(
             @PathVariable UUID productId,
             @Valid @RequestBody AddBatchToProductResource resource) {
-        validateProductBranchAccess(productId);
-
-        if (resource.quantity() == 0) {
-            String message = messageSource.getMessage("inventory.error.resource.quantity.nonZero", null, LocaleContextHolder.getLocale());
-            return ErrorResponseAssembler.toErrorResponseFromApplicationError(ApplicationError.validationError("productBatch", message));
-        }
+        validateProductAccess(productId);
 
         var command = AddBatchToProductCommandFromResourceAssembler.toCommandFromResource(productId, resource);
         var result = productCommandService.handle(command);
@@ -112,11 +112,12 @@ public class ProductsController {
     @GetMapping("/{productId}")
     @Operation(summary = "Get product details by ID", description = "Retrieves all details for a product including its associated batches")
     public ResponseEntity<ProductDetailsResource> getProductById(@PathVariable UUID productId) {
+        validateProductAccess(productId);
         var query = new GetProductByIdQuery(productId);
         var product = productQueryService.handle(query);
 
         return product.map(p -> ResponseEntity.ok(
-                authorizeAndMapProductDetails(p)
+                ProductDetailsResourceFromAggregateAssembler.toResourceFromAggregate(p)
         )).orElseGet(() -> ResponseEntity.notFound().build());
     }
 
@@ -125,7 +126,7 @@ public class ProductsController {
     public ResponseEntity<?> updateProduct(
             @PathVariable UUID productId,
             @Valid @RequestBody UpdateProductResource resource) {
-        validateProductBranchAccess(productId);
+        validateProductAccess(productId);
 
         var command = UpdateProductCommandFromResourceAssembler.toCommandFromResource(productId, resource);
         var result = productCommandService.handle(command);
@@ -139,7 +140,7 @@ public class ProductsController {
     @DeleteMapping("/{productId}")
     @Operation(summary = "Delete a product", description = "Deletes a product and all its associated batches")
     public ResponseEntity<?> deleteProduct(@PathVariable UUID productId) {
-        validateProductBranchAccess(productId);
+        validateProductAccess(productId);
         var command = new DeleteProductCommand(productId);
         var result = productCommandService.handle(command);
         if (result.isSuccess()) {
@@ -148,21 +149,19 @@ public class ProductsController {
         return toErrorResponse(result.failure().get());
     }
 
+    private void validateProductAccess(UUID productId) {
+        var query = new GetProductByIdQuery(productId);
+        var product = productQueryService.handle(query);
+        if (product.isPresent()) {
+            multiTenancySecurityService.validateBranchAccess(product.get().getBranchId().value());
+        }
+    }
+
     private List<ProductResource> toProductResources(UUID branchId, String name, String category, Boolean lowStockOnly) {
         var query = new GetProductsByBranchIdQuery(new BranchId(branchId), name, category, lowStockOnly);
         return productQueryService.handle(query).stream()
                 .map(ProductResourceFromAggregateAssembler::toResourceFromAggregate)
                 .toList();
-    }
-
-    private ProductDetailsResource authorizeAndMapProductDetails(com.tuxlogic.shiftiq.platform.inventory.domain.model.aggregates.Product product) {
-        multiTenancySecurityService.validateBranchAccess(product.getBranchId().value());
-        return ProductDetailsResourceFromAggregateAssembler.toResourceFromAggregate(product);
-    }
-
-    private void validateProductBranchAccess(UUID productId) {
-        var product = productQueryService.handle(new GetProductByIdQuery(productId));
-        product.ifPresent(value -> multiTenancySecurityService.validateBranchAccess(value.getBranchId().value()));
     }
 
     private ResponseEntity<?> toErrorResponse(ProductCommandFailure failure) {

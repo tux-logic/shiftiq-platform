@@ -9,7 +9,6 @@ import org.hibernate.annotations.SQLRestriction;
 import org.springframework.data.annotation.CreatedBy;
 import org.springframework.data.annotation.LastModifiedBy;
 import org.springframework.data.domain.Persistable;
-import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
 import java.time.Instant;
 import java.util.ArrayList;
@@ -18,7 +17,6 @@ import java.util.UUID;
 
 @Entity
 @Table(name = "products")
-@EntityListeners(AuditingEntityListener.class)
 @SQLDelete(sql = "UPDATE products SET deleted_at = CURRENT_TIMESTAMP WHERE id = ? AND version = ?")
 @SQLRestriction("deleted_at IS NULL")
 public class ProductJpaEntity extends AuditableAbstractPersistenceEntity implements Persistable<UUID> {
