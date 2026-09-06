@@ -7,7 +7,10 @@ import com.tuxlogic.shiftiq.platform.core.domain.model.valueobjects.Phone;
 import com.tuxlogic.shiftiq.platform.core.domain.model.valueobjects.UserId;
 import com.tuxlogic.shiftiq.platform.core.interfaces.rest.resources.CreateEmployeeResource;
 
-public class CreateEmployeeCommandFromResourceAssembler {
+public final class CreateEmployeeCommandFromResourceAssembler {
+
+    private CreateEmployeeCommandFromResourceAssembler() {}
+
     public static CreateEmployeeCommand toCommandFromResource(CreateEmployeeResource resource) {
         return new CreateEmployeeCommand(
                 new UserId(resource.userId()),

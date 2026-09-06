@@ -9,9 +9,9 @@ import com.tuxlogic.shiftiq.platform.core.domain.repositories.BranchSubscription
 import com.tuxlogic.shiftiq.platform.core.domain.repositories.SubscriptionPlanRepository;
 import org.springframework.stereotype.Service;
 
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
-import java.util.Date;
 import java.util.Optional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -54,13 +54,13 @@ public class SubscriptionCommandServiceImpl implements SubscriptionCommandServic
 
         var existingSubscription = subscriptionRepository.findActiveByBranchId(command.branchId());
         existingSubscription.ifPresent(sub -> {
-            sub.cancel(new Date());
+            sub.cancel(Instant.now());
             subscriptionRepository.save(sub);
         });
 
-        Date startDate = new Date();
+        Instant startDate = Instant.now();
         LocalDate localEndDate = LocalDate.now().plusMonths(command.billingCycle().name().equals("MONTHLY") ? 1 : 12);
-        Date endDate = Date.from(localEndDate.atStartOfDay(ZoneId.systemDefault()).toInstant());
+        Instant endDate = localEndDate.atStartOfDay(ZoneId.systemDefault()).toInstant();
 
         var newSubscription = new BranchSubscription(
                 command.branchId(),
@@ -82,7 +82,7 @@ public class SubscriptionCommandServiceImpl implements SubscriptionCommandServic
         }
 
         var sub = existingSubscription.get();
-        sub.cancel(new Date());
+        sub.cancel(Instant.now());
         subscriptionRepository.save(sub);
 
         return Optional.of(sub);

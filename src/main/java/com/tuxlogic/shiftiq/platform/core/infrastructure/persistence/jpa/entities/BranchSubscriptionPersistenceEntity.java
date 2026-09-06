@@ -12,7 +12,6 @@ import org.hibernate.annotations.SQLRestriction;
 import org.springframework.data.domain.Persistable;
 
 import java.time.Instant;
-import java.util.Date;
 import java.util.UUID;
 
 @Entity
@@ -44,13 +43,13 @@ public class BranchSubscriptionPersistenceEntity extends AuditableAbstractPersis
     private BillingCycle billingCycle;
 
     @Column(name = "start_date", nullable = false)
-    private Date startDate;
+    private Instant startDate;
 
     @Column(name = "end_date", nullable = false)
-    private Date endDate;
+    private Instant endDate;
 
     @Column(name = "canceled_at")
-    private Date canceledAt;
+    private Instant canceledAt;
 
     @Column(name = "deleted_at")
     private Instant deletedAt;

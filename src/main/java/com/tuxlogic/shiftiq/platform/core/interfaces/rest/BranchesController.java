@@ -127,7 +127,7 @@ public class BranchesController {
 
     @Operation(summary = "Cancel an active subscription", description = "Cancels the currently active subscription of a branch")
     @DeleteMapping("/{branchId}/subscription")
-    public ResponseEntity<BranchSubscriptionResource> cancelSubscription(@PathVariable UUID branchId) {
+    public ResponseEntity<Void> cancelSubscription(@PathVariable UUID branchId) {
         multiTenancySecurityService.validateBranchAccess(branchId);
         var command = new CancelSubscriptionCommand(new BranchId(branchId));
         var subscription = subscriptionCommandService.handle(command);
@@ -135,8 +135,7 @@ public class BranchesController {
             return ResponseEntity.badRequest().build();
         }
 
-        var subscriptionResource = BranchSubscriptionResourceFromEntityAssembler.toResourceFromEntity(subscription.get());
-        return ResponseEntity.ok(subscriptionResource);
+        return ResponseEntity.noContent().build();
     }
 }
 

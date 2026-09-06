@@ -3,7 +3,10 @@ package com.tuxlogic.shiftiq.platform.core.interfaces.rest.transform;
 import com.tuxlogic.shiftiq.platform.core.domain.model.aggregates.Customer;
 import com.tuxlogic.shiftiq.platform.core.interfaces.rest.resources.CustomerResource;
 
-public class CustomerResourceFromEntityAssembler {
+public final class CustomerResourceFromEntityAssembler {
+
+    private CustomerResourceFromEntityAssembler() {}
+
     public static CustomerResource toResourceFromEntity(Customer entity) {
         return new CustomerResource(
                 entity.getId() != null ? entity.getId().value() : null,
