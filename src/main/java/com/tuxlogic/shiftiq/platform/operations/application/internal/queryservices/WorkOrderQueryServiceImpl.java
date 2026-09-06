@@ -5,6 +5,7 @@ import com.tuxlogic.shiftiq.platform.operations.application.queryservices.WorkOr
 import com.tuxlogic.shiftiq.platform.operations.domain.model.aggregates.WorkOrder;
 import com.tuxlogic.shiftiq.platform.operations.domain.model.queries.*;
 import com.tuxlogic.shiftiq.platform.operations.domain.repositories.WorkOrderRepository;
+import com.tuxlogic.shiftiq.platform.operations.domain.model.valueobjects.OperationsMessageKeys;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -36,7 +37,7 @@ public class WorkOrderQueryServiceImpl implements WorkOrderQueryService {
     public Optional<WorkOrder> handle(GetWorkOrderByIdQuery query) {
         if (query.workOrderId() == null) {
             LOGGER.warn("GetWorkOrderByIdQuery received with null workOrderId");
-            throw new IllegalArgumentException("operations.error.query.workOrderId.required");
+            throw new IllegalArgumentException(OperationsMessageKeys.QUERY_WORK_ORDER_ID_REQUIRED);
         }
         return workOrderRepository.findById(query.workOrderId());
     }
@@ -45,7 +46,7 @@ public class WorkOrderQueryServiceImpl implements WorkOrderQueryService {
     public Optional<WorkOrder> handle(GetWorkOrderByTaskIdQuery query) {
         if (query.taskId() == null) {
             LOGGER.warn("GetWorkOrderByTaskIdQuery received with null taskId");
-            throw new IllegalArgumentException("operations.error.query.taskId.required");
+            throw new IllegalArgumentException(OperationsMessageKeys.QUERY_TASK_ID_REQUIRED);
         }
         return workOrderRepository.findByTaskId(query.taskId());
     }
@@ -54,7 +55,7 @@ public class WorkOrderQueryServiceImpl implements WorkOrderQueryService {
     public List<WorkOrder> handle(GetWorkOrdersByBranchIdQuery query) {
         if (query.branchId() == null) {
             LOGGER.warn("GetWorkOrdersByBranchIdQuery received with null branchId");
-            throw new IllegalArgumentException("operations.error.query.branchId.required");
+            throw new IllegalArgumentException(OperationsMessageKeys.QUERY_BRANCH_ID_REQUIRED);
         }
         return workOrderRepository.findAllByBranchId(query.branchId());
     }
@@ -63,7 +64,7 @@ public class WorkOrderQueryServiceImpl implements WorkOrderQueryService {
     public List<WorkOrder> handle(GetWorkOrdersByVehicleIdQuery query) {
         if (query.vehicleId() == null) {
             LOGGER.warn("GetWorkOrdersByVehicleIdQuery received with null vehicleId");
-            throw new IllegalArgumentException("operations.error.query.vehicleId.required");
+            throw new IllegalArgumentException(OperationsMessageKeys.QUERY_VEHICLE_ID_REQUIRED);
         }
         return workOrderRepository.findAllByVehicleId(query.vehicleId());
     }

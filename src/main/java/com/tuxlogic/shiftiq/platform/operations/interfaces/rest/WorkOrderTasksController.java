@@ -6,6 +6,7 @@ import com.tuxlogic.shiftiq.platform.operations.application.queryservices.WorkOr
 import com.tuxlogic.shiftiq.platform.operations.domain.model.aggregates.WorkOrder;
 import com.tuxlogic.shiftiq.platform.operations.domain.model.commands.*;
 import com.tuxlogic.shiftiq.platform.operations.domain.model.queries.GetWorkOrderByTaskIdQuery;
+import com.tuxlogic.shiftiq.platform.operations.domain.model.valueobjects.OperationsMessageKeys;
 import com.tuxlogic.shiftiq.platform.operations.domain.model.valueobjects.ProductId;
 import com.tuxlogic.shiftiq.platform.operations.domain.model.valueobjects.WorkOrderId;
 import com.tuxlogic.shiftiq.platform.operations.domain.model.valueobjects.WorkOrderTaskId;
@@ -72,7 +73,7 @@ public class WorkOrderTasksController {
      */
     private UUID validateTaskAccess(UUID taskId) {
         WorkOrder workOrder = queryService.handle(new GetWorkOrderByTaskIdQuery(new WorkOrderTaskId(taskId)))
-                .orElseThrow(() -> new IllegalArgumentException("operations.error.workOrder.notFoundForTask"));
+                .orElseThrow(() -> new IllegalArgumentException(OperationsMessageKeys.WORK_ORDER_NOT_FOUND_FOR_TASK));
         multiTenancySecurityService.validateBranchAccess(workOrder.getBranchId().value());
         return workOrder.getId().value();
     }

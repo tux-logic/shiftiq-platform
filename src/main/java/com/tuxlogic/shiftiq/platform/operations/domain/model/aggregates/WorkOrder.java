@@ -82,7 +82,7 @@ public class WorkOrder extends AbstractDomainAggregateRoot<WorkOrder> {
 
     private void verifyOrderNotClosed() {
         if (this.status == WorkOrderStatus.COMPLETED || this.status == WorkOrderStatus.PAID) {
-            throw new IllegalStateException("operations.error.workOrder.cannotModifyClosedOrder");
+            throw new IllegalStateException(OperationsMessageKeys.WORK_ORDER_CANNOT_MODIFY_CLOSED);
         }
     }
 
@@ -108,7 +108,7 @@ public class WorkOrder extends AbstractDomainAggregateRoot<WorkOrder> {
         WorkOrderTaskProduct product = task.getProducts().stream()
                 .filter(p -> p.getProductId().equals(productId) && !p.isDeleted())
                 .findFirst()
-                .orElseThrow(() -> new IllegalArgumentException("operations.error.taskProduct.notFound"));
+                .orElseThrow(() -> new IllegalArgumentException(OperationsMessageKeys.TASK_PRODUCT_NOT_FOUND));
 
         Quantity returnedQuantity = product.getQuantity();
         task.removeProduct(productId);
@@ -121,7 +121,7 @@ public class WorkOrder extends AbstractDomainAggregateRoot<WorkOrder> {
         verifyOrderNotClosed();
         WorkOrderTask task = findTaskOrThrow(taskId);
         if (task.getStatus() == WorkOrderTaskStatus.COMPLETED) {
-            throw new IllegalStateException("operations.error.workOrder.cannotDeleteCompletedTask");
+            throw new IllegalStateException(OperationsMessageKeys.WORK_ORDER_CANNOT_DELETE_COMPLETED_TASK);
         }
 
         for (WorkOrderTaskProduct product : task.getProducts()) {
@@ -135,7 +135,7 @@ public class WorkOrder extends AbstractDomainAggregateRoot<WorkOrder> {
 
     public void delete() {
         if (this.status == WorkOrderStatus.PAID) {
-            throw new IllegalStateException("operations.error.workOrder.cannotDeletePaidOrder");
+            throw new IllegalStateException(OperationsMessageKeys.WORK_ORDER_CANNOT_DELETE_PAID);
         }
         this.deletedAt = Instant.now();
         for (WorkOrderTask task : this.tasks) {
@@ -176,7 +176,7 @@ public class WorkOrder extends AbstractDomainAggregateRoot<WorkOrder> {
 
     public void reopenTask(WorkOrderTaskId taskId) {
         if (this.status == WorkOrderStatus.PAID) {
-            throw new IllegalStateException("operations.error.workOrder.cannotReopenTaskOfPaidOrder");
+            throw new IllegalStateException(OperationsMessageKeys.WORK_ORDER_CANNOT_REOPEN_PAID);
         }
         WorkOrderTask task = findTaskOrThrow(taskId);
         if (task.reopen()) {
@@ -195,7 +195,7 @@ public class WorkOrder extends AbstractDomainAggregateRoot<WorkOrder> {
         boolean allTasksCompleted = this.tasks.stream()
                 .allMatch(t -> t.getStatus() == WorkOrderTaskStatus.COMPLETED);
         if (!allTasksCompleted) {
-            throw new IllegalStateException("operations.error.workOrder.pendingTasksExist");
+            throw new IllegalStateException(OperationsMessageKeys.WORK_ORDER_PENDING_TASKS_EXIST);
         }
         this.status = this.status.transitionTo(WorkOrderStatus.COMPLETED);
     }
@@ -226,7 +226,7 @@ public class WorkOrder extends AbstractDomainAggregateRoot<WorkOrder> {
         return this.tasks.stream()
                 .filter(t -> t.getId().equals(taskId))
                 .findFirst()
-                .orElseThrow(() -> new IllegalArgumentException("operations.error.task.notFound"));
+                .orElseThrow(() -> new IllegalArgumentException(OperationsMessageKeys.TASK_NOT_FOUND));
     }
 
     public void updateDetails(DiagnosticSummary diagnosticSummary, Mileage mileageIn) {

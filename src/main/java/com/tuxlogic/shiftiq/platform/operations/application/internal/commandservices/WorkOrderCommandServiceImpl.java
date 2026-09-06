@@ -5,6 +5,7 @@ import com.tuxlogic.shiftiq.platform.operations.application.commandservices.Work
 import com.tuxlogic.shiftiq.platform.operations.application.outboundservices.ExternalProductService;
 import com.tuxlogic.shiftiq.platform.operations.domain.model.aggregates.WorkOrder;
 import com.tuxlogic.shiftiq.platform.operations.domain.model.commands.*;
+import com.tuxlogic.shiftiq.platform.operations.domain.model.valueobjects.OperationsMessageKeys;
 import com.tuxlogic.shiftiq.platform.operations.domain.model.valueobjects.WorkOrderId;
 import com.tuxlogic.shiftiq.platform.operations.domain.repositories.ServiceRepository;
 import com.tuxlogic.shiftiq.platform.operations.domain.repositories.WorkOrderRepository;
@@ -50,7 +51,7 @@ public class WorkOrderCommandServiceImpl implements WorkOrderCommandService {
             return Result.failure(new WorkOrderCommandFailure.InvalidState(e.getMessage()));
         } catch (Exception e) {
             LOGGER.error("Unexpected error processing work order command", e);
-            return Result.failure(new WorkOrderCommandFailure.InvalidState("operations.error.unexpected"));
+            return Result.failure(new WorkOrderCommandFailure.InvalidState(OperationsMessageKeys.UNEXPECTED_ERROR));
         }
     }
 
@@ -69,7 +70,7 @@ public class WorkOrderCommandServiceImpl implements WorkOrderCommandService {
     public Result<WorkOrder, WorkOrderCommandFailure> handle(CreateWorkOrderCommand command) {
         if (workOrderRepository.existsByAppointmentId(command.appointmentId())) {
             LOGGER.warn("Duplicate work order attempt for appointmentId: {}", command.appointmentId().value());
-            return Result.failure(new WorkOrderCommandFailure.Duplicate("operations.error.workOrder.alreadyExistsForAppointment"));
+            return Result.failure(new WorkOrderCommandFailure.Duplicate(OperationsMessageKeys.WORK_ORDER_ALREADY_EXISTS_FOR_APPOINTMENT));
         }
 
         return executeCommand(() -> {
@@ -93,7 +94,7 @@ public class WorkOrderCommandServiceImpl implements WorkOrderCommandService {
         return executeCommand(() -> {
             WorkOrder workOrder = findWorkOrderOrThrow(command.workOrderId());
             var service = serviceRepository.findById(command.serviceId())
-                    .orElseThrow(() -> new IllegalArgumentException("operations.error.service.notFound"));
+                    .orElseThrow(() -> new IllegalArgumentException(OperationsMessageKeys.SERVICE_NOT_FOUND));
             workOrder.addTask(command.serviceId(), command.mechanicId(), command.description(), service.getPrice());
             return workOrderRepository.save(workOrder);
         });
@@ -105,7 +106,7 @@ public class WorkOrderCommandServiceImpl implements WorkOrderCommandService {
         return executeCommand(() -> {
             WorkOrder workOrder = findWorkOrderOrThrow(command.workOrderId());
             var sellingPrice = externalProductService.getProductSellingPrice(command.productId().value())
-                    .orElseThrow(() -> new IllegalArgumentException("operations.error.product.notFound"));
+                    .orElseThrow(() -> new IllegalArgumentException(OperationsMessageKeys.PRODUCT_NOT_FOUND));
             workOrder.addProductToTask(command.taskId(), command.productId(), command.quantity(), sellingPrice);
             return workOrderRepository.save(workOrder);
         });
@@ -177,7 +178,7 @@ public class WorkOrderCommandServiceImpl implements WorkOrderCommandService {
         return executeCommand(() -> {
             WorkOrder workOrder = findWorkOrderOrThrow(command.workOrderId());
             var service = serviceRepository.findById(command.serviceId())
-                    .orElseThrow(() -> new IllegalArgumentException("operations.error.service.notFound"));
+                    .orElseThrow(() -> new IllegalArgumentException(OperationsMessageKeys.SERVICE_NOT_FOUND));
             workOrder.updateTaskDetails(
                     command.taskId(),
                     command.serviceId(),
@@ -215,6 +216,6 @@ public class WorkOrderCommandServiceImpl implements WorkOrderCommandService {
 
     private WorkOrder findWorkOrderOrThrow(WorkOrderId workOrderId) {
         return workOrderRepository.findById(workOrderId)
-                .orElseThrow(() -> new IllegalArgumentException("operations.error.workOrder.notFound"));
+                .orElseThrow(() -> new IllegalArgumentException(OperationsMessageKeys.WORK_ORDER_NOT_FOUND));
     }
 }

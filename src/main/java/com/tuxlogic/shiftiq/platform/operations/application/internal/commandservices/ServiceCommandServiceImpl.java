@@ -6,6 +6,7 @@ import com.tuxlogic.shiftiq.platform.operations.domain.model.commands.CreateServ
 import com.tuxlogic.shiftiq.platform.operations.domain.model.commands.DeleteServiceCommand;
 import com.tuxlogic.shiftiq.platform.operations.domain.model.commands.UpdateServiceCommand;
 import com.tuxlogic.shiftiq.platform.operations.domain.repositories.ServiceRepository;
+import com.tuxlogic.shiftiq.platform.operations.domain.model.valueobjects.OperationsMessageKeys;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.transaction.annotation.Transactional;
@@ -74,7 +75,7 @@ public class ServiceCommandServiceImpl implements ServiceCommandService {
             serviceRepository.delete(existingService.get());
         } catch (Exception e) {
             LOGGER.error("Failed to delete service with ID: {}", command.serviceId(), e);
-            throw new IllegalStateException("operations.error.service.deleteFailed", e);
+            throw new IllegalStateException(OperationsMessageKeys.SERVICE_DELETE_FAILED, e);
         }
     }
 }

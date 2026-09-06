@@ -2,6 +2,7 @@ package com.tuxlogic.shiftiq.platform.operations.infrastructure.persistence.jpa.
 
 import com.tuxlogic.shiftiq.platform.operations.domain.model.aggregates.Service;
 import com.tuxlogic.shiftiq.platform.operations.domain.model.valueobjects.ServiceId;
+import com.tuxlogic.shiftiq.platform.operations.domain.model.valueobjects.OperationsMessageKeys;
 import com.tuxlogic.shiftiq.platform.operations.domain.repositories.ServiceRepository;
 import com.tuxlogic.shiftiq.platform.operations.infrastructure.persistence.jpa.assemblers.ServicePersistenceAssembler;
 import com.tuxlogic.shiftiq.platform.operations.infrastructure.persistence.jpa.entities.ServicePersistenceEntity;
@@ -40,7 +41,7 @@ public class ServiceRepositoryImpl implements ServiceRepository {
             ServicePersistenceEntity savedEntity = servicePersistenceRepository.save(entity);
             return ServicePersistenceAssembler.toDomain(savedEntity);
         } catch (Exception e) {
-            throw new IllegalStateException("operations.error.repository.saveFailed", e);
+            throw new IllegalStateException(OperationsMessageKeys.REPOSITORY_SAVE_FAILED, e);
         }
     }
 
@@ -64,7 +65,7 @@ public class ServiceRepositoryImpl implements ServiceRepository {
                 servicePersistenceRepository.findById(service.getId().value()).ifPresent(servicePersistenceRepository::delete);
             }
         } catch (Exception e) {
-            throw new IllegalStateException("operations.error.repository.deleteFailed", e);
+            throw new IllegalStateException(OperationsMessageKeys.REPOSITORY_DELETE_FAILED, e);
         }
     }
 }

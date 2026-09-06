@@ -4,6 +4,7 @@ import com.tuxlogic.shiftiq.platform.operations.domain.model.aggregates.WorkOrde
 import com.tuxlogic.shiftiq.platform.operations.domain.model.valueobjects.AppointmentId;
 import com.tuxlogic.shiftiq.platform.operations.domain.model.valueobjects.WorkOrderId;
 import com.tuxlogic.shiftiq.platform.operations.domain.model.valueobjects.WorkOrderTaskId;
+import com.tuxlogic.shiftiq.platform.operations.domain.model.valueobjects.OperationsMessageKeys;
 import com.tuxlogic.shiftiq.platform.operations.domain.repositories.WorkOrderRepository;
 import com.tuxlogic.shiftiq.platform.operations.infrastructure.persistence.jpa.assemblers.WorkOrderPersistenceAssembler;
 import com.tuxlogic.shiftiq.platform.operations.infrastructure.persistence.jpa.entities.WorkOrderPersistenceEntity;
@@ -44,7 +45,7 @@ public class WorkOrderRepositoryImpl implements WorkOrderRepository {
 
             return savedWorkOrder;
         } catch (Exception e) {
-            throw new IllegalStateException("operations.error.repository.saveFailed", e);
+            throw new IllegalStateException(OperationsMessageKeys.REPOSITORY_SAVE_FAILED, e);
         }
     }
 

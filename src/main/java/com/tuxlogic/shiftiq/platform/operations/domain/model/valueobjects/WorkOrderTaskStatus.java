@@ -25,8 +25,6 @@ public enum WorkOrderTaskStatus {
         }
     };
 
-    private static final String INVALID_TRANSITION_MESSAGE_WORK_ORDER_TASK = "operations.error.workOrderTaskStatus.invalidTransition";
-
     /**
      * Determines if the current status can transition to the specified next status based on defined rules for each status.
      * @param next the next WorkOrderTaskStatus to transition to other enum status
@@ -36,7 +34,7 @@ public enum WorkOrderTaskStatus {
 
     public WorkOrderTaskStatus transitionTo(WorkOrderTaskStatus next) {
         if (!canTransitionTo(next)) {
-            throw new IllegalStateException(INVALID_TRANSITION_MESSAGE_WORK_ORDER_TASK);
+            throw new IllegalStateException(OperationsMessageKeys.TASK_INVALID_TRANSITION);
         }
         return next;
     }
