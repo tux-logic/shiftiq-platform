@@ -18,7 +18,10 @@ import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
+import org.springframework.transaction.annotation.Transactional;
+
 @Repository
+@Transactional(readOnly = true)
 public class WorkOrderRepositoryImpl implements WorkOrderRepository {
 
     private final WorkOrderPersistenceRepository workOrderPersistenceRepository;
@@ -30,14 +33,19 @@ public class WorkOrderRepositoryImpl implements WorkOrderRepository {
     }
 
     @Override
+    @Transactional
     public WorkOrder save(WorkOrder workOrder) {
-        WorkOrderPersistenceEntity entity = WorkOrderPersistenceAssembler.toPersistenceEntity(workOrder);
-        WorkOrderPersistenceEntity savedEntity = workOrderPersistenceRepository.save(entity);
-        WorkOrder savedWorkOrder = WorkOrderPersistenceAssembler.toDomainEntity(savedEntity);
-        workOrder.domainEvents().forEach(eventPublisher::publishEvent);
-        workOrder.clearDomainEvents();
+        try {
+            WorkOrderPersistenceEntity entity = WorkOrderPersistenceAssembler.toPersistenceEntity(workOrder);
+            WorkOrderPersistenceEntity savedEntity = workOrderPersistenceRepository.save(entity);
+            WorkOrder savedWorkOrder = WorkOrderPersistenceAssembler.toDomainEntity(savedEntity);
+            workOrder.domainEvents().forEach(eventPublisher::publishEvent);
+            workOrder.clearDomainEvents();
 
-        return savedWorkOrder;
+            return savedWorkOrder;
+        } catch (Exception e) {
+            throw new IllegalStateException("operations.error.repository.saveFailed", e);
+        }
     }
 
     @Override

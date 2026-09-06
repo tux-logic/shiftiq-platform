@@ -9,11 +9,14 @@ import com.tuxlogic.shiftiq.platform.operations.infrastructure.persistence.jpa.r
 import com.tuxlogic.shiftiq.platform.shared.domain.model.valueobjects.BranchId;
 import org.springframework.stereotype.Repository;
 
+import org.springframework.transaction.annotation.Transactional;
+
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
 @Repository
+@Transactional(readOnly = true)
 public class ServiceRepositoryImpl implements ServiceRepository {
 
     private final ServicePersistenceRepository servicePersistenceRepository;
@@ -23,17 +26,22 @@ public class ServiceRepositoryImpl implements ServiceRepository {
     }
 
     @Override
+    @Transactional
     public Service save(Service service) {
-        ServicePersistenceEntity entity;
-        if (service.getId() != null) {
-            entity = servicePersistenceRepository.findById(service.getId().value()).orElse(new ServicePersistenceEntity());
-        } else {
-            entity = new ServicePersistenceEntity();
-        }
+        try {
+            ServicePersistenceEntity entity;
+            if (service.getId() != null) {
+                entity = servicePersistenceRepository.findById(service.getId().value()).orElse(new ServicePersistenceEntity());
+            } else {
+                entity = new ServicePersistenceEntity();
+            }
 
-        ServicePersistenceAssembler.toEntity(service, entity);
-        ServicePersistenceEntity savedEntity = servicePersistenceRepository.save(entity);
-        return ServicePersistenceAssembler.toDomain(savedEntity);
+            ServicePersistenceAssembler.toEntity(service, entity);
+            ServicePersistenceEntity savedEntity = servicePersistenceRepository.save(entity);
+            return ServicePersistenceAssembler.toDomain(savedEntity);
+        } catch (Exception e) {
+            throw new IllegalStateException("operations.error.repository.saveFailed", e);
+        }
     }
 
     @Override
@@ -49,9 +57,14 @@ public class ServiceRepositoryImpl implements ServiceRepository {
     }
 
     @Override
+    @Transactional
     public void delete(Service service) {
-        if (service.getId() != null) {
-            servicePersistenceRepository.findById(service.getId().value()).ifPresent(servicePersistenceRepository::delete);
+        try {
+            if (service.getId() != null) {
+                servicePersistenceRepository.findById(service.getId().value()).ifPresent(servicePersistenceRepository::delete);
+            }
+        } catch (Exception e) {
+            throw new IllegalStateException("operations.error.repository.deleteFailed", e);
         }
     }
 }
