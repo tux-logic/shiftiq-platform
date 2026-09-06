@@ -119,7 +119,7 @@ public class WorkOrder extends AbstractDomainAggregateRoot<WorkOrder> {
         WorkOrderTask task = findTaskOrThrow(taskId);
         task.addProduct(productId, quantity, unitPrice);
         recalculateTotalAmount();
-        this.registerEvent(new ProductReservedEvent(this, this.branchId, productId, quantity));
+        this.registerEvent(new ProductReservedEvent(this, this.branchId, productId.value(), quantity.value()));
     }
 
     /**
@@ -144,7 +144,7 @@ public class WorkOrder extends AbstractDomainAggregateRoot<WorkOrder> {
         task.removeProduct(productId);
         recalculateTotalAmount();
 
-        this.registerEvent(new ProductReservationCanceledEvent(this, this.branchId, productId, returnedQuantity));
+        this.registerEvent(new ProductReservationCanceledEvent(this, this.branchId, productId.value(), returnedQuantity.value()));
     }
 
     /**
@@ -164,7 +164,7 @@ public class WorkOrder extends AbstractDomainAggregateRoot<WorkOrder> {
 
         for (WorkOrderTaskProduct product : task.getProducts()) {
             if (!product.isDeleted()) {
-                this.registerEvent(new ProductReservationCanceledEvent(this, this.branchId, product.getProductId(), product.getQuantity()));
+                this.registerEvent(new ProductReservationCanceledEvent(this, this.branchId, product.getProductId().value(), product.getQuantity().value()));
             }
         }
         this.tasks.remove(task);
@@ -184,7 +184,7 @@ public class WorkOrder extends AbstractDomainAggregateRoot<WorkOrder> {
             if (!task.isDeleted()) {
                 for (WorkOrderTaskProduct product : task.getProducts()) {
                     if (!product.isDeleted()) {
-                        this.registerEvent(new ProductReservationCanceledEvent(this, this.branchId, product.getProductId(), product.getQuantity()));
+                        this.registerEvent(new ProductReservationCanceledEvent(this, this.branchId, product.getProductId().value(), product.getQuantity().value()));
                     }
                 }
             }

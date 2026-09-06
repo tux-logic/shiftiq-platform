@@ -20,6 +20,9 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import com.tuxlogic.shiftiq.platform.shared.infrastructure.security.MultiTenancySecurityService;
+import org.springframework.security.access.prepost.PreAuthorize;
+
 import java.util.UUID;
 
 /**
@@ -32,17 +35,21 @@ import java.util.UUID;
 @RestController
 @RequestMapping(value = "/api/v1/work-order-tasks", produces = "application/json")
 @Tag(name = "Work Order Tasks", description = "Endpoints for managing work order tasks and their products")
+@PreAuthorize("isAuthenticated()")
 public class WorkOrderTasksController {
 
     private final WorkOrderCommandService commandService;
     private final WorkOrderQueryService queryService;
+    private final MultiTenancySecurityService multiTenancySecurityService;
     private final MessageSource messageSource;
 
     public WorkOrderTasksController(WorkOrderCommandService commandService,
                                     WorkOrderQueryService queryService,
+                                    MultiTenancySecurityService multiTenancySecurityService,
                                     MessageSource messageSource) {
         this.commandService = commandService;
         this.queryService = queryService;
+        this.multiTenancySecurityService = multiTenancySecurityService;
         this.messageSource = messageSource;
     }
 
@@ -61,12 +68,13 @@ public class WorkOrderTasksController {
     }
 
     /**
-     * Helper method to resolve WorkOrderId from taskId.
+     * Helper method to resolve WorkOrderId from taskId and validate tenant access.
      */
-    private UUID getWorkOrderIdByTaskId(UUID taskId) {
-        return queryService.handle(new GetWorkOrderByTaskIdQuery(new WorkOrderTaskId(taskId)))
-                .map(workOrder -> workOrder.getId().value())
+    private UUID validateTaskAccess(UUID taskId) {
+        WorkOrder workOrder = queryService.handle(new GetWorkOrderByTaskIdQuery(new WorkOrderTaskId(taskId)))
                 .orElseThrow(() -> new IllegalArgumentException("operations.error.workOrder.notFoundForTask"));
+        multiTenancySecurityService.validateBranchAccess(workOrder.getBranchId().value());
+        return workOrder.getId().value();
     }
 
     @PostMapping("/{taskId}/products")
@@ -74,7 +82,7 @@ public class WorkOrderTasksController {
     public ResponseEntity<?> addProductToTask(@PathVariable UUID taskId,
                                               @Valid @RequestBody AddProductResource resource) {
         try {
-            UUID id = getWorkOrderIdByTaskId(taskId);
+            UUID id = validateTaskAccess(taskId);
             var command = WorkOrderCommandFromResourceAssembler.toCommandFromResource(id, taskId, resource);
             var result = commandService.handle(command);
             return toResponse(result, HttpStatus.CREATED);
@@ -89,7 +97,7 @@ public class WorkOrderTasksController {
                                                          @PathVariable UUID productId,
                                                          @Valid @RequestBody UpdateProductQuantityInTaskResource resource) {
         try {
-            UUID id = getWorkOrderIdByTaskId(taskId);
+            UUID id = validateTaskAccess(taskId);
             var command = WorkOrderCommandFromResourceAssembler.toCommandFromResource(id, taskId, productId, resource);
             var result = commandService.handle(command);
             return toResponse(result);
@@ -103,7 +111,7 @@ public class WorkOrderTasksController {
     public ResponseEntity<?> removeProductFromTask(@PathVariable UUID taskId,
                                                    @PathVariable UUID productId) {
         try {
-            UUID id = getWorkOrderIdByTaskId(taskId);
+            UUID id = validateTaskAccess(taskId);
             var command = new RemoveProductFromTaskCommand(new WorkOrderId(id), new WorkOrderTaskId(taskId), new ProductId(productId));
             var result = commandService.handle(command);
             return toResponse(result);
@@ -116,7 +124,7 @@ public class WorkOrderTasksController {
     @Operation(summary = "Start executing a task", description = "Sets the task status to DOING and captures the startedAt timestamp")
     public ResponseEntity<?> startTask(@PathVariable UUID taskId) {
         try {
-            UUID id = getWorkOrderIdByTaskId(taskId);
+            UUID id = validateTaskAccess(taskId);
             var command = new StartTaskCommand(new WorkOrderId(id), new WorkOrderTaskId(taskId));
             var result = commandService.handle(command);
             return toResponse(result);
@@ -129,7 +137,7 @@ public class WorkOrderTasksController {
     @Operation(summary = "Complete a task", description = "Sets the task status to COMPLETED and captures the completedAt timestamp")
     public ResponseEntity<?> completeTask(@PathVariable UUID taskId) {
         try {
-            UUID id = getWorkOrderIdByTaskId(taskId);
+            UUID id = validateTaskAccess(taskId);
             var command = new CompleteTaskCommand(new WorkOrderId(id), new WorkOrderTaskId(taskId));
             var result = commandService.handle(command);
             return toResponse(result);
@@ -142,7 +150,7 @@ public class WorkOrderTasksController {
     @Operation(summary = "Reopen a completed task", description = "Returns the task to DOING, clears completedAt, and keeps stock reserved")
     public ResponseEntity<?> reopenTask(@PathVariable UUID taskId) {
         try {
-            UUID id = getWorkOrderIdByTaskId(taskId);
+            UUID id = validateTaskAccess(taskId);
             var command = new ReopenTaskCommand(new WorkOrderId(id), new WorkOrderTaskId(taskId));
             var result = commandService.handle(command);
             return toResponse(result);
