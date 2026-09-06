@@ -5,16 +5,12 @@ import com.tuxlogic.shiftiq.platform.iot.domain.repositories.VehicleRepository;
 import com.tuxlogic.shiftiq.platform.iot.infrastructure.persistence.jpa.assemblers.VehiclePersistenceAssembler;
 import com.tuxlogic.shiftiq.platform.iot.infrastructure.persistence.jpa.entities.VehiclePersistenceEntity;
 import com.tuxlogic.shiftiq.platform.iot.infrastructure.persistence.jpa.repositories.VehiclePersistenceRepository;
-import com.tuxlogic.shiftiq.platform.shared.domain.model.valueobjects.BranchId;
 import com.tuxlogic.shiftiq.platform.shared.domain.model.valueobjects.VehicleId;
 import org.springframework.stereotype.Repository;
+import org.springframework.transaction.annotation.Transactional;
 
-import java.util.List;
 import java.util.Optional;
 
-/**
- * JPA adapter implementing the VehicleRepository port.
- */
 @Repository
 public class VehicleRepositoryImpl implements VehicleRepository {
 
@@ -25,54 +21,36 @@ public class VehicleRepositoryImpl implements VehicleRepository {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public Optional<Vehicle> findById(VehicleId id) {
         return persistenceRepository.findById(id.value())
                 .map(VehiclePersistenceAssembler::toDomainEntity);
     }
 
     @Override
-    public List<Vehicle> findAvailableForLinkingByBranchId(BranchId branchId) {
-        return persistenceRepository.findAvailableForLinkingByBranchId(branchId.value()).stream()
-                .map(VehiclePersistenceAssembler::toDomainEntity)
-                .toList();
-    }
-
-    @Override
+    @Transactional
     public Vehicle save(Vehicle vehicle) {
-        VehiclePersistenceEntity entity;
-        if (vehicle.getId() != null) {
-            entity = persistenceRepository.findById(vehicle.getId().value())
-                    .orElseGet(VehiclePersistenceEntity::new);
-        } else {
-            entity = new VehiclePersistenceEntity();
-        }
-
-        entity.setId(vehicle.getId() != null ? vehicle.getId().value() : null);
-        entity.setPlateNumber(vehicle.getPlateNumber());
-        entity.setBrand(vehicle.getBrand());
-        entity.setModel(vehicle.getModel());
-        entity.setYear(vehicle.getYear());
-        entity.setVin(vehicle.getVin());
-        entity.setDeletedAt(vehicle.getDeletedAt());
-        entity.setVersion(vehicle.getVersion());
-
+        VehiclePersistenceEntity entity = VehiclePersistenceAssembler.toPersistenceEntity(vehicle);
         VehiclePersistenceEntity savedEntity = persistenceRepository.save(entity);
         return VehiclePersistenceAssembler.toDomainEntity(savedEntity);
     }
 
     @Override
+    @Transactional(readOnly = true)
     public Optional<Vehicle> findByVin(String vin) {
         return persistenceRepository.findByVin(vin)
                 .map(VehiclePersistenceAssembler::toDomainEntity);
     }
 
     @Override
+    @Transactional(readOnly = true)
     public Optional<Vehicle> findByPlateNumber(String plateNumber) {
         return persistenceRepository.findByPlateNumber(plateNumber)
                 .map(VehiclePersistenceAssembler::toDomainEntity);
     }
 
     @Override
+    @Transactional
     public void delete(VehicleId id) {
         persistenceRepository.deleteById(id.value());
     }
