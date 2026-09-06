@@ -25,6 +25,8 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.UUID;
 
+import com.tuxlogic.shiftiq.platform.shared.infrastructure.security.MultiTenancySecurityService;
+
 @RestController
 @RequestMapping(value = "/api/v1/owners", produces = MediaType.APPLICATION_JSON_VALUE)
 @Tag(name = "Owners", description = "Owner Management Endpoints")
@@ -33,10 +35,12 @@ public class OwnersController {
 
     private final OwnerCommandService ownerCommandService;
     private final OwnerQueryService ownerQueryService;
+    private final MultiTenancySecurityService multiTenancySecurityService;
 
-    public OwnersController(OwnerCommandService ownerCommandService, OwnerQueryService ownerQueryService) {
+    public OwnersController(OwnerCommandService ownerCommandService, OwnerQueryService ownerQueryService, MultiTenancySecurityService multiTenancySecurityService) {
         this.ownerCommandService = ownerCommandService;
         this.ownerQueryService = ownerQueryService;
+        this.multiTenancySecurityService = multiTenancySecurityService;
     }
 
     @Operation(summary = "Create a new owner profile", description = "Creates a new owner profile associated with a user ID")

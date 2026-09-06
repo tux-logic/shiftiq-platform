@@ -26,6 +26,8 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.UUID;
 
+import com.tuxlogic.shiftiq.platform.shared.infrastructure.security.MultiTenancySecurityService;
+
 @RestController
 @RequestMapping(value = "/api/v1/employees", produces = MediaType.APPLICATION_JSON_VALUE)
 @Tag(name = "Employees", description = "Employee Management Endpoints")
@@ -34,10 +36,12 @@ public class EmployeesController {
 
     private final EmployeeCommandService employeeCommandService;
     private final EmployeeQueryService employeeQueryService;
+    private final MultiTenancySecurityService multiTenancySecurityService;
 
-    public EmployeesController(EmployeeCommandService employeeCommandService, EmployeeQueryService employeeQueryService) {
+    public EmployeesController(EmployeeCommandService employeeCommandService, EmployeeQueryService employeeQueryService, MultiTenancySecurityService multiTenancySecurityService) {
         this.employeeCommandService = employeeCommandService;
         this.employeeQueryService = employeeQueryService;
+        this.multiTenancySecurityService = multiTenancySecurityService;
     }
 
     @Operation(summary = "Create a new employee profile", description = "Creates a new employee profile associated with a user ID")

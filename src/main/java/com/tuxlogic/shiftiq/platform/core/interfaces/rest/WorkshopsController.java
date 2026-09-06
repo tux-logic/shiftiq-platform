@@ -26,6 +26,8 @@ import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
+import com.tuxlogic.shiftiq.platform.shared.infrastructure.security.MultiTenancySecurityService;
+
 @RestController
 @RequestMapping(value = "/api/v1/workshops", produces = MediaType.APPLICATION_JSON_VALUE)
 @Tag(name = "Workshops", description = "Workshop Management Endpoints")
@@ -34,10 +36,12 @@ public class WorkshopsController {
 
     private final WorkshopCommandService workshopCommandService;
     private final WorkshopQueryService workshopQueryService;
+    private final MultiTenancySecurityService multiTenancySecurityService;
 
-    public WorkshopsController(WorkshopCommandService workshopCommandService, WorkshopQueryService workshopQueryService) {
+    public WorkshopsController(WorkshopCommandService workshopCommandService, WorkshopQueryService workshopQueryService, MultiTenancySecurityService multiTenancySecurityService) {
         this.workshopCommandService = workshopCommandService;
         this.workshopQueryService = workshopQueryService;
+        this.multiTenancySecurityService = multiTenancySecurityService;
     }
 
     @Operation(summary = "Create a new workshop", description = "Creates a new workshop")

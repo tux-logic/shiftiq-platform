@@ -5,6 +5,8 @@ import com.tuxlogic.shiftiq.platform.core.domain.model.valueobjects.TaxId;
 import com.tuxlogic.shiftiq.platform.core.domain.model.valueobjects.WorkshopId;
 import com.tuxlogic.shiftiq.platform.shared.domain.model.aggregates.AbstractDomainAggregateRoot;
 
+import com.tuxlogic.shiftiq.platform.core.domain.model.events.WorkshopCreatedEvent;
+
 import lombok.Getter;
 
 import java.time.Instant;
@@ -52,6 +54,7 @@ public class Workshop extends AbstractDomainAggregateRoot<Workshop> {
         this.brandName = brandName;
         this.taxId = taxId;
         this.mileageIntervalConfig = mileageIntervalConfig;
+        this.registerDomainEvent(new WorkshopCreatedEvent(this, this.id.value(), this.ownerId != null ? this.ownerId.value() : null));
     }
 
     public void update(String businessName, String brandName, TaxId taxId, int mileageIntervalConfig) {

@@ -11,4 +11,10 @@ public record UpdateOwnerCommand(
         Document document,
         Phone phone
 ) {
+    public UpdateOwnerCommand {
+        if (ownerId == null) throw new IllegalArgumentException("core.error.ownerId.required");
+        if (name == null) throw new IllegalArgumentException("core.error.personName.required");
+        if (document == null) throw new IllegalArgumentException("core.error.document.required");
+        if (phone == null) throw new IllegalArgumentException("core.error.phone.required");
+    }
 }

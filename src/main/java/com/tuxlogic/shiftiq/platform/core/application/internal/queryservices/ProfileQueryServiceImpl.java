@@ -12,11 +12,14 @@ import org.springframework.stereotype.Service;
 import com.tuxlogic.shiftiq.platform.core.domain.model.queries.GetProfileByDocumentNumberQuery;
 import com.tuxlogic.shiftiq.platform.core.domain.model.queries.responses.ProfileSummary;
 
+import org.springframework.transaction.annotation.Transactional;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
 @Service
+@Transactional(readOnly = true)
 public class ProfileQueryServiceImpl implements ProfileQueryService {
 
     private static final Logger log = LoggerFactory.getLogger(ProfileQueryServiceImpl.class);

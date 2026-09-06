@@ -25,6 +25,8 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.UUID;
 
+import com.tuxlogic.shiftiq.platform.shared.infrastructure.security.MultiTenancySecurityService;
+
 @RestController
 @RequestMapping(value = "/api/v1/customers", produces = MediaType.APPLICATION_JSON_VALUE)
 @Tag(name = "Customers", description = "Customer Management Endpoints")
@@ -33,10 +35,12 @@ public class CustomersController {
 
     private final CustomerCommandService customerCommandService;
     private final CustomerQueryService customerQueryService;
+    private final MultiTenancySecurityService multiTenancySecurityService;
 
-    public CustomersController(CustomerCommandService customerCommandService, CustomerQueryService customerQueryService) {
+    public CustomersController(CustomerCommandService customerCommandService, CustomerQueryService customerQueryService, MultiTenancySecurityService multiTenancySecurityService) {
         this.customerCommandService = customerCommandService;
         this.customerQueryService = customerQueryService;
+        this.multiTenancySecurityService = multiTenancySecurityService;
     }
 
     @Operation(summary = "Create a new customer profile", description = "Creates a new customer profile associated with a user ID")
