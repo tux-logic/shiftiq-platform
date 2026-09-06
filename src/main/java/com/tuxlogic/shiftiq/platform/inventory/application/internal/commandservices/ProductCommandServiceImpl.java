@@ -17,6 +17,7 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Optional;
 import java.util.UUID;
 
 @Service
@@ -61,9 +62,8 @@ public class ProductCommandServiceImpl implements ProductCommandService {
     @Override
     @Transactional
     public Result<ProductBatch, ProductCommandFailure> handle(AddBatchToProductCommand command) {
-        var productOpt = productRepository.findById(command.productId());
+        var productOpt = findProductOrNotFound(command.productId(), "Add batch");
         if (productOpt.isEmpty()) {
-            log.warn("Add batch failed: product ID '{}' not found", command.productId());
             return Result.failure(ProductCommandFailure.PRODUCT_NOT_FOUND);
         }
 
@@ -91,9 +91,8 @@ public class ProductCommandServiceImpl implements ProductCommandService {
     @Override
     @Transactional
     public Result<Product, ProductCommandFailure> handle(UpdateProductCommand command) {
-        var productOpt = productRepository.findById(command.productId());
+        var productOpt = findProductOrNotFound(command.productId(), "Update product");
         if (productOpt.isEmpty()) {
-            log.warn("Update product failed: product ID '{}' not found", command.productId());
             return Result.failure(ProductCommandFailure.PRODUCT_NOT_FOUND);
         }
 
@@ -141,5 +140,13 @@ public class ProductCommandServiceImpl implements ProductCommandService {
             log.warn("Delete product failed: product ID '{}' is in use", command.productId());
             return Result.failure(ProductCommandFailure.PRODUCT_IN_USE);
         }
+    }
+
+    private Optional<Product> findProductOrNotFound(UUID productId, String actionName) {
+        var productOpt = productRepository.findById(productId);
+        if (productOpt.isEmpty()) {
+            log.warn("{} failed: product ID '{}' not found", actionName, productId);
+        }
+        return productOpt;
     }
 }

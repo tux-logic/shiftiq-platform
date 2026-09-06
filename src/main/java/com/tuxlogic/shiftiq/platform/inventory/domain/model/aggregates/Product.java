@@ -7,6 +7,8 @@ import com.tuxlogic.shiftiq.platform.inventory.domain.model.events.LowStockAlert
 import com.tuxlogic.shiftiq.platform.inventory.domain.model.events.ProductCreatedEvent;
 import com.tuxlogic.shiftiq.platform.inventory.domain.model.events.ProductUpdatedEvent;
 import com.tuxlogic.shiftiq.platform.inventory.domain.model.events.StockMovementAppliedEvent;
+import com.tuxlogic.shiftiq.platform.inventory.domain.model.events.StockReleasedEvent;
+import com.tuxlogic.shiftiq.platform.inventory.domain.model.events.StockReservedEvent;
 import com.tuxlogic.shiftiq.platform.inventory.domain.model.valueobjects.*;
 import com.tuxlogic.shiftiq.platform.shared.domain.model.valueobjects.BranchId;
 import com.tuxlogic.shiftiq.platform.shared.domain.model.valueobjects.Money;
@@ -146,6 +148,7 @@ public class Product extends AbstractAggregateRoot<Product> {
         }
         this.currentStock = this.currentStock.subtract(amount);
         refreshLowStockAlert();
+        registerEvent(new StockReservedEvent(this, this.branchId, this.id, amount.value(), this.currentStock.value()));
     }
 
     public void releaseStock(InventoryQuantity amount) {
@@ -161,5 +164,6 @@ public class Product extends AbstractAggregateRoot<Product> {
         }
         this.currentStock = this.currentStock.add(amount);
         refreshLowStockAlert();
+        registerEvent(new StockReleasedEvent(this, this.branchId, this.id, amount.value(), this.currentStock.value()));
     }
 }
