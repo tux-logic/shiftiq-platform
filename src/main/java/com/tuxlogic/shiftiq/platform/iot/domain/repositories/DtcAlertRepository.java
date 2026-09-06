@@ -12,20 +12,32 @@ import java.util.List;
 public interface DtcAlertRepository {
 
     /**
-     * Finds all DTC alerts for a specific OBD2 device registration.
-     * @param registrationId the registration ID
-     * @return the list of DTC alerts ordered by creation date descending
+     * Saves a single DtcAlert aggregate.
+     * @param dtcAlert the aggregate to save
+     * @return the saved aggregate
      */
-    List<DtcAlert> findAllByRegistrationId(Obd2DeviceRegistrationId registrationId);
+    DtcAlert save(DtcAlert dtcAlert);
 
     /**
-     * Finds all DTC alerts for a specific OBD2 device registration starting from a specific timestamp.
-     * @param registrationId the registration ID
-     * @param startTimestamp the start timestamp
-     * @return the list of DTC alerts ordered by creation date descending
+     * Saves multiple DtcAlert aggregates.
+     * @param dtcAlerts the list of aggregates to save
+     * @return the list of saved aggregates
      */
+    List<DtcAlert> saveAll(List<DtcAlert> dtcAlerts);
+
+    List<DtcAlert> findAllByRegistrationId(Obd2DeviceRegistrationId registrationId);
+
+    List<DtcAlert> findAllByRegistrationId(Obd2DeviceRegistrationId registrationId, int page, int size);
+
     List<DtcAlert> findAllByRegistrationIdAndCreatedAtGreaterThanEqual(
             Obd2DeviceRegistrationId registrationId,
             Instant startTimestamp
+    );
+
+    List<DtcAlert> findAllByRegistrationIdAndCreatedAtGreaterThanEqual(
+            Obd2DeviceRegistrationId registrationId,
+            Instant startTimestamp,
+            int page,
+            int size
     );
 }

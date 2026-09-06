@@ -48,6 +48,8 @@ public interface TelemetrySnapshotRepository {
      */
     List<TelemetrySnapshot> findAllByRegistrationId(Obd2DeviceRegistrationId registrationId);
 
+    List<TelemetrySnapshot> findAllByRegistrationId(Obd2DeviceRegistrationId registrationId, int page, int size);
+
     /**
      * Finds all TelemetrySnapshots for a given device registration starting from a specific timestamp.
      * @param registrationId the unique identifier of the registration
@@ -57,5 +59,12 @@ public interface TelemetrySnapshotRepository {
     List<TelemetrySnapshot> findAllByRegistrationIdAndCreatedAtGreaterThanEqual(
             Obd2DeviceRegistrationId registrationId,
             Instant startTimestamp
+    );
+
+    List<TelemetrySnapshot> findAllByRegistrationIdAndCreatedAtGreaterThanEqual(
+            Obd2DeviceRegistrationId registrationId,
+            Instant startTimestamp,
+            int page,
+            int size
     );
 }

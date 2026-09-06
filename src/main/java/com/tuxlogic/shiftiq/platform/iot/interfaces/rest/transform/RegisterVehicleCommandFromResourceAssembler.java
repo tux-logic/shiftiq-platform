@@ -9,6 +9,9 @@ import java.util.UUID;
  * Assembler to translate RegisterVehicleResource and userId to RegisterVehicleCommand.
  */
 public class RegisterVehicleCommandFromResourceAssembler {
+
+    private RegisterVehicleCommandFromResourceAssembler() {}
+
     public static RegisterVehicleCommand toCommandFromResource(UUID userId, RegisterVehicleResource resource) {
         return new RegisterVehicleCommand(
                 userId,

@@ -32,4 +32,11 @@ public interface VehicleRegistrationRepository {
      * @return the list of active registrations
      */
     List<VehicleRegistration> findAllActiveByUserId(UUID userId);
+
+    /**
+     * Finds all active vehicle registrations for a list of drivers/users in batch.
+     * @param userIds list of unique user identifiers
+     * @return the list of active registrations
+     */
+    List<VehicleRegistration> findAllActiveByUserIds(List<UUID> userIds);
 }

@@ -10,6 +10,9 @@ import com.tuxlogic.shiftiq.platform.shared.domain.model.valueobjects.VehicleId;
  * Assembler to translate LinkObd2DeviceResource to LinkObd2DeviceToVehicleCommand.
  */
 public class LinkObd2DeviceCommandFromResourceAssembler {
+
+    private LinkObd2DeviceCommandFromResourceAssembler() {}
+
     public static LinkObd2DeviceToVehicleCommand toCommandFromResource(LinkObd2DeviceResource resource) {
         return new LinkObd2DeviceToVehicleCommand(
                 new Obd2DeviceId(resource.obd2DeviceId()),

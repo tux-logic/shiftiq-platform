@@ -22,4 +22,6 @@ public interface Obd2DeviceRegistrationPersistenceRepository extends JpaReposito
     Optional<Obd2DeviceRegistrationPersistenceEntity> findByVehicleIdAndStatus(VehicleId vehicleId, String status);
 
     List<Obd2DeviceRegistrationPersistenceEntity> findAllByBranchIdAndStatus(BranchId branchId, String status);
+
+    List<Obd2DeviceRegistrationPersistenceEntity> findAllByVehicleIdInAndStatus(List<VehicleId> vehicleIds, String status);
 }

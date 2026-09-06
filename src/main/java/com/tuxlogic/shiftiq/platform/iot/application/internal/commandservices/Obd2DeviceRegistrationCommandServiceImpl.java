@@ -32,46 +32,46 @@ public class Obd2DeviceRegistrationCommandServiceImpl implements Obd2DeviceRegis
     @Override
     @Transactional
     public Result<Obd2DeviceRegistration, Obd2DeviceRegistrationCommandFailure> handle(LinkObd2DeviceToVehicleCommand command) {
-        // 1. Validar existencia del OBD2
-        var obd2DeviceOpt = obd2DeviceRepository.findById(command.obd2DeviceId());
-        if (obd2DeviceOpt.isEmpty()) {
-            return Result.failure(new Obd2DeviceRegistrationCommandFailure.NotFound("iot.error.obd2Device.notFound"));
+        try {
+            var obd2DeviceOpt = obd2DeviceRepository.findById(command.obd2DeviceId());
+            if (obd2DeviceOpt.isEmpty()) {
+                return Result.failure(new Obd2DeviceRegistrationCommandFailure.NotFound("iot.error.obd2Device.notFound"));
+            }
+
+            var obd2Device = obd2DeviceOpt.get();
+
+            if (Obd2DeviceStatus.LINKED.equals(obd2Device.getStatus())) {
+                return Result.failure(new Obd2DeviceRegistrationCommandFailure.InvalidState("iot.error.obd2DeviceRegistration.deviceAlreadyLinked"));
+            }
+
+            var activeDeviceRegOpt = obd2DeviceRegistrationRepository.findActiveByObd2DeviceId(command.obd2DeviceId());
+            if (activeDeviceRegOpt.isPresent()) {
+                return Result.failure(new Obd2DeviceRegistrationCommandFailure.InvalidState("iot.error.obd2DeviceRegistration.deviceAlreadyLinked"));
+            }
+
+            var activeVehicleRegOpt = obd2DeviceRegistrationRepository.findActiveByVehicleId(command.vehicleId());
+            if (activeVehicleRegOpt.isPresent()) {
+                return Result.failure(new Obd2DeviceRegistrationCommandFailure.InvalidState("iot.error.obd2DeviceRegistration.vehicleAlreadyLinked"));
+            }
+
+            obd2Device.markAsLinked();
+            obd2DeviceRepository.save(obd2Device);
+
+            var registration = new Obd2DeviceRegistration(
+                    command.obd2DeviceId(),
+                    command.branchId(),
+                    command.vehicleId()
+            );
+
+            var savedRegistration = obd2DeviceRegistrationRepository.save(registration);
+
+            return Result.success(savedRegistration);
+
+        } catch (IllegalStateException e) {
+            return Result.failure(new Obd2DeviceRegistrationCommandFailure.InvalidState(e.getMessage()));
+        } catch (Exception e) {
+            return Result.failure(new Obd2DeviceRegistrationCommandFailure.InvalidState("iot.error.obd2DeviceRegistration.unexpected"));
         }
-
-        var obd2Device = obd2DeviceOpt.get();
-
-        // 2. Validar que el OBD2 no esté ya marcado como LINKED en su agregado
-        if (Obd2DeviceStatus.LINKED.equals(obd2Device.getStatus())) {
-            return Result.failure(new Obd2DeviceRegistrationCommandFailure.InvalidState("iot.error.obd2DeviceRegistration.deviceAlreadyLinked"));
-        }
-
-        // 3. Validar que el OBD2 no tenga ya una vinculación activa en base de datos (invariante de negocio)
-        var activeDeviceRegOpt = obd2DeviceRegistrationRepository.findActiveByObd2DeviceId(command.obd2DeviceId());
-        if (activeDeviceRegOpt.isPresent()) {
-            return Result.failure(new Obd2DeviceRegistrationCommandFailure.InvalidState("iot.error.obd2DeviceRegistration.deviceAlreadyLinked"));
-        }
-
-        // 4. Validar que el vehículo no tenga una vinculación activa en base de datos (invariante de negocio)
-        var activeVehicleRegOpt = obd2DeviceRegistrationRepository.findActiveByVehicleId(command.vehicleId());
-        if (activeVehicleRegOpt.isPresent()) {
-            return Result.failure(new Obd2DeviceRegistrationCommandFailure.InvalidState("iot.error.obd2DeviceRegistration.vehicleAlreadyLinked"));
-        }
-
-        // 5. Actualizar el estado del OBD2 a LINKED y guardar
-        obd2Device.markAsLinked();
-        obd2DeviceRepository.save(obd2Device);
-
-        // 6. Crear la vinculación con estado ACTIVE (por defecto en el constructor de Obd2DeviceRegistration)
-        var registration = new Obd2DeviceRegistration(
-                command.obd2DeviceId(),
-                command.branchId(),
-                command.vehicleId()
-        );
-
-        // 7. Guardar en base de datos
-        var savedRegistration = obd2DeviceRegistrationRepository.save(registration);
-
-        return Result.success(savedRegistration);
     }
 
     @Override

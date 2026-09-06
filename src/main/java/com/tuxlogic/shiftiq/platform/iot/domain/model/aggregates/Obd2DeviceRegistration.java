@@ -6,6 +6,7 @@ import com.tuxlogic.shiftiq.platform.iot.domain.model.valueobjects.Obd2Registrat
 import com.tuxlogic.shiftiq.platform.shared.domain.model.aggregates.AbstractDomainAggregateRoot;
 import com.tuxlogic.shiftiq.platform.shared.domain.model.valueobjects.BranchId;
 import com.tuxlogic.shiftiq.platform.shared.domain.model.valueobjects.VehicleId;
+import com.tuxlogic.shiftiq.platform.iot.domain.model.events.Obd2DeviceRegistrationDeactivatedEvent;
 import lombok.Getter;
 
 import java.time.Instant;
@@ -55,5 +56,6 @@ public class Obd2DeviceRegistration extends AbstractDomainAggregateRoot<Obd2Devi
         }
         this.status = Obd2RegistrationStatus.INACTIVE;
         this.deletedAt = Instant.now();
+        registerDomainEvent(new Obd2DeviceRegistrationDeactivatedEvent(this.id, this.obd2DeviceId, this.branchId, this.vehicleId));
     }
 }

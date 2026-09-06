@@ -8,7 +8,9 @@ import com.tuxlogic.shiftiq.platform.iot.infrastructure.persistence.jpa.assemble
 import com.tuxlogic.shiftiq.platform.iot.infrastructure.persistence.jpa.entities.TelemetrySnapshotPersistenceEntity;
 import com.tuxlogic.shiftiq.platform.iot.infrastructure.persistence.jpa.repositories.TelemetrySnapshotPersistenceRepository;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Repository;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.util.List;
@@ -30,6 +32,7 @@ public class TelemetrySnapshotRepositoryImpl implements TelemetrySnapshotReposit
     }
 
     @Override
+    @Transactional
     public TelemetrySnapshot save(TelemetrySnapshot telemetrySnapshot) {
         TelemetrySnapshotPersistenceEntity entity = TelemetrySnapshotPersistenceAssembler.toPersistenceEntity(telemetrySnapshot);
         TelemetrySnapshotPersistenceEntity savedEntity = persistenceRepository.save(entity);
@@ -43,6 +46,7 @@ public class TelemetrySnapshotRepositoryImpl implements TelemetrySnapshotReposit
     }
 
     @Override
+    @Transactional
     public List<TelemetrySnapshot> saveAll(List<TelemetrySnapshot> telemetrySnapshots) {
         List<TelemetrySnapshotPersistenceEntity> entities = telemetrySnapshots.stream()
                 .map(TelemetrySnapshotPersistenceAssembler::toPersistenceEntity)
@@ -54,28 +58,30 @@ public class TelemetrySnapshotRepositoryImpl implements TelemetrySnapshotReposit
                 .map(TelemetrySnapshotPersistenceAssembler::toDomainEntity)
                 .collect(Collectors.toList());
 
-        // Publish events for all
-        for (int i = 0; i < telemetrySnapshots.size(); i++) {
-            telemetrySnapshots.get(i).domainEvents().forEach(eventPublisher::publishEvent);
-            telemetrySnapshots.get(i).clearDomainEvents();
+        for (TelemetrySnapshot telemetrySnapshot : telemetrySnapshots) {
+            telemetrySnapshot.domainEvents().forEach(eventPublisher::publishEvent);
+            telemetrySnapshot.clearDomainEvents();
         }
 
         return savedSnapshots;
     }
 
     @Override
+    @Transactional(readOnly = true)
     public Optional<TelemetrySnapshot> findById(TelemetrySnapshotId id) {
         return persistenceRepository.findById(id.value())
                 .map(TelemetrySnapshotPersistenceAssembler::toDomainEntity);
     }
 
     @Override
+    @Transactional(readOnly = true)
     public Optional<TelemetrySnapshot> findLatestByRegistrationId(Obd2DeviceRegistrationId registrationId) {
         return persistenceRepository.findFirstByObd2DeviceRegistrationIdOrderByCreatedAtDesc(registrationId)
                 .map(TelemetrySnapshotPersistenceAssembler::toDomainEntity);
     }
 
     @Override
+    @Transactional(readOnly = true)
     public List<TelemetrySnapshot> findAllByRegistrationId(Obd2DeviceRegistrationId registrationId) {
         return persistenceRepository.findAllByObd2DeviceRegistrationIdOrderByCreatedAtDesc(registrationId).stream()
                 .map(TelemetrySnapshotPersistenceAssembler::toDomainEntity)
@@ -83,14 +89,40 @@ public class TelemetrySnapshotRepositoryImpl implements TelemetrySnapshotReposit
     }
 
     @Override
+    @Transactional(readOnly = true)
+    public List<TelemetrySnapshot> findAllByRegistrationId(Obd2DeviceRegistrationId registrationId, int page, int size) {
+        return persistenceRepository.findAllByObd2DeviceRegistrationIdOrderByCreatedAtDesc(registrationId, PageRequest.of(page, size)).stream()
+                .map(TelemetrySnapshotPersistenceAssembler::toDomainEntity)
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public List<TelemetrySnapshot> findAllByRegistrationIdAndCreatedAtGreaterThanEqual(
             Obd2DeviceRegistrationId registrationId,
             Instant startTimestamp
     ) {
         return persistenceRepository.findAllByObd2DeviceRegistrationIdAndCreatedAtGreaterThanEqualOrderByCreatedAtDesc(
-                registrationId,
-                startTimestamp
-        ).stream()
+                        registrationId,
+                        startTimestamp
+                ).stream()
+                .map(TelemetrySnapshotPersistenceAssembler::toDomainEntity)
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<TelemetrySnapshot> findAllByRegistrationIdAndCreatedAtGreaterThanEqual(
+            Obd2DeviceRegistrationId registrationId,
+            Instant startTimestamp,
+            int page,
+            int size
+    ) {
+        return persistenceRepository.findAllByObd2DeviceRegistrationIdAndCreatedAtGreaterThanEqualOrderByCreatedAtDesc(
+                        registrationId,
+                        startTimestamp,
+                        PageRequest.of(page, size)
+                ).stream()
                 .map(TelemetrySnapshotPersistenceAssembler::toDomainEntity)
                 .collect(Collectors.toList());
     }

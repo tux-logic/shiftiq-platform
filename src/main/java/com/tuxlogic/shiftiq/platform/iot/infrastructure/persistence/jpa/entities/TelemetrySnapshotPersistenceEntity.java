@@ -2,13 +2,13 @@ package com.tuxlogic.shiftiq.platform.iot.infrastructure.persistence.jpa.entitie
 
 import com.tuxlogic.shiftiq.platform.iot.domain.model.valueobjects.Obd2DeviceRegistrationId;
 import com.tuxlogic.shiftiq.platform.shared.domain.model.valueobjects.BranchId;
+import com.tuxlogic.shiftiq.platform.shared.infrastructure.persistence.jpa.entities.AuditableAbstractPersistenceEntity;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 import org.springframework.data.domain.Persistable;
 
-import java.time.Instant;
 import java.util.UUID;
 
 /**
@@ -19,16 +19,7 @@ import java.util.UUID;
 @Getter
 @Setter
 @NoArgsConstructor
-public class TelemetrySnapshotPersistenceEntity implements Persistable<UUID> {
-
-    @Id
-    @Column(columnDefinition = "uuid", nullable = false)
-    private UUID id;
-
-    @Override
-    public boolean isNew() {
-        return createdAt == null;
-    }
+public class TelemetrySnapshotPersistenceEntity extends AuditableAbstractPersistenceEntity implements Persistable<UUID> {
 
     @Embedded
     @AttributeOverride(name = "value", column = @Column(name = "obd2_device_registration_id", nullable = false))
@@ -53,6 +44,8 @@ public class TelemetrySnapshotPersistenceEntity implements Persistable<UUID> {
     @Column(name = "fuel_level_percent", nullable = false)
     private Double fuelLevelPercent;
 
-    @Column(name = "created_at", nullable = false, updatable = false)
-    private Instant createdAt;
+    @Override
+    public boolean isNew() {
+        return getCreatedAt() == null;
+    }
 }

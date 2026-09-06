@@ -5,6 +5,7 @@ import com.tuxlogic.shiftiq.platform.shared.domain.model.valueobjects.VehicleId;
 import lombok.Getter;
 
 import java.time.Instant;
+import java.util.UUID;
 
 /**
  * Domain Aggregate Root representing a Vehicle within the iot bounded context.
@@ -27,12 +28,14 @@ public class Vehicle extends AbstractDomainAggregateRoot<Vehicle> {
     }
 
     public Vehicle(String plateNumber, String brand, String model, Integer year, String vin) {
-        this.id = null;
+        validate(plateNumber, brand, model, year, vin);
+        this.id = new VehicleId(UUID.randomUUID());
         this.plateNumber = plateNumber;
         this.brand = brand;
         this.model = model;
         this.year = year;
         this.vin = vin;
+        this.createdAt = Instant.now();
     }
 
     public Vehicle(
@@ -61,17 +64,35 @@ public class Vehicle extends AbstractDomainAggregateRoot<Vehicle> {
 
     /**
      * Updates the vehicle details.
-     * @param plateNumber the new plate number
-     * @param brand the new brand
-     * @param model the new model
-     * @param year the new manufacturing year
-     * @param vin the new Vehicle Identification Number (VIN)
      */
     public void updateDetails(String plateNumber, String brand, String model, Integer year, String vin) {
+        validate(plateNumber, brand, model, year, vin);
         this.plateNumber = plateNumber;
         this.brand = brand;
         this.model = model;
         this.year = year;
         this.vin = vin;
+        this.updatedAt = Instant.now();
+        registerDomainEvent(new com.tuxlogic.shiftiq.platform.iot.domain.model.events.VehicleDetailsUpdatedEvent(
+                this.id, this.plateNumber, this.brand, this.model, this.year, this.vin
+        ));
+    }
+
+    private void validate(String plateNumber, String brand, String model, Integer year, String vin) {
+        if (plateNumber == null || plateNumber.isBlank()) {
+            throw new IllegalArgumentException("iot.error.vehicle.plateNumberRequired");
+        }
+        if (brand == null || brand.isBlank()) {
+            throw new IllegalArgumentException("iot.error.vehicle.brandRequired");
+        }
+        if (model == null || model.isBlank()) {
+            throw new IllegalArgumentException("iot.error.vehicle.modelRequired");
+        }
+        if (year == null || year < 1886) {
+            throw new IllegalArgumentException("iot.error.vehicle.yearInvalid");
+        }
+        if (vin == null || vin.isBlank()) {
+            throw new IllegalArgumentException("iot.error.vehicle.vinRequired");
+        }
     }
 }
