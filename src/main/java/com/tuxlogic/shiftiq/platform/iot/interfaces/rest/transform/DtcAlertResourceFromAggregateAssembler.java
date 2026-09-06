@@ -11,7 +11,7 @@ public class DtcAlertResourceFromAggregateAssembler {
     public static DtcAlertResource toResourceFromAggregate(DtcAlert aggregate) {
         return new DtcAlertResource(
                 aggregate.getId() != null ? aggregate.getId().value() : null,
-                aggregate.getTelemetrySnapshotId(),
+                aggregate.getTelemetrySnapshotId() != null ? aggregate.getTelemetrySnapshotId().value() : null,
                 aggregate.getBranchId() != null ? aggregate.getBranchId().value() : null,
                 aggregate.getDtcCode(),
                 aggregate.getDescription(),

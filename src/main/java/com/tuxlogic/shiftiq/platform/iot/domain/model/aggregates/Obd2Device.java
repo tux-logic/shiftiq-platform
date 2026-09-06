@@ -4,6 +4,7 @@ import com.tuxlogic.shiftiq.platform.iot.domain.model.valueobjects.Obd2DeviceId;
 import com.tuxlogic.shiftiq.platform.iot.domain.model.valueobjects.Obd2DeviceStatus;
 import com.tuxlogic.shiftiq.platform.shared.domain.model.aggregates.AbstractDomainAggregateRoot;
 import com.tuxlogic.shiftiq.platform.shared.domain.model.valueobjects.BranchId;
+import com.tuxlogic.shiftiq.platform.iot.domain.model.events.Obd2DeviceStatusChangedEvent;
 import lombok.Getter;
 
 import java.time.Instant;
@@ -25,7 +26,13 @@ public class Obd2Device extends AbstractDomainAggregateRoot<Obd2Device> {
     }
 
     public Obd2Device(BranchId branchId, String macAddress) {
-        this.id = null;
+        if (branchId == null) {
+            throw new IllegalArgumentException("iot.error.obd2Device.branchIdRequired");
+        }
+        if (macAddress == null || macAddress.isBlank()) {
+            throw new IllegalArgumentException("iot.error.obd2Device.macAddressEmpty");
+        }
+        this.id = Obd2DeviceId.random();
         this.branchId = branchId;
         this.macAddress = macAddress;
         this.status = Obd2DeviceStatus.AVAILABLE;
@@ -41,34 +48,23 @@ public class Obd2Device extends AbstractDomainAggregateRoot<Obd2Device> {
         this.version = version;
     }
 
-    /**
-     * Updates the last ping timestamp of the device.
-     */
     public void ping() {
         this.lastPing = Instant.now();
     }
 
-    /**
-     * Marks the device as linked to a vehicle.
-     */
     public void markAsLinked() {
         if (Obd2DeviceStatus.LINKED.equals(this.status)) {
             throw new IllegalStateException("iot.error.obd2Device.alreadyLinked");
         }
         this.status = Obd2DeviceStatus.LINKED;
+        registerDomainEvent(new Obd2DeviceStatusChangedEvent(this.id, this.branchId, this.status));
     }
 
-    /**
-     * Marks the device as available for linking.
-     */
     public void markAsAvailable() {
         this.status = Obd2DeviceStatus.AVAILABLE;
+        registerDomainEvent(new Obd2DeviceStatusChangedEvent(this.id, this.branchId, this.status));
     }
 
-    /**
-     * Updates the MAC address of the device.
-     * @param macAddress the new MAC address
-     */
     public void updateMacAddress(String macAddress) {
         if (macAddress == null || macAddress.isBlank()) {
             throw new IllegalArgumentException("iot.error.obd2Device.macAddressEmpty");

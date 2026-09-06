@@ -1,6 +1,7 @@
 package com.tuxlogic.shiftiq.platform.iot.interfaces.rest.resources;
 
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 
 import java.time.Instant;
@@ -31,6 +32,20 @@ public record IngestTelemetryBatchResource(
             @NotNull(message = "iot.error.resource.fuelLevelPercent.required")
             Double fuelLevelPercent,
 
-            Instant createdAt
+            Instant createdAt,
+
+            @Valid
+            List<DtcCodeDataResource> dtcCodes
+    ) {}
+
+    public record DtcCodeDataResource(
+            @NotBlank(message = "iot.error.resource.dtcCode.required")
+            String dtcCode,
+
+            @NotBlank(message = "iot.error.resource.dtcDescription.required")
+            String description,
+
+            @NotBlank(message = "iot.error.resource.dtcSeverity.required")
+            String severity
     ) {}
 }

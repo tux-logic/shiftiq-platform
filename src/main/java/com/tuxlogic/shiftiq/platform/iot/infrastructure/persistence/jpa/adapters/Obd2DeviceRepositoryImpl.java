@@ -8,6 +8,7 @@ import com.tuxlogic.shiftiq.platform.iot.infrastructure.persistence.jpa.entities
 import com.tuxlogic.shiftiq.platform.iot.infrastructure.persistence.jpa.repositories.Obd2DevicePersistenceRepository;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Repository;
+import org.springframework.transaction.annotation.Transactional;
 
 import com.tuxlogic.shiftiq.platform.iot.domain.model.valueobjects.Obd2DeviceStatus;
 import com.tuxlogic.shiftiq.platform.shared.domain.model.valueobjects.BranchId;
@@ -29,26 +30,12 @@ public class Obd2DeviceRepositoryImpl implements Obd2DeviceRepository {
     }
 
     @Override
+    @Transactional
     public Obd2Device save(Obd2Device obd2Device) {
-        Obd2DevicePersistenceEntity entity;
-        if (obd2Device.getId() != null) {
-            entity = persistenceRepository.findById(obd2Device.getId().value())
-                    .orElseGet(Obd2DevicePersistenceEntity::new);
-        } else {
-            entity = new Obd2DevicePersistenceEntity();
-        }
-
-        entity.setId(obd2Device.getId() != null ? obd2Device.getId().value() : null);
-        entity.setBranchId(obd2Device.getBranchId());
-        entity.setMacAddress(obd2Device.getMacAddress());
-        entity.setLastPing(obd2Device.getLastPing());
-        entity.setStatus(obd2Device.getStatus() != null ? obd2Device.getStatus().value() : null);
-        entity.setVersion(obd2Device.getVersion());
-
+        Obd2DevicePersistenceEntity entity = Obd2DevicePersistenceAssembler.toPersistenceEntity(obd2Device);
         Obd2DevicePersistenceEntity savedEntity = persistenceRepository.save(entity);
         Obd2Device savedDevice = Obd2DevicePersistenceAssembler.toDomainEntity(savedEntity);
 
-        // Publish events if any
         if (savedDevice != null) {
             obd2Device.domainEvents().forEach(eventPublisher::publishEvent);
             obd2Device.clearDomainEvents();
@@ -57,28 +44,33 @@ public class Obd2DeviceRepositoryImpl implements Obd2DeviceRepository {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public Optional<Obd2Device> findById(Obd2DeviceId id) {
         return persistenceRepository.findById(id.value())
                 .map(Obd2DevicePersistenceAssembler::toDomainEntity);
     }
 
     @Override
+    @Transactional(readOnly = true)
     public Optional<Obd2Device> findByMacAddress(String macAddress) {
         return persistenceRepository.findByMacAddress(macAddress)
                 .map(Obd2DevicePersistenceAssembler::toDomainEntity);
     }
 
     @Override
+    @Transactional(readOnly = true)
     public boolean existsByMacAddress(String macAddress) {
         return persistenceRepository.existsByMacAddress(macAddress);
     }
 
     @Override
+    @Transactional
     public void delete(Obd2DeviceId id) {
         persistenceRepository.deleteById(id.value());
     }
 
     @Override
+    @Transactional(readOnly = true)
     public List<Obd2Device> findAllByBranchId(BranchId branchId) {
         return persistenceRepository.findAllByBranchId(branchId).stream()
                 .map(Obd2DevicePersistenceAssembler::toDomainEntity)
@@ -86,6 +78,7 @@ public class Obd2DeviceRepositoryImpl implements Obd2DeviceRepository {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public List<Obd2Device> findAllByBranchIdAndStatus(BranchId branchId, Obd2DeviceStatus status) {
         return persistenceRepository.findAllByBranchIdAndStatus(branchId, status.value()).stream()
                 .map(Obd2DevicePersistenceAssembler::toDomainEntity)

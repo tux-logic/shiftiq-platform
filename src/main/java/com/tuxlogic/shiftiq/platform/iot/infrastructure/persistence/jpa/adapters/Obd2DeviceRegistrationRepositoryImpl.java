@@ -12,9 +12,12 @@ import com.tuxlogic.shiftiq.platform.shared.domain.model.valueobjects.BranchId;
 import com.tuxlogic.shiftiq.platform.shared.domain.model.valueobjects.VehicleId;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Repository;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 @Repository
 public class Obd2DeviceRegistrationRepositoryImpl implements Obd2DeviceRegistrationRepository {
@@ -31,6 +34,7 @@ public class Obd2DeviceRegistrationRepositoryImpl implements Obd2DeviceRegistrat
     }
 
     @Override
+    @Transactional
     public Obd2DeviceRegistration save(Obd2DeviceRegistration registration) {
         Obd2DeviceRegistrationPersistenceEntity entity = Obd2DeviceRegistrationPersistenceAssembler.toPersistenceEntity(registration);
         Obd2DeviceRegistrationPersistenceEntity savedEntity = persistenceRepository.save(entity);
@@ -44,28 +48,44 @@ public class Obd2DeviceRegistrationRepositoryImpl implements Obd2DeviceRegistrat
     }
 
     @Override
+    @Transactional(readOnly = true)
     public Optional<Obd2DeviceRegistration> findById(Obd2DeviceRegistrationId id) {
         return persistenceRepository.findById(id.value())
                 .map(Obd2DeviceRegistrationPersistenceAssembler::toDomainEntity);
     }
 
     @Override
+    @Transactional(readOnly = true)
     public Optional<Obd2DeviceRegistration> findActiveByObd2DeviceId(Obd2DeviceId obd2DeviceId) {
         return persistenceRepository.findByObd2DeviceIdAndStatus(obd2DeviceId, Obd2RegistrationStatus.ACTIVE.value())
                 .map(Obd2DeviceRegistrationPersistenceAssembler::toDomainEntity);
     }
 
     @Override
+    @Transactional(readOnly = true)
     public Optional<Obd2DeviceRegistration> findActiveByVehicleId(VehicleId vehicleId) {
         return persistenceRepository.findByVehicleIdAndStatus(vehicleId, Obd2RegistrationStatus.ACTIVE.value())
                 .map(Obd2DeviceRegistrationPersistenceAssembler::toDomainEntity);
     }
 
     @Override
+    @Transactional(readOnly = true)
     public List<Obd2DeviceRegistration> findAllByBranchIdAndStatus(BranchId branchId, Obd2RegistrationStatus status) {
         return persistenceRepository.findAllByBranchIdAndStatus(branchId, status.value())
                 .stream()
                 .map(Obd2DeviceRegistrationPersistenceAssembler::toDomainEntity)
                 .toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Set<VehicleId> findVehicleIdsWithActiveRegistration(List<VehicleId> vehicleIds) {
+        if (vehicleIds == null || vehicleIds.isEmpty()) {
+            return Set.of();
+        }
+        return persistenceRepository.findAllByVehicleIdInAndStatus(vehicleIds, Obd2RegistrationStatus.ACTIVE.value())
+                .stream()
+                .map(Obd2DeviceRegistrationPersistenceEntity::getVehicleId)
+                .collect(Collectors.toSet());
     }
 }

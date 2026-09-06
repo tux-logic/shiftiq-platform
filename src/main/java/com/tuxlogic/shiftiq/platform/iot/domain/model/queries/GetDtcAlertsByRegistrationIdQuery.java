@@ -6,8 +6,14 @@ import com.tuxlogic.shiftiq.platform.iot.domain.model.valueobjects.Obd2DeviceReg
  * Query representing the request to retrieve all DTC alerts for a specific OBD2 device registration.
  */
 public record GetDtcAlertsByRegistrationIdQuery(
-        Obd2DeviceRegistrationId obd2DeviceRegistrationId
+        Obd2DeviceRegistrationId obd2DeviceRegistrationId,
+        int page,
+        int size
 ) {
+    public GetDtcAlertsByRegistrationIdQuery(Obd2DeviceRegistrationId obd2DeviceRegistrationId) {
+        this(obd2DeviceRegistrationId, 0, 20);
+    }
+
     public GetDtcAlertsByRegistrationIdQuery {
         if (obd2DeviceRegistrationId == null) {
             throw new IllegalArgumentException("obd2DeviceRegistrationId cannot be null");
