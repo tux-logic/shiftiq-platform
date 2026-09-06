@@ -5,8 +5,6 @@ import com.tuxlogic.shiftiq.platform.inventory.domain.model.aggregates.Product;
 import com.tuxlogic.shiftiq.platform.inventory.domain.model.queries.GetProductByIdQuery;
 import com.tuxlogic.shiftiq.platform.inventory.domain.model.queries.GetProductsByBranchIdQuery;
 import com.tuxlogic.shiftiq.platform.inventory.domain.repositories.ProductRepository;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -17,7 +15,6 @@ import java.util.Optional;
 @Transactional(readOnly = true)
 public class ProductQueryServiceImpl implements ProductQueryService {
 
-    private static final Logger log = LoggerFactory.getLogger(ProductQueryServiceImpl.class);
     private final ProductRepository productRepository;
 
     public ProductQueryServiceImpl(ProductRepository productRepository) {

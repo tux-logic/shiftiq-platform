@@ -30,7 +30,6 @@ public class TokenServiceImpl implements BearerTokenService {
     }
 
     @Override
-    @SuppressWarnings("unused")
     public String generateToken(Authentication authentication) {
         return generateToken(authentication.getName());
     }

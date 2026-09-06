@@ -20,6 +20,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.tuxlogic.shiftiq.platform.billing.application.queryservices.VoucherQueryService;
+import com.tuxlogic.shiftiq.platform.billing.application.queryservices.QuoteQueryService;
 import com.tuxlogic.shiftiq.platform.billing.domain.model.queries.GetVoucherByIdQuery;
 import com.tuxlogic.shiftiq.platform.billing.interfaces.rest.resources.VoucherResource;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -44,12 +45,14 @@ public class VouchersController {
 
     private final VoucherCommandService commandService;
     private final VoucherQueryService queryService;
+    private final QuoteQueryService quoteQueryService;
     private final org.springframework.context.MessageSource messageSource;
     private final MultiTenancySecurityService multiTenancySecurityService;
 
-    public VouchersController(VoucherCommandService commandService, VoucherQueryService queryService, org.springframework.context.MessageSource messageSource, MultiTenancySecurityService multiTenancySecurityService) {
+    public VouchersController(VoucherCommandService commandService, VoucherQueryService queryService, QuoteQueryService quoteQueryService, org.springframework.context.MessageSource messageSource, MultiTenancySecurityService multiTenancySecurityService) {
         this.commandService = commandService;
         this.queryService = queryService;
+        this.quoteQueryService = quoteQueryService;
         this.messageSource = messageSource;
         this.multiTenancySecurityService = multiTenancySecurityService;
     }
@@ -68,9 +71,18 @@ public class VouchersController {
         return toErrorResponse(result.failure().get());
     }
 
+    private com.tuxlogic.shiftiq.platform.billing.domain.model.aggregates.Voucher validateVoucherAccess(UUID voucherId) {
+        var voucher = queryService.handle(new GetVoucherByIdQuery(voucherId))
+                .orElseThrow(() -> new IllegalArgumentException("billing.error.voucher.notFound"));
+        var quote = quoteQueryService.handle(new com.tuxlogic.shiftiq.platform.billing.domain.model.queries.GetQuoteByIdQuery(voucher.getQuoteId()));
+        quote.ifPresent(q -> multiTenancySecurityService.validateBranchAccess(q.getBranchId().value()));
+        return voucher;
+    }
+
     @GetMapping("/{voucherId}")
     @Operation(summary = "Get voucher by ID", description = "Retrieves a voucher using its unique identifier")
     public ResponseEntity<VoucherResource> getVoucherById(@PathVariable UUID voucherId) {
+        validateVoucherAccess(voucherId);
         var query = new GetVoucherByIdQuery(voucherId);
         var voucher = queryService.handle(query);
         
@@ -99,6 +111,7 @@ public class VouchersController {
     @PostMapping("/{voucherId}/payments")
     @Operation(summary = "Add a payment to a voucher", description = "Records a partial or full payment for a given voucher")
     public ResponseEntity<?> addPayment(@PathVariable UUID voucherId, @Valid @RequestBody AddPaymentResource resource) {
+        validateVoucherAccess(voucherId);
         PaymentMethod paymentMethod;
         try {
             paymentMethod = resource.method() != null ? PaymentMethod.valueOf(resource.method().toUpperCase()) : PaymentMethod.CASH;
@@ -125,6 +138,7 @@ public class VouchersController {
     @org.springframework.web.bind.annotation.DeleteMapping("/{voucherId}/payments/{paymentId}")
     @Operation(summary = "Remove a payment from a voucher", description = "Deletes a previously recorded payment and updates the voucher's balance and status")
     public ResponseEntity<?> removePayment(@PathVariable UUID voucherId, @PathVariable UUID paymentId) {
+        validateVoucherAccess(voucherId);
         var command = new com.tuxlogic.shiftiq.platform.billing.domain.model.commands.RemovePaymentCommand(voucherId, paymentId);
         
         var result = commandService.handle(command);

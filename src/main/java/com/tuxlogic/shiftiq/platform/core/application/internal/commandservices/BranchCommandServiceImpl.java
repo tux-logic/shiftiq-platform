@@ -5,6 +5,7 @@ import com.tuxlogic.shiftiq.platform.core.domain.model.aggregates.Branch;
 import com.tuxlogic.shiftiq.platform.core.domain.model.commands.CreateBranchCommand;
 import com.tuxlogic.shiftiq.platform.core.domain.model.commands.UpdateBranchCommand;
 import com.tuxlogic.shiftiq.platform.core.domain.repositories.BranchRepository;
+import com.tuxlogic.shiftiq.platform.core.domain.repositories.WorkshopRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
