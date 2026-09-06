@@ -5,9 +5,10 @@ import com.tuxlogic.shiftiq.platform.iot.domain.model.valueobjects.Obd2DeviceId;
 import com.tuxlogic.shiftiq.platform.iot.interfaces.rest.resources.IngestTelemetryBatchResource;
 
 import java.util.Collections;
-import java.util.stream.Collectors;
 
 public class TelemetryCommandFromResourceAssembler {
+
+    private TelemetryCommandFromResourceAssembler() {}
 
     public static IngestTelemetryBatchCommand toCommandFromResource(IngestTelemetryBatchResource resource) {
         if (resource == null) {
@@ -30,9 +31,9 @@ public class TelemetryCommandFromResourceAssembler {
                                         dtc.description(),
                                         dtc.severity()
                                 ))
-                                .collect(Collectors.toList())
+                                .toList()
                 ))
-                .collect(Collectors.toList());
+                .toList();
 
         return new IngestTelemetryBatchCommand(
                 new Obd2DeviceId(resource.obd2DeviceId()),
