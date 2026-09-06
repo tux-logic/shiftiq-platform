@@ -9,14 +9,12 @@ import com.tuxlogic.shiftiq.platform.iot.infrastructure.persistence.jpa.reposito
 import com.tuxlogic.shiftiq.platform.shared.domain.model.valueobjects.VehicleId;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Repository;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
-/**
- * JPA adapter implementing the VehicleRegistrationRepository port.
- */
 @Repository
 public class VehicleRegistrationRepositoryImpl implements VehicleRegistrationRepository {
 
@@ -32,6 +30,7 @@ public class VehicleRegistrationRepositoryImpl implements VehicleRegistrationRep
     }
 
     @Override
+    @Transactional
     public VehicleRegistration save(VehicleRegistration registration) {
         VehicleRegistrationPersistenceEntity entity = VehicleRegistrationPersistenceAssembler.toPersistenceEntity(registration);
         VehicleRegistrationPersistenceEntity savedEntity = persistenceRepository.save(entity);
@@ -45,12 +44,14 @@ public class VehicleRegistrationRepositoryImpl implements VehicleRegistrationRep
     }
 
     @Override
+    @Transactional(readOnly = true)
     public Optional<VehicleRegistration> findActiveByVehicleId(VehicleId vehicleId) {
         return persistenceRepository.findByVehicleIdAndStatus(vehicleId, VehicleRegistrationStatus.ACTIVE.value())
                 .map(VehicleRegistrationPersistenceAssembler::toDomainEntity);
     }
 
     @Override
+    @Transactional(readOnly = true)
     public List<VehicleRegistration> findAllActiveByUserId(UUID userId) {
         return persistenceRepository.findAllByUserIdAndStatus(userId, VehicleRegistrationStatus.ACTIVE.value()).stream()
                 .map(VehicleRegistrationPersistenceAssembler::toDomainEntity)
