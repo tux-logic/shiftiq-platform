@@ -80,6 +80,7 @@ public class WorkOrderTasksController {
 
     @PostMapping("/{taskId}/products")
     @Operation(summary = "Add an inventory product/part to a task", description = "Adds a product from inventory to a specific mechanic task")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<?> addProductToTask(@PathVariable UUID taskId,
                                               @Valid @RequestBody AddProductResource resource) {
         try {
@@ -94,6 +95,7 @@ public class WorkOrderTasksController {
 
     @PutMapping("/{taskId}/products/{productId}")
     @Operation(summary = "Update a product's quantity in a task", description = "Updates the quantity of a product used in a specific mechanic task")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<?> updateProductQuantityInTask(@PathVariable UUID taskId,
                                                          @PathVariable UUID productId,
                                                          @Valid @RequestBody UpdateProductQuantityInTaskResource resource) {
@@ -109,6 +111,7 @@ public class WorkOrderTasksController {
 
     @DeleteMapping("/{taskId}/products/{productId}")
     @Operation(summary = "Remove a product/part from a task", description = "Removes a product from a task, releasing its stock reservation")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<?> removeProductFromTask(@PathVariable UUID taskId,
                                                    @PathVariable UUID productId) {
         try {
@@ -123,6 +126,7 @@ public class WorkOrderTasksController {
 
     @PostMapping("/{taskId}/start")
     @Operation(summary = "Start executing a task", description = "Sets the task status to DOING and captures the startedAt timestamp")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<?> startTask(@PathVariable UUID taskId) {
         try {
             UUID id = validateTaskAccess(taskId);
@@ -136,6 +140,7 @@ public class WorkOrderTasksController {
 
     @PostMapping("/{taskId}/complete")
     @Operation(summary = "Complete a task", description = "Sets the task status to COMPLETED and captures the completedAt timestamp")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<?> completeTask(@PathVariable UUID taskId) {
         try {
             UUID id = validateTaskAccess(taskId);
@@ -149,6 +154,7 @@ public class WorkOrderTasksController {
 
     @PostMapping("/{taskId}/reopen")
     @Operation(summary = "Reopen a completed task", description = "Returns the task to DOING, clears completedAt, and keeps stock reserved")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<?> reopenTask(@PathVariable UUID taskId) {
         try {
             UUID id = validateTaskAccess(taskId);
