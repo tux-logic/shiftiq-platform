@@ -8,6 +8,7 @@ import com.tuxlogic.shiftiq.platform.iot.infrastructure.persistence.jpa.assemble
 import com.tuxlogic.shiftiq.platform.iot.infrastructure.persistence.jpa.entities.TelemetrySnapshotPersistenceEntity;
 import com.tuxlogic.shiftiq.platform.iot.infrastructure.persistence.jpa.repositories.TelemetrySnapshotPersistenceRepository;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -89,6 +90,14 @@ public class TelemetrySnapshotRepositoryImpl implements TelemetrySnapshotReposit
 
     @Override
     @Transactional(readOnly = true)
+    public List<TelemetrySnapshot> findAllByRegistrationId(Obd2DeviceRegistrationId registrationId, int page, int size) {
+        return persistenceRepository.findAllByObd2DeviceRegistrationIdOrderByCreatedAtDesc(registrationId, PageRequest.of(page, size)).stream()
+                .map(TelemetrySnapshotPersistenceAssembler::toDomainEntity)
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public List<TelemetrySnapshot> findAllByRegistrationIdAndCreatedAtGreaterThanEqual(
             Obd2DeviceRegistrationId registrationId,
             Instant startTimestamp
@@ -96,6 +105,23 @@ public class TelemetrySnapshotRepositoryImpl implements TelemetrySnapshotReposit
         return persistenceRepository.findAllByObd2DeviceRegistrationIdAndCreatedAtGreaterThanEqualOrderByCreatedAtDesc(
                         registrationId,
                         startTimestamp
+                ).stream()
+                .map(TelemetrySnapshotPersistenceAssembler::toDomainEntity)
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<TelemetrySnapshot> findAllByRegistrationIdAndCreatedAtGreaterThanEqual(
+            Obd2DeviceRegistrationId registrationId,
+            Instant startTimestamp,
+            int page,
+            int size
+    ) {
+        return persistenceRepository.findAllByObd2DeviceRegistrationIdAndCreatedAtGreaterThanEqualOrderByCreatedAtDesc(
+                        registrationId,
+                        startTimestamp,
+                        PageRequest.of(page, size)
                 ).stream()
                 .map(TelemetrySnapshotPersistenceAssembler::toDomainEntity)
                 .collect(Collectors.toList());

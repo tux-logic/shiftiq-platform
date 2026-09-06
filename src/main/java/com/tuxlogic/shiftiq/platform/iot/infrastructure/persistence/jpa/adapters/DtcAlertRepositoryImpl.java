@@ -7,6 +7,7 @@ import com.tuxlogic.shiftiq.platform.iot.infrastructure.persistence.jpa.assemble
 import com.tuxlogic.shiftiq.platform.iot.infrastructure.persistence.jpa.entities.DtcAlertPersistenceEntity;
 import com.tuxlogic.shiftiq.platform.iot.infrastructure.persistence.jpa.repositories.DtcAlertPersistenceRepository;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -72,11 +73,32 @@ public class DtcAlertRepositoryImpl implements DtcAlertRepository {
 
     @Override
     @Transactional(readOnly = true)
+    public List<DtcAlert> findAllByRegistrationId(Obd2DeviceRegistrationId registrationId, int page, int size) {
+        return persistenceRepository.findAllByRegistrationId(registrationId.value(), PageRequest.of(page, size)).stream()
+                .map(DtcAlertPersistenceAssembler::toDomainEntity)
+                .toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public List<DtcAlert> findAllByRegistrationIdAndCreatedAtGreaterThanEqual(
             Obd2DeviceRegistrationId registrationId,
             Instant startTimestamp
     ) {
         return persistenceRepository.findAllByRegistrationIdAndCreatedAtGreaterThanEqual(registrationId.value(), startTimestamp).stream()
+                .map(DtcAlertPersistenceAssembler::toDomainEntity)
+                .toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<DtcAlert> findAllByRegistrationIdAndCreatedAtGreaterThanEqual(
+            Obd2DeviceRegistrationId registrationId,
+            Instant startTimestamp,
+            int page,
+            int size
+    ) {
+        return persistenceRepository.findAllByRegistrationIdAndCreatedAtGreaterThanEqual(registrationId.value(), startTimestamp, PageRequest.of(page, size)).stream()
                 .map(DtcAlertPersistenceAssembler::toDomainEntity)
                 .toList();
     }

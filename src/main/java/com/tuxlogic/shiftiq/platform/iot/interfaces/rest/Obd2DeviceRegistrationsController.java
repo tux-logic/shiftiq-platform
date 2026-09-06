@@ -135,9 +135,13 @@ public class Obd2DeviceRegistrationsController {
 
     @GetMapping("/{id}/telemetry-snapshots")
     @Operation(summary = "Get telemetry snapshots for registration", description = "Retrieves all telemetry snapshots captured under a specific OBD2-vehicle registration")
-    public ResponseEntity<List<TelemetrySnapshotResource>> getTelemetrySnapshotsForRegistration(@PathVariable UUID id) {
+    public ResponseEntity<List<TelemetrySnapshotResource>> getTelemetrySnapshotsForRegistration(
+            @PathVariable UUID id,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size
+    ) {
         validateRegistrationAccess(id);
-        var query = new GetTelemetrySnapshotsByRegistrationIdQuery(new Obd2DeviceRegistrationId(id));
+        var query = new GetTelemetrySnapshotsByRegistrationIdQuery(new Obd2DeviceRegistrationId(id), page, size);
         var list = telemetryQueryService.handle(query);
         var resources = list.stream()
                 .map(TelemetrySnapshotResourceFromAggregateAssembler::toResourceFromAggregate)
@@ -147,9 +151,13 @@ public class Obd2DeviceRegistrationsController {
 
     @GetMapping("/{id}/dtc-alerts")
     @Operation(summary = "Get DTC alerts for registration", description = "Retrieves all DTC alerts captured under a specific OBD2-vehicle registration")
-    public ResponseEntity<List<DtcAlertResource>> getDtcAlertsForRegistration(@PathVariable UUID id) {
+    public ResponseEntity<List<DtcAlertResource>> getDtcAlertsForRegistration(
+            @PathVariable UUID id,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size
+    ) {
         validateRegistrationAccess(id);
-        var query = new GetDtcAlertsByRegistrationIdQuery(new Obd2DeviceRegistrationId(id));
+        var query = new GetDtcAlertsByRegistrationIdQuery(new Obd2DeviceRegistrationId(id), page, size);
         var list = dtcAlertQueryService.handle(query);
         var resources = list.stream()
                 .map(DtcAlertResourceFromAggregateAssembler::toResourceFromAggregate)

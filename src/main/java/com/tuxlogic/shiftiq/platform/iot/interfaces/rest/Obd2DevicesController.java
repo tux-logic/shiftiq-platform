@@ -175,9 +175,13 @@ public class Obd2DevicesController {
 
     @GetMapping("/{deviceId}/telemetry-snapshots")
     @Operation(summary = "Get telemetry snapshot history for a device", description = "Retrieves all telemetry snapshots recorded for a specific OBD2 device ordered descending by date")
-    public ResponseEntity<List<TelemetrySnapshotResource>> getTelemetrySnapshotHistory(@PathVariable UUID deviceId) {
+    public ResponseEntity<List<TelemetrySnapshotResource>> getTelemetrySnapshotHistory(
+            @PathVariable UUID deviceId,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size
+    ) {
         validateAndGetDevice(deviceId);
-        var query = new GetTelemetrySnapshotHistoryQuery(new Obd2DeviceId(deviceId));
+        var query = new GetTelemetrySnapshotHistoryQuery(new Obd2DeviceId(deviceId), page, size);
         var list = telemetryQueryService.handle(query);
         var resources = list.stream()
                 .map(TelemetrySnapshotResourceFromAggregateAssembler::toResourceFromAggregate)

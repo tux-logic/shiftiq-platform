@@ -182,9 +182,14 @@ public class VehiclesController {
 
     @GetMapping("/{vehicleId}/telemetry-snapshots")
     @Operation(summary = "Get historical telemetry snapshots for vehicle", description = "Retrieves all telemetry snapshots captured for the vehicle since its active registration start date")
-    public ResponseEntity<List<TelemetrySnapshotResource>> getVehicleTelemetrySnapshots(@PathVariable UUID vehicleId, Authentication authentication) {
+    public ResponseEntity<List<TelemetrySnapshotResource>> getVehicleTelemetrySnapshots(
+            @PathVariable UUID vehicleId,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size,
+            Authentication authentication
+    ) {
         validateVehicleAccess(vehicleId, authentication);
-        var query = new GetVehicleTelemetrySnapshotHistoryQuery(new VehicleId(vehicleId));
+        var query = new GetVehicleTelemetrySnapshotHistoryQuery(new VehicleId(vehicleId), page, size);
         var list = telemetryQueryService.handle(query);
         var resources = list.stream()
                 .map(TelemetrySnapshotResourceFromAggregateAssembler::toResourceFromAggregate)
@@ -194,9 +199,14 @@ public class VehiclesController {
 
     @GetMapping("/{vehicleId}/dtc-alerts")
     @Operation(summary = "Get historical DTC alerts for vehicle", description = "Retrieves all DTC/motor alerts captured for the vehicle since its active registration start date")
-    public ResponseEntity<List<DtcAlertResource>> getVehicleDtcAlerts(@PathVariable UUID vehicleId, Authentication authentication) {
+    public ResponseEntity<List<DtcAlertResource>> getVehicleDtcAlerts(
+            @PathVariable UUID vehicleId,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size,
+            Authentication authentication
+    ) {
         validateVehicleAccess(vehicleId, authentication);
-        var query = new GetVehicleDtcAlertHistoryQuery(new VehicleId(vehicleId));
+        var query = new GetVehicleDtcAlertHistoryQuery(new VehicleId(vehicleId), page, size);
         var list = dtcAlertQueryService.handle(query);
         var resources = list.stream()
                 .map(DtcAlertResourceFromAggregateAssembler::toResourceFromAggregate)

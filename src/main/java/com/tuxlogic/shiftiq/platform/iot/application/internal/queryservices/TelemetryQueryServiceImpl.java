@@ -49,14 +49,14 @@ public class TelemetryQueryServiceImpl implements TelemetryQueryService {
     public List<TelemetrySnapshot> handle(GetTelemetrySnapshotHistoryQuery query) {
         return obd2DeviceRegistrationRepository
                 .findActiveByObd2DeviceId(query.obd2DeviceId())
-                .map(registration -> telemetrySnapshotRepository.findAllByRegistrationId(registration.getId()))
+                .map(registration -> telemetrySnapshotRepository.findAllByRegistrationId(registration.getId(), query.page(), query.size()))
                 .orElse(Collections.emptyList());
     }
 
     @Override
     @Transactional(readOnly = true)
     public List<TelemetrySnapshot> handle(GetTelemetrySnapshotsByRegistrationIdQuery query) {
-        return telemetrySnapshotRepository.findAllByRegistrationId(query.obd2DeviceRegistrationId());
+        return telemetrySnapshotRepository.findAllByRegistrationId(query.obd2DeviceRegistrationId(), query.page(), query.size());
     }
 
     @Override
@@ -77,7 +77,9 @@ public class TelemetryQueryServiceImpl implements TelemetryQueryService {
 
         return telemetrySnapshotRepository.findAllByRegistrationIdAndCreatedAtGreaterThanEqual(
                 activeObd2Reg.getId(),
-                startTimestamp
+                startTimestamp,
+                query.page(),
+                query.size()
         );
     }
 }

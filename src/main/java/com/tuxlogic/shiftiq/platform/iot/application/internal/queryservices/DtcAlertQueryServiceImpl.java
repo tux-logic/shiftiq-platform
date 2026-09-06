@@ -36,7 +36,7 @@ public class DtcAlertQueryServiceImpl implements DtcAlertQueryService {
     @Override
     @Transactional(readOnly = true)
     public List<DtcAlert> handle(GetDtcAlertsByRegistrationIdQuery query) {
-        return dtcAlertRepository.findAllByRegistrationId(query.obd2DeviceRegistrationId());
+        return dtcAlertRepository.findAllByRegistrationId(query.obd2DeviceRegistrationId(), query.page(), query.size());
     }
 
     @Override
@@ -57,7 +57,9 @@ public class DtcAlertQueryServiceImpl implements DtcAlertQueryService {
 
         return dtcAlertRepository.findAllByRegistrationIdAndCreatedAtGreaterThanEqual(
                 activeObd2Reg.getId(),
-                startTimestamp
+                startTimestamp,
+                query.page(),
+                query.size()
         );
     }
 }

@@ -27,8 +27,17 @@ public interface DtcAlertRepository {
 
     List<DtcAlert> findAllByRegistrationId(Obd2DeviceRegistrationId registrationId);
 
+    List<DtcAlert> findAllByRegistrationId(Obd2DeviceRegistrationId registrationId, int page, int size);
+
     List<DtcAlert> findAllByRegistrationIdAndCreatedAtGreaterThanEqual(
             Obd2DeviceRegistrationId registrationId,
             Instant startTimestamp
+    );
+
+    List<DtcAlert> findAllByRegistrationIdAndCreatedAtGreaterThanEqual(
+            Obd2DeviceRegistrationId registrationId,
+            Instant startTimestamp,
+            int page,
+            int size
     );
 }

@@ -7,8 +7,14 @@ import com.tuxlogic.shiftiq.platform.shared.domain.model.valueobjects.VehicleId;
  * starting from the start of its active registration/linking.
  */
 public record GetVehicleTelemetrySnapshotHistoryQuery(
-        VehicleId vehicleId
+        VehicleId vehicleId,
+        int page,
+        int size
 ) {
+    public GetVehicleTelemetrySnapshotHistoryQuery(VehicleId vehicleId) {
+        this(vehicleId, 0, 20);
+    }
+
     public GetVehicleTelemetrySnapshotHistoryQuery {
         if (vehicleId == null) {
             throw new IllegalArgumentException("vehicleId cannot be null");
