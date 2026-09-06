@@ -10,7 +10,7 @@ import com.tuxlogic.shiftiq.platform.core.infrastructure.persistence.jpa.entitie
 
 public final class OwnerPersistenceAssembler {
 
-    public OwnerPersistenceAssembler() {}
+    private OwnerPersistenceAssembler() {}
 
     public static OwnerPersistenceEntity toEntity(Owner owner, OwnerPersistenceEntity entity) {
         if (entity == null) {

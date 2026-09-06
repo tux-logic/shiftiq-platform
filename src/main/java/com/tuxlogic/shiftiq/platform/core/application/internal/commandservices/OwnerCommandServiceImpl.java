@@ -6,12 +6,16 @@ import com.tuxlogic.shiftiq.platform.core.domain.model.commands.CreateOwnerComma
 import com.tuxlogic.shiftiq.platform.core.domain.model.commands.DeleteOwnerCommand;
 import com.tuxlogic.shiftiq.platform.core.domain.model.commands.UpdateOwnerCommand;
 import com.tuxlogic.shiftiq.platform.core.domain.repositories.OwnerRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import java.util.Optional;
 
 @Service
 public class OwnerCommandServiceImpl implements OwnerCommandService {
+
+    private static final Logger log = LoggerFactory.getLogger(OwnerCommandServiceImpl.class);
 
     private final OwnerRepository ownerRepository;
 
@@ -33,6 +37,7 @@ public class OwnerCommandServiceImpl implements OwnerCommandService {
         );
 
         var savedOwner = ownerRepository.save(owner);
+        log.info("Created Owner profile ID '{}' for user ID '{}'", savedOwner.getId().value(), command.userId().value());
         return Optional.of(savedOwner);
     }
 
@@ -50,6 +55,7 @@ public class OwnerCommandServiceImpl implements OwnerCommandService {
         );
 
         var savedOwner = ownerRepository.save(owner);
+        log.info("Updated Owner profile ID '{}'", savedOwner.getId().value());
         return Optional.of(savedOwner);
     }
 
@@ -61,5 +67,6 @@ public class OwnerCommandServiceImpl implements OwnerCommandService {
         }
         
         ownerRepository.delete(existingOwner.get());
+        log.info("Deleted Owner profile ID '{}'", command.ownerId().value());
     }
 }

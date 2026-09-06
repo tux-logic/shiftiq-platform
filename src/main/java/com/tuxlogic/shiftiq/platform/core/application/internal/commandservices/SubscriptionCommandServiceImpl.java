@@ -41,11 +41,11 @@ public class SubscriptionCommandServiceImpl implements SubscriptionCommandServic
         }
 
         planRepository.findById(command.planId())
-                .orElseThrow(() -> new IllegalArgumentException("Subscription plan does not exist."));
+                .orElseThrow(() -> new IllegalArgumentException("core.error.subscriptionPlan.notFound"));
 
         // Mock Payment Processing
         if (command.creditCard() != null && command.creditCard().cardNumber() != null && !command.creditCard().cardNumber().isBlank()) {
-            log.info("Simulating payment processing via Stripe for card ending in {}", 
+            log.info("Simulating payment processing via Payment Gateway for card ending in {}", 
                 command.creditCard().cardNumber().substring(Math.max(0, command.creditCard().cardNumber().length() - 4)));
             log.info("Payment successful for Branch ID: {}", command.branchId());
         }

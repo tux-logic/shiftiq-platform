@@ -10,7 +10,7 @@ import com.tuxlogic.shiftiq.platform.core.infrastructure.persistence.jpa.entitie
 
 public final class EmployeePersistenceAssembler {
 
-    public EmployeePersistenceAssembler() {}
+    private EmployeePersistenceAssembler() {}
 
     public static EmployeePersistenceEntity toEntity(Employee employee, EmployeePersistenceEntity entity) {
         if (entity == null) {

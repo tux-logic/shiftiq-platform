@@ -5,13 +5,16 @@ import com.tuxlogic.shiftiq.platform.core.domain.model.aggregates.Branch;
 import com.tuxlogic.shiftiq.platform.core.domain.model.commands.CreateBranchCommand;
 import com.tuxlogic.shiftiq.platform.core.domain.model.commands.UpdateBranchCommand;
 import com.tuxlogic.shiftiq.platform.core.domain.repositories.BranchRepository;
-import com.tuxlogic.shiftiq.platform.core.domain.repositories.WorkshopRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import java.util.Optional;
 
 @Service
 public class BranchCommandServiceImpl implements BranchCommandService {
+
+    private static final Logger log = LoggerFactory.getLogger(BranchCommandServiceImpl.class);
 
     private final BranchRepository branchRepository;
     private final WorkshopRepository workshopRepository;
@@ -40,6 +43,7 @@ public class BranchCommandServiceImpl implements BranchCommandService {
         );
 
         var savedBranch = branchRepository.save(branch);
+        log.info("Created Branch ID '{}' for workshop ID '{}'", savedBranch.getId().value(), command.workshopId().value());
         return Optional.of(savedBranch);
     }
 
@@ -62,6 +66,7 @@ public class BranchCommandServiceImpl implements BranchCommandService {
         );
 
         var savedBranch = branchRepository.save(branch);
+        log.info("Updated Branch ID '{}'", savedBranch.getId().value());
         return Optional.of(savedBranch);
     }
 }

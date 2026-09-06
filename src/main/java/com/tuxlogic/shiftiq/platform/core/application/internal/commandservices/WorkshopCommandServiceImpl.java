@@ -6,12 +6,16 @@ import com.tuxlogic.shiftiq.platform.core.domain.model.commands.CreateWorkshopCo
 import com.tuxlogic.shiftiq.platform.core.domain.model.commands.UpdateWorkshopCommand;
 import com.tuxlogic.shiftiq.platform.core.domain.repositories.OwnerRepository;
 import com.tuxlogic.shiftiq.platform.core.domain.repositories.WorkshopRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import java.util.Optional;
 
 @Service
 public class WorkshopCommandServiceImpl implements WorkshopCommandService {
+
+    private static final Logger log = LoggerFactory.getLogger(WorkshopCommandServiceImpl.class);
 
     private final WorkshopRepository workshopRepository;
     private final OwnerRepository ownerRepository;
@@ -36,6 +40,7 @@ public class WorkshopCommandServiceImpl implements WorkshopCommandService {
         );
 
         var savedWorkshop = workshopRepository.save(workshop);
+        log.info("Created Workshop ID '{}' for owner ID '{}'", savedWorkshop.getId().value(), command.ownerId().value());
         return Optional.of(savedWorkshop);
     }
 
@@ -53,6 +58,7 @@ public class WorkshopCommandServiceImpl implements WorkshopCommandService {
         );
 
         var savedWorkshop = workshopRepository.save(workshop);
+        log.info("Updated Workshop ID '{}'", savedWorkshop.getId().value());
         return Optional.of(savedWorkshop);
     }
 }

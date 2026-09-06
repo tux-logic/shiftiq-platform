@@ -5,6 +5,8 @@ import com.tuxlogic.shiftiq.platform.core.domain.model.queries.GetProfileRolesBy
 import com.tuxlogic.shiftiq.platform.core.domain.repositories.CustomerRepository;
 import com.tuxlogic.shiftiq.platform.core.domain.repositories.EmployeeRepository;
 import com.tuxlogic.shiftiq.platform.core.domain.repositories.OwnerRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import com.tuxlogic.shiftiq.platform.core.domain.model.queries.GetProfileByDocumentNumberQuery;
@@ -16,6 +18,12 @@ import java.util.Optional;
 
 @Service
 public class ProfileQueryServiceImpl implements ProfileQueryService {
+
+    private static final Logger log = LoggerFactory.getLogger(ProfileQueryServiceImpl.class);
+
+    public static final String ROLE_CUSTOMER = "CUSTOMER";
+    public static final String ROLE_OWNER = "OWNER";
+    public static final String ROLE_EMPLOYEE = "EMPLOYEE";
 
     private final CustomerRepository customerRepository;
     private final OwnerRepository ownerRepository;
@@ -32,16 +40,17 @@ public class ProfileQueryServiceImpl implements ProfileQueryService {
 
     @Override
     public List<String> handle(GetProfileRolesByUserIdQuery query) {
+        log.debug("Fetching profile roles for user ID: {}", query.userId());
         List<String> roles = new ArrayList<>();
 
         if (customerRepository.existsByUserId(query.userId())) {
-            roles.add("CUSTOMER");
+            roles.add(ROLE_CUSTOMER);
         }
         if (ownerRepository.existsByUserId(query.userId())) {
-            roles.add("OWNER");
+            roles.add(ROLE_OWNER);
         }
         if (employeeRepository.existsByUserId(query.userId())) {
-            roles.add("EMPLOYEE");
+            roles.add(ROLE_EMPLOYEE);
         }
 
         return roles;
@@ -49,24 +58,25 @@ public class ProfileQueryServiceImpl implements ProfileQueryService {
 
     @Override
     public Optional<ProfileSummary> handle(GetProfileByDocumentNumberQuery query) {
+        log.debug("Searching profile by document number: {}", query.documentNumber());
         var customer = customerRepository.findByDocumentNumber(query.documentNumber());
         if (customer.isPresent()) {
             var c = customer.get();
             String firstName = c.getName() != null ? c.getName().firstName() : c.getBusinessName();
             String lastName = c.getName() != null ? c.getName().lastName() : "";
-            return Optional.of(new ProfileSummary(c.getId().value(), c.getUserId().value(), firstName, lastName, c.getDocument().getDocumentType().name(), c.getDocument().getDocumentNumber(), "CUSTOMER"));
+            return Optional.of(new ProfileSummary(c.getId().value(), c.getUserId().value(), firstName, lastName, c.getDocument().getDocumentType().name(), c.getDocument().getDocumentNumber(), ROLE_CUSTOMER));
         }
 
         var employee = employeeRepository.findByDocumentNumber(query.documentNumber());
         if (employee.isPresent()) {
             var e = employee.get();
-            return Optional.of(new ProfileSummary(e.getId().value(), e.getUserId().value(), e.getName().firstName(), e.getName().lastName(), e.getDocument().getDocumentType().name(), e.getDocument().getDocumentNumber(), "EMPLOYEE"));
+            return Optional.of(new ProfileSummary(e.getId().value(), e.getUserId().value(), e.getName().firstName(), e.getName().lastName(), e.getDocument().getDocumentType().name(), e.getDocument().getDocumentNumber(), ROLE_EMPLOYEE));
         }
 
         var owner = ownerRepository.findByDocumentNumber(query.documentNumber());
         if (owner.isPresent()) {
             var o = owner.get();
-            return Optional.of(new ProfileSummary(o.getId().value(), o.getUserId().value(), o.getName().firstName(), o.getName().lastName(), o.getDocument().getDocumentType().name(), o.getDocument().getDocumentNumber(), "OWNER"));
+            return Optional.of(new ProfileSummary(o.getId().value(), o.getUserId().value(), o.getName().firstName(), o.getName().lastName(), o.getDocument().getDocumentType().name(), o.getDocument().getDocumentNumber(), ROLE_OWNER));
         }
 
         return Optional.empty();

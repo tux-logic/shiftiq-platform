@@ -8,7 +8,7 @@ import com.tuxlogic.shiftiq.platform.core.infrastructure.persistence.jpa.entitie
 
 public final class WorkshopPersistenceAssembler {
 
-    public WorkshopPersistenceAssembler() {}
+    private WorkshopPersistenceAssembler() {}
 
     public static WorkshopPersistenceEntity toEntity(Workshop workshop, WorkshopPersistenceEntity entity) {
         if (entity == null) {
