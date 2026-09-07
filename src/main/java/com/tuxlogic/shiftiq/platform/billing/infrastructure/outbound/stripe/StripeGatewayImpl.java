@@ -4,7 +4,6 @@ import com.stripe.Stripe;
 import com.stripe.exception.StripeException;
 import com.stripe.model.PaymentIntent;
 import com.stripe.param.PaymentIntentCreateParams;
-import com.tuxlogic.shiftiq.platform.billing.application.outboundservices.PaymentGateway;
 import com.tuxlogic.shiftiq.platform.billing.application.outboundservices.PaymentIntentResult;
 import com.tuxlogic.shiftiq.platform.billing.application.outboundservices.StripeGateway;
 import com.tuxlogic.shiftiq.platform.billing.application.outboundservices.StripePaymentIntentResult;
@@ -21,7 +20,7 @@ import java.util.Optional;
  * Adapter connecting to the official Stripe API via the stripe-java SDK.
  */
 @Service
-public class StripeGatewayImpl implements StripeGateway, PaymentGateway {
+public class StripeGatewayImpl implements StripeGateway {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(StripeGatewayImpl.class);
 

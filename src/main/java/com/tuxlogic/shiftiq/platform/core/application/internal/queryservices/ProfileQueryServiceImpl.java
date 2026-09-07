@@ -14,11 +14,8 @@ import com.tuxlogic.shiftiq.platform.core.domain.model.queries.responses.Profile
 
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
-
-import java.util.concurrent.CompletableFuture;
 
 @Service
 @Transactional(readOnly = true)
