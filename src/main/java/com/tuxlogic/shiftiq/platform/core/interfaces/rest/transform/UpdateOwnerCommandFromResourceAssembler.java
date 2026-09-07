@@ -9,7 +9,10 @@ import com.tuxlogic.shiftiq.platform.core.interfaces.rest.resources.UpdateOwnerR
 
 import java.util.UUID;
 
-public class UpdateOwnerCommandFromResourceAssembler {
+public final class UpdateOwnerCommandFromResourceAssembler {
+
+    private UpdateOwnerCommandFromResourceAssembler() {}
+
     public static UpdateOwnerCommand toCommandFromResource(UUID ownerId, UpdateOwnerResource resource) {
         return new UpdateOwnerCommand(
                 new OwnerId(ownerId),

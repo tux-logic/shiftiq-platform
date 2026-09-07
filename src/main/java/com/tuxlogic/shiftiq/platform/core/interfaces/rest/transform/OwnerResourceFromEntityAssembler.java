@@ -3,7 +3,10 @@ package com.tuxlogic.shiftiq.platform.core.interfaces.rest.transform;
 import com.tuxlogic.shiftiq.platform.core.domain.model.aggregates.Owner;
 import com.tuxlogic.shiftiq.platform.core.interfaces.rest.resources.OwnerResource;
 
-public class OwnerResourceFromEntityAssembler {
+public final class OwnerResourceFromEntityAssembler {
+
+    private OwnerResourceFromEntityAssembler() {}
+
     public static OwnerResource toResourceFromEntity(Owner entity) {
         return new OwnerResource(
                 entity.getId() != null ? entity.getId().value() : null,

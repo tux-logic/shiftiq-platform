@@ -12,4 +12,9 @@ public record UpdateCustomerCommand(
         Document document,
         Phone phone
 ) {
+    public UpdateCustomerCommand {
+        if (customerId == null) throw new IllegalArgumentException("core.error.customerId.required");
+        if (document == null) throw new IllegalArgumentException("core.error.document.required");
+        if (phone == null) throw new IllegalArgumentException("core.error.phone.required");
+    }
 }

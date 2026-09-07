@@ -8,7 +8,10 @@ import com.tuxlogic.shiftiq.platform.shared.domain.model.valueobjects.Address;
 
 import java.util.UUID;
 
-public class UpdateBranchCommandFromResourceAssembler {
+public final class UpdateBranchCommandFromResourceAssembler {
+
+    private UpdateBranchCommandFromResourceAssembler() {}
+
     public static UpdateBranchCommand toCommandFromResource(UUID id, UpdateBranchResource resource) {
         return new UpdateBranchCommand(
                 new BranchId(id),

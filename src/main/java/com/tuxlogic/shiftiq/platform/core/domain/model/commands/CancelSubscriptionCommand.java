@@ -5,5 +5,8 @@ import com.tuxlogic.shiftiq.platform.shared.domain.model.valueobjects.BranchId;
 public record CancelSubscriptionCommand(
         BranchId branchId
 ) {
+    public CancelSubscriptionCommand {
+        if (branchId == null) throw new IllegalArgumentException("core.error.branchId.required");
+    }
 }
 

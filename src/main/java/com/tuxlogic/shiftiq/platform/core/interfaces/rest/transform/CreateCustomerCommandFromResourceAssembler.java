@@ -7,7 +7,10 @@ import com.tuxlogic.shiftiq.platform.core.domain.model.valueobjects.Phone;
 import com.tuxlogic.shiftiq.platform.core.domain.model.valueobjects.UserId;
 import com.tuxlogic.shiftiq.platform.core.interfaces.rest.resources.CreateCustomerResource;
 
-public class CreateCustomerCommandFromResourceAssembler {
+public final class CreateCustomerCommandFromResourceAssembler {
+
+    private CreateCustomerCommandFromResourceAssembler() {}
+
     public static CreateCustomerCommand toCommandFromResource(CreateCustomerResource resource) {
         return new CreateCustomerCommand(
                 new UserId(resource.userId()),

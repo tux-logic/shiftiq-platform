@@ -9,9 +9,11 @@ import com.tuxlogic.shiftiq.platform.core.infrastructure.persistence.jpa.entitie
 import com.tuxlogic.shiftiq.platform.core.infrastructure.persistence.jpa.repositories.CustomerPersistenceRepository;
 
 import org.springframework.stereotype.Repository;
+import org.springframework.transaction.annotation.Transactional;
 import java.util.Optional;
 
 @Repository
+@Transactional(readOnly = true)
 public class CustomerRepositoryImpl implements CustomerRepository {
 
     private final CustomerPersistenceRepository customerPersistenceRepository;
@@ -21,17 +23,15 @@ public class CustomerRepositoryImpl implements CustomerRepository {
     }
 
     @Override
+    @Transactional
     public Customer save(Customer customer) {
-        CustomerPersistenceEntity entity;
-        if (customer.getId() != null) {
-            entity = customerPersistenceRepository.findById(customer.getId().value()).orElse(new CustomerPersistenceEntity());
-        } else {
-            entity = new CustomerPersistenceEntity();
-        }
-        
+        var entity = JpaAdapterUtils.resolveEntity(
+                customer.getId() != null ? customer.getId().value() : null,
+                customerPersistenceRepository::findById,
+                CustomerPersistenceEntity::new
+        );
         CustomerPersistenceAssembler.toEntity(customer, entity);
-        CustomerPersistenceEntity savedEntity = customerPersistenceRepository.save(entity);
-        return CustomerPersistenceAssembler.toDomain(savedEntity);
+        return CustomerPersistenceAssembler.toDomain(customerPersistenceRepository.save(entity));
     }
 
     @Override
@@ -55,10 +55,20 @@ public class CustomerRepositoryImpl implements CustomerRepository {
     }
 
     @Override
-    public void delete(Customer customer) {
-        if (customer.getId() != null) {
-            customerPersistenceRepository.findById(customer.getId().value()).ifPresent(customerPersistenceRepository::delete);
+    public java.util.List<String> findProfileRolesByUserId(UserId userId) {
+        if (userId == null || userId.value() == null) {
+            return java.util.Collections.emptyList();
         }
+        return customerPersistenceRepository.findProfileRolesByUserId(userId.value());
+    }
+
+    @Override
+    @Transactional
+    public void delete(Customer customer) {
+        if (customer == null || customer.getId() == null) {
+            throw new IllegalArgumentException("Customer or Customer ID cannot be null for deletion");
+        }
+        customerPersistenceRepository.deleteById(customer.getId().value());
     }
 }
 

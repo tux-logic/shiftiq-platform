@@ -6,6 +6,5 @@ import org.springframework.security.core.Authentication;
 
 public interface BearerTokenService extends TokenService {
     String getBearerTokenFrom(HttpServletRequest request);
-    @SuppressWarnings("unused")
     String generateToken(Authentication authentication);
 }

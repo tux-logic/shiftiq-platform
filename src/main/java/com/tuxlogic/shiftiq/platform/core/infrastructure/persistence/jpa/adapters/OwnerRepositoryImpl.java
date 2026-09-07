@@ -9,9 +9,11 @@ import com.tuxlogic.shiftiq.platform.core.infrastructure.persistence.jpa.entitie
 import com.tuxlogic.shiftiq.platform.core.infrastructure.persistence.jpa.repositories.OwnerPersistenceRepository;
 
 import org.springframework.stereotype.Repository;
+import org.springframework.transaction.annotation.Transactional;
 import java.util.Optional;
 
 @Repository
+@Transactional(readOnly = true)
 public class OwnerRepositoryImpl implements OwnerRepository {
 
     private final OwnerPersistenceRepository ownerPersistenceRepository;
@@ -21,17 +23,15 @@ public class OwnerRepositoryImpl implements OwnerRepository {
     }
 
     @Override
+    @Transactional
     public Owner save(Owner owner) {
-        OwnerPersistenceEntity entity;
-        if (owner.getId() != null) {
-            entity = ownerPersistenceRepository.findById(owner.getId().value()).orElse(new OwnerPersistenceEntity());
-        } else {
-            entity = new OwnerPersistenceEntity();
-        }
-        
+        var entity = JpaAdapterUtils.resolveEntity(
+                owner.getId() != null ? owner.getId().value() : null,
+                ownerPersistenceRepository::findById,
+                OwnerPersistenceEntity::new
+        );
         OwnerPersistenceAssembler.toEntity(owner, entity);
-        OwnerPersistenceEntity savedEntity = ownerPersistenceRepository.save(entity);
-        return OwnerPersistenceAssembler.toDomain(savedEntity);
+        return OwnerPersistenceAssembler.toDomain(ownerPersistenceRepository.save(entity));
     }
 
     @Override
@@ -60,9 +60,11 @@ public class OwnerRepositoryImpl implements OwnerRepository {
     }
 
     @Override
+    @Transactional
     public void delete(Owner owner) {
-        if (owner.getId() != null) {
-            ownerPersistenceRepository.findById(owner.getId().value()).ifPresent(ownerPersistenceRepository::delete);
+        if (owner == null || owner.getId() == null) {
+            throw new IllegalArgumentException("Owner or Owner ID cannot be null for deletion");
         }
+        ownerPersistenceRepository.deleteById(owner.getId().value());
     }
 }

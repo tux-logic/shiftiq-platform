@@ -6,7 +6,7 @@ import com.tuxlogic.shiftiq.platform.core.infrastructure.persistence.jpa.entitie
 
 public final class SubscriptionPlanPersistenceAssembler {
 
-    public SubscriptionPlanPersistenceAssembler() {}
+    private SubscriptionPlanPersistenceAssembler() {}
 
     public static SubscriptionPlanPersistenceEntity toEntity(SubscriptionPlan subscriptionPlan, SubscriptionPlanPersistenceEntity entity) {
         if (entity == null) {

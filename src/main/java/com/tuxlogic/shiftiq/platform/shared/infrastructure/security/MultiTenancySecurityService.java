@@ -24,6 +24,10 @@ public class MultiTenancySecurityService {
         }
         Object principal = authentication.getPrincipal();
         if (principal instanceof UserDetailsImpl userDetails) {
+            if (userDetails.getAuthorities().stream()
+                    .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN") || a.getAuthority().equals("ROLE_OWNER"))) {
+                return true;
+            }
             return userDetails.getBranchIds() != null && userDetails.getBranchIds().contains(branchId);
         }
         return false;
@@ -32,6 +36,31 @@ public class MultiTenancySecurityService {
     public void validateBranchAccess(UUID branchId) {
         if (!isAuthorizedForBranch(branchId)) {
             throw new AccessDeniedException("Unauthorized access for requested branch identifier: " + branchId);
+        }
+    }
+
+    public boolean isAuthorizedForUser(UUID userId) {
+        if (userId == null) {
+            return true;
+        }
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null || !authentication.isAuthenticated()) {
+            return false;
+        }
+        Object principal = authentication.getPrincipal();
+        if (principal instanceof UserDetailsImpl userDetails) {
+            if (userDetails.getId().equals(userId)) {
+                return true;
+            }
+            return userDetails.getAuthorities().stream()
+                    .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN") || a.getAuthority().equals("ROLE_OWNER"));
+        }
+        return false;
+    }
+
+    public void validateUserAccess(UUID userId) {
+        if (!isAuthorizedForUser(userId)) {
+            throw new AccessDeniedException("Unauthorized access for requested user identifier: " + userId);
         }
     }
 }

@@ -6,6 +6,8 @@ import com.tuxlogic.shiftiq.platform.shared.domain.model.valueobjects.BranchId;
 import com.tuxlogic.shiftiq.platform.shared.domain.model.valueobjects.Address;
 import com.tuxlogic.shiftiq.platform.shared.domain.model.aggregates.AbstractDomainAggregateRoot;
 
+import com.tuxlogic.shiftiq.platform.core.domain.model.events.BranchCreatedEvent;
+
 import lombok.Getter;
 
 import java.time.Instant;
@@ -53,6 +55,7 @@ public class Branch extends AbstractDomainAggregateRoot<Branch> {
         this.name = name;
         this.address = address;
         this.phone = phone;
+        this.registerDomainEvent(new BranchCreatedEvent(this, this.id.value(), this.workshopId != null ? this.workshopId.value() : null));
     }
 
     public void update(String code, String name, Address address, Phone phone) {
@@ -63,6 +66,7 @@ public class Branch extends AbstractDomainAggregateRoot<Branch> {
         this.name = name;
         this.address = address;
         this.phone = phone;
+        this.registerDomainEvent(new com.tuxlogic.shiftiq.platform.core.domain.model.events.BranchUpdatedEvent(this, this.id.value()));
     }
 }
 

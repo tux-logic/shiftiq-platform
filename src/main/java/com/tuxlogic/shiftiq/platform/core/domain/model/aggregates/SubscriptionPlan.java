@@ -1,13 +1,14 @@
 package com.tuxlogic.shiftiq.platform.core.domain.model.aggregates;
 
 import com.tuxlogic.shiftiq.platform.core.domain.model.valueobjects.SubscriptionPlanId;
+import com.tuxlogic.shiftiq.platform.shared.domain.model.aggregates.AbstractDomainAggregateRoot;
 
 import lombok.Getter;
 
 import java.util.UUID;
 
 @Getter
-public class SubscriptionPlan {
+public class SubscriptionPlan extends AbstractDomainAggregateRoot<SubscriptionPlan> {
 
     private SubscriptionPlanId id;
     private String name;

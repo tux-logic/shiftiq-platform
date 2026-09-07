@@ -4,7 +4,6 @@ import com.tuxlogic.shiftiq.platform.shared.infrastructure.persistence.jpa.entit
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Table;
-import jakarta.persistence.Version;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
@@ -50,7 +49,4 @@ public class EmployeePersistenceEntity extends AuditableAbstractPersistenceEntit
 
     @Column(name = "deleted_at")
     private Instant deletedAt;
-
-    @Version
-    private Long version;
 }

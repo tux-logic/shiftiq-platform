@@ -11,4 +11,10 @@ public record UpdateEmployeeCommand(
         Document document,
         Phone phone
 ) {
+    public UpdateEmployeeCommand {
+        if (employeeId == null) throw new IllegalArgumentException("core.error.employeeId.required");
+        if (name == null) throw new IllegalArgumentException("core.error.personName.required");
+        if (document == null) throw new IllegalArgumentException("core.error.document.required");
+        if (phone == null) throw new IllegalArgumentException("core.error.phone.required");
+    }
 }

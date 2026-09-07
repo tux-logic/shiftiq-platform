@@ -6,12 +6,16 @@ import com.tuxlogic.shiftiq.platform.core.domain.model.commands.CreateOwnerComma
 import com.tuxlogic.shiftiq.platform.core.domain.model.commands.DeleteOwnerCommand;
 import com.tuxlogic.shiftiq.platform.core.domain.model.commands.UpdateOwnerCommand;
 import com.tuxlogic.shiftiq.platform.core.domain.repositories.OwnerRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import java.util.Optional;
 
 @Service
 public class OwnerCommandServiceImpl implements OwnerCommandService {
+
+    private static final Logger log = LoggerFactory.getLogger(OwnerCommandServiceImpl.class);
 
     private final OwnerRepository ownerRepository;
 
@@ -33,15 +37,14 @@ public class OwnerCommandServiceImpl implements OwnerCommandService {
         );
 
         var savedOwner = ownerRepository.save(owner);
+        log.info("Created Owner profile ID '{}' for user ID '{}'", savedOwner.getId().value(), command.userId().value());
         return Optional.of(savedOwner);
     }
 
     @Override
     public Optional<Owner> handle(UpdateOwnerCommand command) {
-        var result = ownerRepository.findById(command.ownerId());
-        if (result.isEmpty()) throw new IllegalArgumentException("core.error.owner.notFound");
-
-        var owner = result.get();
+        var owner = ownerRepository.findById(command.ownerId())
+                .orElseThrow(() -> new IllegalArgumentException("core.error.owner.notFound"));
         
         owner.update(
             command.name(),
@@ -50,16 +53,16 @@ public class OwnerCommandServiceImpl implements OwnerCommandService {
         );
 
         var savedOwner = ownerRepository.save(owner);
+        log.info("Updated Owner profile ID '{}'", savedOwner.getId().value());
         return Optional.of(savedOwner);
     }
 
     @Override
     public void handle(DeleteOwnerCommand command) {
-        var existingOwner = ownerRepository.findById(command.ownerId());
-        if (existingOwner.isEmpty()) {
-            throw new IllegalArgumentException("core.error.owner.notFound");
-        }
+        var existingOwner = ownerRepository.findById(command.ownerId())
+                .orElseThrow(() -> new IllegalArgumentException("core.error.owner.notFound"));
         
-        ownerRepository.delete(existingOwner.get());
+        ownerRepository.delete(existingOwner);
+        log.info("Deleted Owner profile ID '{}'", command.ownerId().value());
     }
 }
