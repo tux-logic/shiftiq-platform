@@ -46,6 +46,7 @@ public class WorkshopsController {
 
     @Operation(summary = "Create a new workshop", description = "Creates a new workshop")
     @PostMapping
+    @PreAuthorize("isAuthenticated() and @multiTenancySecurityService.isAuthorizedForUser(#resource.ownerId())")
     public ResponseEntity<WorkshopResource> createWorkshop(@Valid @RequestBody CreateWorkshopResource resource) {
         multiTenancySecurityService.validateUserAccess(resource.ownerId());
         var command = CreateWorkshopCommandFromResourceAssembler.toCommandFromResource(resource);
