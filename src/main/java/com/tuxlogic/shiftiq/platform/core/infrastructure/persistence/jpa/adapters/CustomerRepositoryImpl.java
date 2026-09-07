@@ -58,6 +58,14 @@ public class CustomerRepositoryImpl implements CustomerRepository {
     }
 
     @Override
+    public java.util.List<String> findProfileRolesByUserId(UserId userId) {
+        if (userId == null || userId.value() == null) {
+            return java.util.Collections.emptyList();
+        }
+        return customerPersistenceRepository.findProfileRolesByUserId(userId.value());
+    }
+
+    @Override
     @Transactional
     public void delete(Customer customer) {
         if (customer.getId() == null) {

@@ -46,19 +46,7 @@ public class ProfileQueryServiceImpl implements ProfileQueryService {
     @Override
     public List<String> handle(GetProfileRolesByUserIdQuery query) {
         log.debug("Fetching profile roles for user ID: {}", query.userId());
-        List<String> roles = new ArrayList<>();
-
-        if (customerRepository.existsByUserId(query.userId())) {
-            roles.add(ROLE_CUSTOMER);
-        }
-        if (ownerRepository.existsByUserId(query.userId())) {
-            roles.add(ROLE_OWNER);
-        }
-        if (employeeRepository.existsByUserId(query.userId())) {
-            roles.add(ROLE_EMPLOYEE);
-        }
-
-        return roles;
+        return customerRepository.findProfileRolesByUserId(query.userId());
     }
 
     @Override
