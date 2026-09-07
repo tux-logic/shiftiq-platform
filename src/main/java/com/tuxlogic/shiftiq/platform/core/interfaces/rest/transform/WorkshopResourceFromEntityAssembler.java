@@ -14,7 +14,7 @@ public final class WorkshopResourceFromEntityAssembler {
                 entity.getBusinessName(),
                 entity.getBrandName(),
                 entity.getTaxId() != null ? entity.getTaxId().value() : null,
-                entity.getMileageIntervalConfig()
+                entity.getMileageIntervalConfig() != null ? entity.getMileageIntervalConfig().value() : 1
         );
     }
 }

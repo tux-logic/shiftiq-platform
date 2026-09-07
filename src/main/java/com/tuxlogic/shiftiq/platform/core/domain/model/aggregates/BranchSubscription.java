@@ -25,6 +25,19 @@ public class BranchSubscription extends AbstractDomainAggregateRoot<BranchSubscr
 
     public BranchSubscription() {}
 
+    public BranchSubscription(BranchId branchId, SubscriptionPlanId planId, BillingCycle billingCycle) {
+        if (billingCycle == null) throw new IllegalArgumentException("core.error.billingCycle.required");
+
+        this.id = new BranchSubscriptionId(UUID.randomUUID());
+        this.branchId = branchId;
+        this.planId = planId;
+        this.status = SubscriptionStatus.ACTIVE;
+        this.billingCycle = billingCycle;
+        this.startDate = Instant.now();
+        int months = billingCycle == BillingCycle.MONTHLY ? 1 : 12;
+        this.endDate = java.time.LocalDate.now().plusMonths(months).atStartOfDay(java.time.ZoneId.systemDefault()).toInstant();
+    }
+
     public BranchSubscription(BranchId branchId, SubscriptionPlanId planId, BillingCycle billingCycle, Instant startDate, Instant endDate) {
         if (billingCycle == null) throw new IllegalArgumentException("core.error.billingCycle.required");
         if (startDate == null) throw new IllegalArgumentException("core.error.startDate.required");

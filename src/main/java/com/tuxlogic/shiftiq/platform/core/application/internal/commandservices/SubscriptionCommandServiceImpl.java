@@ -62,16 +62,10 @@ public class SubscriptionCommandServiceImpl implements SubscriptionCommandServic
             subscriptionRepository.save(sub);
         });
 
-        Instant startDate = Instant.now();
-        LocalDate localEndDate = LocalDate.now().plusMonths(command.billingCycle().name().equals("MONTHLY") ? 1 : 12);
-        Instant endDate = localEndDate.atStartOfDay(ZoneId.systemDefault()).toInstant();
-
         var newSubscription = new BranchSubscription(
                 command.branchId(),
                 command.planId(),
-                command.billingCycle(),
-                startDate,
-                endDate
+                command.billingCycle()
         );
 
         var savedSubscription = subscriptionRepository.save(newSubscription);

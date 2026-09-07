@@ -5,6 +5,8 @@ import com.tuxlogic.shiftiq.platform.core.domain.model.valueobjects.OwnerId;
 import com.tuxlogic.shiftiq.platform.core.domain.model.valueobjects.TaxId;
 import com.tuxlogic.shiftiq.platform.core.interfaces.rest.resources.CreateWorkshopResource;
 
+import com.tuxlogic.shiftiq.platform.core.domain.model.valueobjects.MileageIntervalConfig;
+
 public final class CreateWorkshopCommandFromResourceAssembler {
 
     private CreateWorkshopCommandFromResourceAssembler() {}
@@ -15,7 +17,7 @@ public final class CreateWorkshopCommandFromResourceAssembler {
                 resource.businessName(),
                 resource.brandName(),
                 new TaxId(resource.taxId()),
-                resource.mileageIntervalConfig()
+                new MileageIntervalConfig(resource.mileageIntervalConfig())
         );
     }
 }

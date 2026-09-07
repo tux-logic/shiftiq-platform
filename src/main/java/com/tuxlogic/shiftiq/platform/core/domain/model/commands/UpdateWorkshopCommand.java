@@ -1,5 +1,6 @@
 package com.tuxlogic.shiftiq.platform.core.domain.model.commands;
 
+import com.tuxlogic.shiftiq.platform.core.domain.model.valueobjects.MileageIntervalConfig;
 import com.tuxlogic.shiftiq.platform.core.domain.model.valueobjects.TaxId;
 import com.tuxlogic.shiftiq.platform.core.domain.model.valueobjects.WorkshopId;
 
@@ -8,10 +9,11 @@ public record UpdateWorkshopCommand(
         String businessName,
         String brandName,
         TaxId taxId,
-        int mileageIntervalConfig
+        MileageIntervalConfig mileageIntervalConfig
 ) {
     public UpdateWorkshopCommand {
         if (businessName == null || businessName.isBlank()) throw new IllegalArgumentException("core.error.businessName.required");
         if (brandName == null || brandName.isBlank()) throw new IllegalArgumentException("core.error.brandName.required");
+        if (mileageIntervalConfig == null) throw new IllegalArgumentException("core.error.mileageIntervalConfig.required");
     }
 }

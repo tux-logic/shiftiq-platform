@@ -111,7 +111,7 @@ public class BranchesController {
         return ResponseEntity.ok(branchResources);
     }
 
-    @Operation(summary = "Simulate payment and assign subscription", description = "Simulates a payment (Mock Stripe) using a dummy credit card and assigns the subscription plan")
+    @Operation(summary = "Simulate payment and assign subscription", description = "Simulates a payment using a dummy credit card and assigns the subscription plan")
     @PostMapping("/{branchId}/subscriptions")
     public ResponseEntity<BranchSubscriptionResource> assignSubscription(
             @PathVariable UUID branchId, 

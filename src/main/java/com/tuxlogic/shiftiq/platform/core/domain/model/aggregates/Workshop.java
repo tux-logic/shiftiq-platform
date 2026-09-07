@@ -12,6 +12,8 @@ import lombok.Getter;
 import java.time.Instant;
 import java.util.UUID;
 
+import com.tuxlogic.shiftiq.platform.core.domain.model.valueobjects.MileageIntervalConfig;
+
 @Getter
 public class Workshop extends AbstractDomainAggregateRoot<Workshop> {
 
@@ -20,20 +22,20 @@ public class Workshop extends AbstractDomainAggregateRoot<Workshop> {
     private String businessName;
     private String brandName;
     private TaxId taxId;
-    private int mileageIntervalConfig;
+    private MileageIntervalConfig mileageIntervalConfig;
     private Instant createdAt;
     private Instant updatedAt;
     private Instant deletedAt;
     private Long version;
 
     public Workshop() {
-        this.mileageIntervalConfig = 1;
+        this.mileageIntervalConfig = new MileageIntervalConfig(1);
     }
 
-    public Workshop(WorkshopId id, OwnerId ownerId, String businessName, String brandName, TaxId taxId, int mileageIntervalConfig, Instant createdAt, Instant updatedAt, Instant deletedAt, Long version) {
+    public Workshop(WorkshopId id, OwnerId ownerId, String businessName, String brandName, TaxId taxId, MileageIntervalConfig mileageIntervalConfig, Instant createdAt, Instant updatedAt, Instant deletedAt, Long version) {
         if (businessName == null || businessName.isBlank()) throw new IllegalArgumentException("core.error.businessName.required");
         if (brandName == null || brandName.isBlank()) throw new IllegalArgumentException("core.error.brandName.required");
-        if (mileageIntervalConfig <= 0) throw new IllegalArgumentException("core.error.mileageIntervalConfig.mustBePositive");
+        if (mileageIntervalConfig == null) throw new IllegalArgumentException("core.error.mileageIntervalConfig.required");
         this.id = id;
         this.ownerId = ownerId;
         this.businessName = businessName;
@@ -46,10 +48,10 @@ public class Workshop extends AbstractDomainAggregateRoot<Workshop> {
         this.version = version;
     }
 
-    public Workshop(OwnerId ownerId, String businessName, String brandName, TaxId taxId, int mileageIntervalConfig) {
+    public Workshop(OwnerId ownerId, String businessName, String brandName, TaxId taxId, MileageIntervalConfig mileageIntervalConfig) {
         if (businessName == null || businessName.isBlank()) throw new IllegalArgumentException("core.error.businessName.required");
         if (brandName == null || brandName.isBlank()) throw new IllegalArgumentException("core.error.brandName.required");
-        if (mileageIntervalConfig <= 0) throw new IllegalArgumentException("core.error.mileageIntervalConfig.mustBePositive");
+        if (mileageIntervalConfig == null) throw new IllegalArgumentException("core.error.mileageIntervalConfig.required");
         this.id = new WorkshopId(UUID.randomUUID());
         this.ownerId = ownerId;
         this.businessName = businessName;
@@ -59,10 +61,10 @@ public class Workshop extends AbstractDomainAggregateRoot<Workshop> {
         this.registerDomainEvent(new WorkshopCreatedEvent(this, this.id.value(), this.ownerId != null ? this.ownerId.value() : null));
     }
 
-    public void update(String businessName, String brandName, TaxId taxId, int mileageIntervalConfig) {
+    public void update(String businessName, String brandName, TaxId taxId, MileageIntervalConfig mileageIntervalConfig) {
         if (businessName == null || businessName.isBlank()) throw new IllegalArgumentException("core.error.businessName.required");
         if (brandName == null || brandName.isBlank()) throw new IllegalArgumentException("core.error.brandName.required");
-        if (mileageIntervalConfig <= 0) throw new IllegalArgumentException("core.error.mileageIntervalConfig.mustBePositive");
+        if (mileageIntervalConfig == null) throw new IllegalArgumentException("core.error.mileageIntervalConfig.required");
 
         this.businessName = businessName;
         this.brandName = brandName;

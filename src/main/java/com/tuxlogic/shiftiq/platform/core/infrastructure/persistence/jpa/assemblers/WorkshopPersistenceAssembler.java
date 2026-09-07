@@ -6,6 +6,8 @@ import com.tuxlogic.shiftiq.platform.core.domain.model.valueobjects.TaxId;
 import com.tuxlogic.shiftiq.platform.core.domain.model.valueobjects.WorkshopId;
 import com.tuxlogic.shiftiq.platform.core.infrastructure.persistence.jpa.entities.WorkshopPersistenceEntity;
 
+import com.tuxlogic.shiftiq.platform.core.domain.model.valueobjects.MileageIntervalConfig;
+
 public final class WorkshopPersistenceAssembler {
 
     private WorkshopPersistenceAssembler() {}
@@ -21,7 +23,7 @@ public final class WorkshopPersistenceAssembler {
         entity.setBusinessName(workshop.getBusinessName());
         entity.setBrandName(workshop.getBrandName());
         entity.setTaxId(workshop.getTaxId() != null ? workshop.getTaxId().value() : null);
-        entity.setMileageIntervalConfig(workshop.getMileageIntervalConfig());
+        entity.setMileageIntervalConfig(workshop.getMileageIntervalConfig() != null ? workshop.getMileageIntervalConfig().value() : 1);
         entity.setCreatedAt(workshop.getCreatedAt());
         entity.setUpdatedAt(workshop.getUpdatedAt());
         entity.setDeletedAt(workshop.getDeletedAt());
@@ -36,7 +38,7 @@ public final class WorkshopPersistenceAssembler {
                 entity.getBusinessName(),
                 entity.getBrandName(),
                 new TaxId(entity.getTaxId()),
-                entity.getMileageIntervalConfig(),
+                new MileageIntervalConfig(entity.getMileageIntervalConfig()),
                 entity.getCreatedAt(),
                 entity.getUpdatedAt(),
                 entity.getDeletedAt(),
