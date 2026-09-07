@@ -47,6 +47,7 @@ public class EmployeesController {
     @Operation(summary = "Create a new employee profile", description = "Creates a new employee profile associated with a user ID")
     @PostMapping
     public ResponseEntity<EmployeeResource> createEmployee(@Valid @RequestBody CreateEmployeeResource resource) {
+        multiTenancySecurityService.validateUserAccess(resource.userId());
         var command = CreateEmployeeCommandFromResourceAssembler.toCommandFromResource(resource);
         var employee = employeeCommandService.handle(command);
         if (employee.isEmpty()) {

@@ -58,6 +58,7 @@ public class BranchesController {
     @Operation(summary = "Create a new branch", description = "Creates a new branch associated with a specific workshop")
     @PostMapping
     public ResponseEntity<BranchResource> createBranch(@Valid @RequestBody CreateBranchResource resource) {
+        multiTenancySecurityService.validateUserAccess(resource.workshopId());
         var command = CreateBranchCommandFromResourceAssembler.toCommandFromResource(resource);
         var branch = branchCommandService.handle(command);
         if (branch.isEmpty()) {

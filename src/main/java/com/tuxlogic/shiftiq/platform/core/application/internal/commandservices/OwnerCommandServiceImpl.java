@@ -43,10 +43,8 @@ public class OwnerCommandServiceImpl implements OwnerCommandService {
 
     @Override
     public Optional<Owner> handle(UpdateOwnerCommand command) {
-        var result = ownerRepository.findById(command.ownerId());
-        if (result.isEmpty()) throw new IllegalArgumentException("core.error.owner.notFound");
-
-        var owner = result.get();
+        var owner = ownerRepository.findById(command.ownerId())
+                .orElseThrow(() -> new IllegalArgumentException("core.error.owner.notFound"));
         
         owner.update(
             command.name(),
@@ -61,12 +59,10 @@ public class OwnerCommandServiceImpl implements OwnerCommandService {
 
     @Override
     public void handle(DeleteOwnerCommand command) {
-        var existingOwner = ownerRepository.findById(command.ownerId());
-        if (existingOwner.isEmpty()) {
-            throw new IllegalArgumentException("core.error.owner.notFound");
-        }
+        var existingOwner = ownerRepository.findById(command.ownerId())
+                .orElseThrow(() -> new IllegalArgumentException("core.error.owner.notFound"));
         
-        ownerRepository.delete(existingOwner.get());
+        ownerRepository.delete(existingOwner);
         log.info("Deleted Owner profile ID '{}'", command.ownerId().value());
     }
 }

@@ -47,6 +47,7 @@ public class WorkshopsController {
     @Operation(summary = "Create a new workshop", description = "Creates a new workshop")
     @PostMapping
     public ResponseEntity<WorkshopResource> createWorkshop(@Valid @RequestBody CreateWorkshopResource resource) {
+        multiTenancySecurityService.validateUserAccess(resource.ownerId());
         var command = CreateWorkshopCommandFromResourceAssembler.toCommandFromResource(resource);
         var workshop = workshopCommandService.handle(command);
         if (workshop.isEmpty()) {

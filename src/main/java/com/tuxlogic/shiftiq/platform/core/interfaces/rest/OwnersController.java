@@ -46,6 +46,7 @@ public class OwnersController {
     @Operation(summary = "Create a new owner profile", description = "Creates a new owner profile associated with a user ID")
     @PostMapping
     public ResponseEntity<OwnerResource> createOwner(@Valid @RequestBody CreateOwnerResource resource) {
+        multiTenancySecurityService.validateUserAccess(resource.userId());
         var command = CreateOwnerCommandFromResourceAssembler.toCommandFromResource(resource);
         var owner = ownerCommandService.handle(command);
         if (owner.isEmpty()) {

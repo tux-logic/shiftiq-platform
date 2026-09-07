@@ -50,10 +50,8 @@ public class BranchCommandServiceImpl implements BranchCommandService {
 
     @Override
     public Optional<Branch> handle(UpdateBranchCommand command) {
-        var result = branchRepository.findById(command.id());
-        if (result.isEmpty()) throw new IllegalArgumentException("core.error.branch.notFound");
-
-        var branch = result.get();
+        var branch = branchRepository.findById(command.id())
+                .orElseThrow(() -> new IllegalArgumentException("core.error.branch.notFound"));
 
         if (!branch.getCode().equals(command.code()) && branchRepository.existsByCode(command.code())) {
             throw new IllegalArgumentException("core.error.branch.codeMustBeUnique");

@@ -46,10 +46,9 @@ public class WorkshopCommandServiceImpl implements WorkshopCommandService {
 
     @Override
     public Optional<Workshop> handle(UpdateWorkshopCommand command) {
-        var result = workshopRepository.findById(command.id());
-        if (result.isEmpty()) throw new IllegalArgumentException("core.error.workshop.notFound");
+        var workshop = workshopRepository.findById(command.id())
+                .orElseThrow(() -> new IllegalArgumentException("core.error.workshop.notFound"));
 
-        var workshop = result.get();
         workshop.update(
             command.businessName(),
             command.brandName(),
