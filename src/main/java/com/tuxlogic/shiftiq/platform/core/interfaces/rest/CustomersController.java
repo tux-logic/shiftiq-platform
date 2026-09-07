@@ -45,6 +45,7 @@ public class CustomersController {
 
     @Operation(summary = "Create a new customer profile", description = "Creates a new customer profile associated with a user ID")
     @PostMapping
+    @PreAuthorize("isAuthenticated() and @multiTenancySecurityService.isAuthorizedForUser(#resource.userId())")
     public ResponseEntity<CustomerResource> createCustomer(@Valid @RequestBody CreateCustomerResource resource) {
         multiTenancySecurityService.validateUserAccess(resource.userId());
         var command = CreateCustomerCommandFromResourceAssembler.toCommandFromResource(resource);

@@ -57,6 +57,7 @@ public class BranchesController {
 
     @Operation(summary = "Create a new branch", description = "Creates a new branch associated with a specific workshop")
     @PostMapping
+    @PreAuthorize("isAuthenticated() and @multiTenancySecurityService.isAuthorizedForUser(#resource.workshopId())")
     public ResponseEntity<BranchResource> createBranch(@Valid @RequestBody CreateBranchResource resource) {
         multiTenancySecurityService.validateUserAccess(resource.workshopId());
         var command = CreateBranchCommandFromResourceAssembler.toCommandFromResource(resource);
@@ -113,6 +114,7 @@ public class BranchesController {
 
     @Operation(summary = "Simulate payment and assign subscription", description = "Simulates a payment using a dummy credit card and assigns the subscription plan")
     @PostMapping("/{branchId}/subscriptions")
+    @PreAuthorize("isAuthenticated() and @multiTenancySecurityService.isAuthorizedForBranch(#branchId)")
     public ResponseEntity<BranchSubscriptionResource> assignSubscription(
             @PathVariable UUID branchId, 
             @Valid @RequestBody AssignSubscriptionResource resource) {
