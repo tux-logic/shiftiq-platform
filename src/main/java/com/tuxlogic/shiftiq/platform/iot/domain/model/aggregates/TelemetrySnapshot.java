@@ -28,6 +28,12 @@ public class TelemetrySnapshot extends AbstractDomainAggregateRoot<TelemetrySnap
     }
 
     public TelemetrySnapshot(Obd2DeviceRegistrationId obd2DeviceRegistrationId, BranchId branchId, Integer rpm, Integer temperature, Double speedKmh, Integer odometerKm, Double fuelLevelPercent, Instant createdAt) {
+        if (obd2DeviceRegistrationId == null) {
+            throw new IllegalArgumentException("iot.error.telemetrySnapshot.registrationIdRequired");
+        }
+        if (branchId == null) {
+            throw new IllegalArgumentException("iot.error.telemetrySnapshot.branchIdRequired");
+        }
         this.id = TelemetrySnapshotId.random();
         this.obd2DeviceRegistrationId = obd2DeviceRegistrationId;
         this.branchId = branchId;

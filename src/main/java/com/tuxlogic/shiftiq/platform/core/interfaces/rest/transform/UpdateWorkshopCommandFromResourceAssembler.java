@@ -7,14 +7,19 @@ import com.tuxlogic.shiftiq.platform.core.interfaces.rest.resources.UpdateWorksh
 
 import java.util.UUID;
 
-public class UpdateWorkshopCommandFromResourceAssembler {
+import com.tuxlogic.shiftiq.platform.core.domain.model.valueobjects.MileageIntervalConfig;
+
+public final class UpdateWorkshopCommandFromResourceAssembler {
+
+    private UpdateWorkshopCommandFromResourceAssembler() {}
+
     public static UpdateWorkshopCommand toCommandFromResource(UUID id, UpdateWorkshopResource resource) {
         return new UpdateWorkshopCommand(
                 new WorkshopId(id),
                 resource.businessName(),
                 resource.brandName(),
                 new TaxId(resource.taxId()),
-                resource.mileageIntervalConfig()
+                new MileageIntervalConfig(resource.mileageIntervalConfig())
         );
     }
 }

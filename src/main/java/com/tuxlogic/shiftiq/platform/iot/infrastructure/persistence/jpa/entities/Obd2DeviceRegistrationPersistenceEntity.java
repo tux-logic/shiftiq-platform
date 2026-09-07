@@ -3,6 +3,7 @@ package com.tuxlogic.shiftiq.platform.iot.infrastructure.persistence.jpa.entitie
 import com.tuxlogic.shiftiq.platform.iot.domain.model.valueobjects.Obd2DeviceId;
 import com.tuxlogic.shiftiq.platform.shared.domain.model.valueobjects.BranchId;
 import com.tuxlogic.shiftiq.platform.shared.domain.model.valueobjects.VehicleId;
+import com.tuxlogic.shiftiq.platform.shared.infrastructure.persistence.jpa.entities.AuditableAbstractPersistenceEntity;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -19,21 +20,12 @@ import java.util.UUID;
  */
 @Entity
 @Table(name = "obd2_device_registrations")
-@SQLDelete(sql = "UPDATE obd2_device_registrations SET deleted_at = CURRENT_TIMESTAMP, status = 'INACTIVE' WHERE id = ?")
+@SQLDelete(sql = "UPDATE obd2_device_registrations SET deleted_at = CURRENT_TIMESTAMP, status = 'INACTIVE' WHERE id = ? AND version = ?")
 @SQLRestriction("deleted_at IS NULL")
 @Getter
 @Setter
 @NoArgsConstructor
-public class Obd2DeviceRegistrationPersistenceEntity implements Persistable<UUID> {
-
-    @Id
-    @Column(columnDefinition = "uuid", nullable = false)
-    private UUID id;
-
-    @Override
-    public boolean isNew() {
-        return createdAt == null;
-    }
+public class Obd2DeviceRegistrationPersistenceEntity extends AuditableAbstractPersistenceEntity implements Persistable<UUID> {
 
     @Embedded
     @AttributeOverride(name = "value", column = @Column(name = "obd2_device_id", nullable = false))
@@ -50,9 +42,11 @@ public class Obd2DeviceRegistrationPersistenceEntity implements Persistable<UUID
     @Column(nullable = false)
     private String status;
 
-    @Column(name = "created_at", nullable = false, updatable = false)
-    private Instant createdAt;
-
     @Column(name = "deleted_at")
     private Instant deletedAt;
+
+    @Override
+    public boolean isNew() {
+        return getCreatedAt() == null;
+    }
 }

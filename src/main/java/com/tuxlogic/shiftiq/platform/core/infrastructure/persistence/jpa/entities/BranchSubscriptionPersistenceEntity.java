@@ -2,29 +2,31 @@ package com.tuxlogic.shiftiq.platform.core.infrastructure.persistence.jpa.entiti
 
 import com.tuxlogic.shiftiq.platform.core.domain.model.valueobjects.BillingCycle;
 import com.tuxlogic.shiftiq.platform.core.domain.model.valueobjects.SubscriptionStatus;
+import com.tuxlogic.shiftiq.platform.shared.infrastructure.persistence.jpa.entities.AuditableAbstractPersistenceEntity;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.hibernate.annotations.SQLDelete;
+import org.hibernate.annotations.SQLRestriction;
+import org.springframework.data.domain.Persistable;
 
-import java.util.Date;
+import java.time.Instant;
 import java.util.UUID;
-
-import jakarta.persistence.Id;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
 
 @Entity
 @Table(name = "branch_subscriptions")
+@SQLDelete(sql = "UPDATE branch_subscriptions SET deleted_at = CURRENT_TIMESTAMP WHERE id = ? AND version = ?")
+@SQLRestriction("deleted_at IS NULL")
 @Getter
 @Setter
 @NoArgsConstructor
-public class BranchSubscriptionPersistenceEntity {
+public class BranchSubscriptionPersistenceEntity extends AuditableAbstractPersistenceEntity implements Persistable<UUID> {
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.UUID)
-    @Column(columnDefinition = "uuid", updatable = false, nullable = false)
-    private UUID id;
+    @Override
+    public boolean isNew() {
+        return getCreatedAt() == null;
+    }
 
     @Column(name = "branch_id", nullable = false)
     private UUID branchId;
@@ -41,11 +43,14 @@ public class BranchSubscriptionPersistenceEntity {
     private BillingCycle billingCycle;
 
     @Column(name = "start_date", nullable = false)
-    private Date startDate;
+    private Instant startDate;
 
     @Column(name = "end_date", nullable = false)
-    private Date endDate;
+    private Instant endDate;
 
     @Column(name = "canceled_at")
-    private Date canceledAt;
+    private Instant canceledAt;
+
+    @Column(name = "deleted_at")
+    private Instant deletedAt;
 }

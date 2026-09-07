@@ -1,6 +1,6 @@
 package com.tuxlogic.shiftiq.platform.core.interfaces.rest.resources;
 
-import java.util.Date;
+import java.time.Instant;
 import java.util.UUID;
 
 public record BranchSubscriptionResource(
@@ -9,7 +9,7 @@ public record BranchSubscriptionResource(
         UUID planId,
         String billingCycle,
         String status,
-        Date startDate,
-        Date endDate
+        Instant startDate,
+        Instant endDate
 ) {
 }

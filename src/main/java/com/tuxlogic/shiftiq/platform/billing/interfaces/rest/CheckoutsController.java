@@ -2,6 +2,9 @@ package com.tuxlogic.shiftiq.platform.billing.interfaces.rest;
 
 import com.tuxlogic.shiftiq.platform.billing.domain.model.valueobjects.VoucherCommandFailure;
 import com.tuxlogic.shiftiq.platform.billing.application.commandservices.VoucherCommandService;
+import com.tuxlogic.shiftiq.platform.billing.application.queryservices.QuoteQueryService;
+import com.tuxlogic.shiftiq.platform.billing.domain.model.aggregates.Quote;
+import com.tuxlogic.shiftiq.platform.billing.domain.model.queries.GetQuoteByIdQuery;
 import com.tuxlogic.shiftiq.platform.billing.domain.model.commands.ProcessCheckoutCommand;
 import com.tuxlogic.shiftiq.platform.billing.domain.model.valueobjects.PaymentMethod;
 import com.tuxlogic.shiftiq.platform.billing.domain.model.valueobjects.VoucherType;
@@ -20,6 +23,8 @@ import org.springframework.web.bind.annotation.RestController;
 import com.tuxlogic.shiftiq.platform.shared.infrastructure.security.MultiTenancySecurityService;
 import org.springframework.security.access.prepost.PreAuthorize;
 
+import java.util.UUID;
+
 /**
  * REST controller for managing billing checkouts.
  * Exposes endpoints for the checkout workflow which involves generating a voucher and processing a full payment.
@@ -31,18 +36,31 @@ import org.springframework.security.access.prepost.PreAuthorize;
 public class CheckoutsController {
 
     private final VoucherCommandService commandService;
+    private final QuoteQueryService quoteQueryService;
     private final org.springframework.context.MessageSource messageSource;
     private final MultiTenancySecurityService multiTenancySecurityService;
 
-    public CheckoutsController(VoucherCommandService commandService, org.springframework.context.MessageSource messageSource, MultiTenancySecurityService multiTenancySecurityService) {
+    public CheckoutsController(VoucherCommandService commandService,
+                               QuoteQueryService quoteQueryService,
+                               org.springframework.context.MessageSource messageSource,
+                               MultiTenancySecurityService multiTenancySecurityService) {
         this.commandService = commandService;
+        this.quoteQueryService = quoteQueryService;
         this.messageSource = messageSource;
         this.multiTenancySecurityService = multiTenancySecurityService;
+    }
+
+    private Quote validateQuoteAccess(UUID quoteId) {
+        var quote = quoteQueryService.handle(new GetQuoteByIdQuery(quoteId))
+                .orElseThrow(() -> new IllegalArgumentException("billing.error.quote.notFound"));
+        multiTenancySecurityService.validateBranchAccess(quote.getBranchId().value());
+        return quote;
     }
 
     @PostMapping
     @Operation(summary = "Process checkout", description = "Generates a voucher and records a full payment in a single transaction")
     public ResponseEntity<?> checkout(@Valid @RequestBody ProcessCheckoutResource resource) {
+        validateQuoteAccess(resource.quoteId());
         VoucherType voucherType;
         PaymentMethod paymentMethod;
         try {
@@ -74,6 +92,7 @@ public class CheckoutsController {
     @PostMapping("/stripe")
     @Operation(summary = "Process Stripe checkout", description = "Verifies a Stripe PaymentIntent, generates a voucher via Factos/SUNAT, and records the payment")
     public ResponseEntity<?> stripeCheckout(@Valid @RequestBody com.tuxlogic.shiftiq.platform.billing.interfaces.rest.resources.ProcessStripeCheckoutResource resource) {
+        validateQuoteAccess(resource.quoteId());
         VoucherType voucherType;
         try {
             voucherType = resource.type() != null ? VoucherType.valueOf(resource.type().toUpperCase()) : VoucherType.RECEIPT;

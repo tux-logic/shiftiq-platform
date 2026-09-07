@@ -3,7 +3,10 @@ package com.tuxlogic.shiftiq.platform.core.interfaces.rest.transform;
 import com.tuxlogic.shiftiq.platform.core.domain.model.aggregates.Employee;
 import com.tuxlogic.shiftiq.platform.core.interfaces.rest.resources.EmployeeResource;
 
-public class EmployeeResourceFromEntityAssembler {
+public final class EmployeeResourceFromEntityAssembler {
+
+    private EmployeeResourceFromEntityAssembler() {}
+
     public static EmployeeResource toResourceFromEntity(Employee entity) {
         return new EmployeeResource(
                 entity.getId() != null ? entity.getId().value() : null,

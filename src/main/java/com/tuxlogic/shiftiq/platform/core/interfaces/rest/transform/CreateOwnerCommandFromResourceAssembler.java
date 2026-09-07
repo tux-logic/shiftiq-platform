@@ -7,7 +7,10 @@ import com.tuxlogic.shiftiq.platform.core.domain.model.valueobjects.Phone;
 import com.tuxlogic.shiftiq.platform.core.domain.model.valueobjects.UserId;
 import com.tuxlogic.shiftiq.platform.core.interfaces.rest.resources.CreateOwnerResource;
 
-public class CreateOwnerCommandFromResourceAssembler {
+public final class CreateOwnerCommandFromResourceAssembler {
+
+    private CreateOwnerCommandFromResourceAssembler() {}
+
     public static CreateOwnerCommand toCommandFromResource(CreateOwnerResource resource) {
         return new CreateOwnerCommand(
                 new UserId(resource.userId()),

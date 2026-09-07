@@ -9,7 +9,10 @@ import com.tuxlogic.shiftiq.platform.core.interfaces.rest.resources.UpdateEmploy
 
 import java.util.UUID;
 
-public class UpdateEmployeeCommandFromResourceAssembler {
+public final class UpdateEmployeeCommandFromResourceAssembler {
+
+    private UpdateEmployeeCommandFromResourceAssembler() {}
+
     public static UpdateEmployeeCommand toCommandFromResource(UUID employeeId, UpdateEmployeeResource resource) {
         return new UpdateEmployeeCommand(
                 new EmployeeId(employeeId),

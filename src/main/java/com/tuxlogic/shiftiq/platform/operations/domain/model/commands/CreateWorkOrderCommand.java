@@ -20,4 +20,13 @@ public record CreateWorkOrderCommand(
         CustomerId customerId,
         DiagnosticSummary diagnosticSummary,
         Mileage mileageIn
-) {}
+) {
+    public CreateWorkOrderCommand {
+        if (appointmentId == null) throw new IllegalArgumentException("operations.error.command.appointmentId.required");
+        if (branchId == null) throw new IllegalArgumentException("operations.error.command.branchId.required");
+        if (vehicleId == null) throw new IllegalArgumentException("operations.error.command.vehicleId.required");
+        if (customerId == null) throw new IllegalArgumentException("operations.error.command.customerId.required");
+        if (diagnosticSummary == null) throw new IllegalArgumentException("operations.error.command.diagnosticSummary.required");
+        if (mileageIn == null) throw new IllegalArgumentException("operations.error.command.mileageIn.required");
+    }
+}

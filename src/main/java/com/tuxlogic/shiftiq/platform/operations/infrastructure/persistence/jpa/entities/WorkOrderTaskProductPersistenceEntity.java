@@ -11,7 +11,6 @@ import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.SQLDelete;
 import org.hibernate.annotations.SQLRestriction;
-import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
 import java.time.Instant;
 
@@ -23,7 +22,6 @@ import java.util.UUID;
 @NoArgsConstructor
 
 @Entity
-@EntityListeners(AuditingEntityListener.class)
 @Table(name = "work_order_task_products")
 @SQLDelete(sql = "UPDATE work_order_task_products SET deleted_at = CURRENT_TIMESTAMP WHERE id = ? AND version = ?")
 @SQLRestriction("deleted_at IS NULL")

@@ -50,4 +50,11 @@ public interface Obd2DeviceRegistrationRepository {
      * @return the list of registrations matching branch and status
      */
     List<Obd2DeviceRegistration> findAllByBranchIdAndStatus(BranchId branchId, Obd2RegistrationStatus status);
+
+    /**
+     * Finds the set of vehicle IDs that currently have an active OBD2 registration from the given list.
+     * @param vehicleIds the list of vehicle IDs to check
+     * @return a Set of VehicleIds that have active registrations
+     */
+    java.util.Set<VehicleId> findVehicleIdsWithActiveRegistration(List<VehicleId> vehicleIds);
 }

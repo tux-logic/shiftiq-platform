@@ -5,12 +5,10 @@ import com.tuxlogic.shiftiq.platform.iot.domain.model.aggregates.DtcAlert;
 import com.tuxlogic.shiftiq.platform.iot.domain.model.queries.GetDtcAlertsByRegistrationIdQuery;
 import com.tuxlogic.shiftiq.platform.iot.domain.model.queries.GetVehicleDtcAlertHistoryQuery;
 import com.tuxlogic.shiftiq.platform.iot.domain.repositories.DtcAlertRepository;
-import com.tuxlogic.shiftiq.platform.iot.domain.repositories.Obd2DeviceRegistrationRepository;
-import com.tuxlogic.shiftiq.platform.iot.domain.repositories.VehicleRegistrationRepository;
+import com.tuxlogic.shiftiq.platform.iot.domain.services.ActiveRegistrationContextService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.Collections;
 import java.util.List;
 
 /**
@@ -20,44 +18,32 @@ import java.util.List;
 public class DtcAlertQueryServiceImpl implements DtcAlertQueryService {
 
     private final DtcAlertRepository dtcAlertRepository;
-    private final VehicleRegistrationRepository vehicleRegistrationRepository;
-    private final Obd2DeviceRegistrationRepository obd2DeviceRegistrationRepository;
+    private final ActiveRegistrationContextService activeRegistrationContextService;
 
     public DtcAlertQueryServiceImpl(
             DtcAlertRepository dtcAlertRepository,
-            VehicleRegistrationRepository vehicleRegistrationRepository,
-            Obd2DeviceRegistrationRepository obd2DeviceRegistrationRepository
+            ActiveRegistrationContextService activeRegistrationContextService
     ) {
         this.dtcAlertRepository = dtcAlertRepository;
-        this.vehicleRegistrationRepository = vehicleRegistrationRepository;
-        this.obd2DeviceRegistrationRepository = obd2DeviceRegistrationRepository;
+        this.activeRegistrationContextService = activeRegistrationContextService;
     }
 
     @Override
     @Transactional(readOnly = true)
     public List<DtcAlert> handle(GetDtcAlertsByRegistrationIdQuery query) {
-        return dtcAlertRepository.findAllByRegistrationId(query.obd2DeviceRegistrationId());
+        return dtcAlertRepository.findAllByRegistrationId(query.obd2DeviceRegistrationId(), query.page(), query.size());
     }
 
     @Override
     @Transactional(readOnly = true)
     public List<DtcAlert> handle(GetVehicleDtcAlertHistoryQuery query) {
-        var activeVehicleRegOpt = vehicleRegistrationRepository.findActiveByVehicleId(query.vehicleId());
-        if (activeVehicleRegOpt.isEmpty()) {
-            return Collections.emptyList();
-        }
-        var activeVehicleReg = activeVehicleRegOpt.get();
-        var startTimestamp = activeVehicleReg.getCreatedAt();
-
-        var activeObd2RegOpt = obd2DeviceRegistrationRepository.findActiveByVehicleId(query.vehicleId());
-        if (activeObd2RegOpt.isEmpty()) {
-            return Collections.emptyList();
-        }
-        var activeObd2Reg = activeObd2RegOpt.get();
-
-        return dtcAlertRepository.findAllByRegistrationIdAndCreatedAtGreaterThanEqual(
-                activeObd2Reg.getId(),
-                startTimestamp
-        );
+        return activeRegistrationContextService.resolveActiveContextForVehicle(query.vehicleId())
+                .map(ctx -> dtcAlertRepository.findAllByRegistrationIdAndCreatedAtGreaterThanEqual(
+                        ctx.obd2DeviceRegistrationId(),
+                        ctx.startTimestamp(),
+                        query.page(),
+                        query.size()
+                ))
+                .orElseGet(List::of);
     }
 }

@@ -8,4 +8,7 @@ import com.tuxlogic.shiftiq.platform.operations.domain.model.valueobjects.Servic
  * @author Joel Huamani Estefanero
  */
 public record DeleteServiceCommand(ServiceId serviceId) {
+    public DeleteServiceCommand {
+        if (serviceId == null) throw new IllegalArgumentException("operations.error.command.serviceId.required");
+    }
 }

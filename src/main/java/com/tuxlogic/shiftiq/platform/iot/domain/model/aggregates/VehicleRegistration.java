@@ -4,6 +4,7 @@ import com.tuxlogic.shiftiq.platform.iot.domain.model.valueobjects.VehicleRegist
 import com.tuxlogic.shiftiq.platform.iot.domain.model.valueobjects.VehicleRegistrationStatus;
 import com.tuxlogic.shiftiq.platform.shared.domain.model.aggregates.AbstractDomainAggregateRoot;
 import com.tuxlogic.shiftiq.platform.shared.domain.model.valueobjects.VehicleId;
+import com.tuxlogic.shiftiq.platform.iot.domain.model.events.VehicleRegistrationDeactivatedEvent;
 import lombok.Getter;
 
 import java.time.Instant;
@@ -55,5 +56,6 @@ public class VehicleRegistration extends AbstractDomainAggregateRoot<VehicleRegi
     public void deactivateRegistration() {
         this.status = VehicleRegistrationStatus.PREVIOUS;
         this.deletedAt = Instant.now();
+        registerDomainEvent(new VehicleRegistrationDeactivatedEvent(this.id, this.userId, this.vehicleId));
     }
 }

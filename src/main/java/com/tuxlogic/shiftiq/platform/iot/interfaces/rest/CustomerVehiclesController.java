@@ -8,6 +8,7 @@ import com.tuxlogic.shiftiq.platform.iot.interfaces.rest.transform.VehicleResour
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -15,11 +16,11 @@ import java.util.UUID;
 
 /**
  * REST controller for exposing customer-specific vehicles operations.
- * Maps to /api/v1/customers prefix to maintain domain boundaries within iot.
  */
 @RestController
 @RequestMapping(value = "/api/v1/customers", produces = "application/json")
 @Tag(name = "Customers", description = "Endpoints for managing client integrations with other contexts")
+@PreAuthorize("isAuthenticated()")
 public class CustomerVehiclesController {
 
     private final VehicleQueryService vehicleQueryService;
@@ -28,11 +29,6 @@ public class CustomerVehiclesController {
         this.vehicleQueryService = vehicleQueryService;
     }
 
-    /**
-     * Gets all vehicles associated with an active registration for a specific customer.
-     * @param customerId the customer identifier UUID
-     * @return the list of active vehicles for the customer
-     */
     @GetMapping("/{customerId}/vehicles")
     @Operation(summary = "Get active vehicles for customer", description = "Retrieves all vehicles currently associated with an active registration for the customer")
     public ResponseEntity<List<VehicleResource>> getActiveVehiclesByCustomerId(@PathVariable UUID customerId) {

@@ -11,6 +11,8 @@ import com.tuxlogic.shiftiq.platform.shared.domain.model.valueobjects.Money;
  */
 public record UpdateServiceCommand(ServiceId serviceId, String name, Money price) {
      public UpdateServiceCommand {
+         if (serviceId == null) throw new IllegalArgumentException("operations.error.command.serviceId.required");
          if (name == null || name.isBlank()) throw new IllegalArgumentException("core.error.name.required");
+         if (price == null) throw new IllegalArgumentException("operations.error.command.price.required");
      }
 }

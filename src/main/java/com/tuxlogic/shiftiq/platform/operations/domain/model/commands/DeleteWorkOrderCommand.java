@@ -7,4 +7,8 @@ import com.tuxlogic.shiftiq.platform.operations.domain.model.valueobjects.WorkOr
  * @param workOrderId
  * @author Joel Huamani Estefanero
  */
-public record DeleteWorkOrderCommand(WorkOrderId workOrderId) {}
+public record DeleteWorkOrderCommand(WorkOrderId workOrderId) {
+    public DeleteWorkOrderCommand {
+        if (workOrderId == null) throw new IllegalArgumentException("operations.error.command.workOrderId.required");
+    }
+}

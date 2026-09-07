@@ -9,7 +9,10 @@ import com.tuxlogic.shiftiq.platform.core.interfaces.rest.resources.UpdateCustom
 
 import java.util.UUID;
 
-public class UpdateCustomerCommandFromResourceAssembler {
+public final class UpdateCustomerCommandFromResourceAssembler {
+
+    private UpdateCustomerCommandFromResourceAssembler() {}
+
     public static UpdateCustomerCommand toCommandFromResource(UUID customerId, UpdateCustomerResource resource) {
         return new UpdateCustomerCommand(
                 new CustomerId(customerId),

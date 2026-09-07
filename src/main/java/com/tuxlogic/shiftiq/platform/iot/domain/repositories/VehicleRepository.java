@@ -1,7 +1,6 @@
 package com.tuxlogic.shiftiq.platform.iot.domain.repositories;
 
 import com.tuxlogic.shiftiq.platform.iot.domain.model.aggregates.Vehicle;
-import com.tuxlogic.shiftiq.platform.shared.domain.model.valueobjects.BranchId;
 import com.tuxlogic.shiftiq.platform.shared.domain.model.valueobjects.VehicleId;
 
 import java.util.List;
@@ -18,13 +17,6 @@ public interface VehicleRepository {
      * @return an Optional containing the Vehicle aggregate if found
      */
     Optional<Vehicle> findById(VehicleId id);
-
-    /**
-     * Finds all vehicles in a specific branch that are available for linking (unlinked).
-     * @param branchId the unique identifier of the branch
-     * @return the list of available vehicles
-     */
-    List<Vehicle> findAvailableForLinkingByBranchId(BranchId branchId);
 
     /**
      * Saves a Vehicle aggregate.
@@ -52,4 +44,11 @@ public interface VehicleRepository {
      * @param id the unique identifier of the vehicle
      */
     void delete(VehicleId id);
+
+    /**
+     * Finds all vehicles by a list of unique identifiers in batch.
+     * @param ids the list of vehicle IDs
+     * @return the list of found vehicles
+     */
+    List<Vehicle> findAllByIds(List<VehicleId> ids);
 }

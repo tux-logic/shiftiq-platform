@@ -30,4 +30,12 @@ public interface VehicleRegistrationPersistenceRepository extends JpaRepository<
      * @return the list of registrations
      */
     List<VehicleRegistrationPersistenceEntity> findAllByUserIdAndStatus(UUID userId, String status);
+
+    /**
+     * Finds all registrations for a list of users by their status.
+     * @param userIds the list of user ID UUIDs
+     * @param status the status string
+     * @return the list of registrations
+     */
+    List<VehicleRegistrationPersistenceEntity> findAllByUserIdInAndStatus(List<UUID> userIds, String status);
 }

@@ -2,10 +2,14 @@ package com.tuxlogic.shiftiq.platform.iot.application.internal.commandservices;
 
 import com.tuxlogic.shiftiq.platform.iot.application.commandservices.TelemetryCommandFailure;
 import com.tuxlogic.shiftiq.platform.iot.application.commandservices.TelemetryCommandService;
+import com.tuxlogic.shiftiq.platform.iot.domain.model.aggregates.DtcAlert;
 import com.tuxlogic.shiftiq.platform.iot.domain.model.aggregates.Obd2Device;
 import com.tuxlogic.shiftiq.platform.iot.domain.model.aggregates.Obd2DeviceRegistration;
 import com.tuxlogic.shiftiq.platform.iot.domain.model.aggregates.TelemetrySnapshot;
 import com.tuxlogic.shiftiq.platform.iot.domain.model.commands.IngestTelemetryBatchCommand;
+import com.tuxlogic.shiftiq.platform.iot.domain.model.valueobjects.DtcAlertSeverity;
+import com.tuxlogic.shiftiq.platform.iot.domain.model.valueobjects.TelemetrySnapshotId;
+import com.tuxlogic.shiftiq.platform.iot.domain.repositories.DtcAlertRepository;
 import com.tuxlogic.shiftiq.platform.iot.domain.repositories.Obd2DeviceRegistrationRepository;
 import com.tuxlogic.shiftiq.platform.iot.domain.repositories.Obd2DeviceRepository;
 import com.tuxlogic.shiftiq.platform.iot.domain.repositories.TelemetrySnapshotRepository;
@@ -13,7 +17,9 @@ import com.tuxlogic.shiftiq.platform.shared.application.result.Result;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 /**
@@ -25,15 +31,18 @@ public class TelemetryCommandServiceImpl implements TelemetryCommandService {
     private final TelemetrySnapshotRepository telemetrySnapshotRepository;
     private final Obd2DeviceRepository obd2DeviceRepository;
     private final Obd2DeviceRegistrationRepository obd2DeviceRegistrationRepository;
+    private final DtcAlertRepository dtcAlertRepository;
 
     public TelemetryCommandServiceImpl(
             TelemetrySnapshotRepository telemetrySnapshotRepository,
             Obd2DeviceRepository obd2DeviceRepository,
-            Obd2DeviceRegistrationRepository obd2DeviceRegistrationRepository
+            Obd2DeviceRegistrationRepository obd2DeviceRegistrationRepository,
+            DtcAlertRepository dtcAlertRepository
     ) {
         this.telemetrySnapshotRepository = telemetrySnapshotRepository;
         this.obd2DeviceRepository = obd2DeviceRepository;
         this.obd2DeviceRegistrationRepository = obd2DeviceRegistrationRepository;
+        this.dtcAlertRepository = dtcAlertRepository;
     }
 
     @Override
@@ -68,6 +77,32 @@ public class TelemetryCommandServiceImpl implements TelemetryCommandService {
                     .collect(Collectors.toList());
 
             List<TelemetrySnapshot> savedSnapshots = telemetrySnapshotRepository.saveAll(snapshotsToSave);
+
+            // 5. Generate DTC alerts reported alongside each snapshot, if any
+            if (savedSnapshots.size() != command.snapshots().size()) {
+                throw new IllegalStateException("iot.error.telemetry.snapshotCountMismatch");
+            }
+
+            List<DtcAlert> alertsToSave = new ArrayList<>();
+            for (int i = 0; i < savedSnapshots.size(); i++) {
+                var dtcCodes = command.snapshots().get(i).dtcCodes();
+                if (dtcCodes == null || dtcCodes.isEmpty()) {
+                    continue;
+                }
+                UUID snapshotId = savedSnapshots.get(i).getId().value();
+                for (var dtc : dtcCodes) {
+                    alertsToSave.add(new DtcAlert(
+                            new TelemetrySnapshotId(snapshotId),
+                            registration.getBranchId(),
+                            dtc.dtcCode(),
+                            dtc.description(),
+                            new DtcAlertSeverity(dtc.severity())
+                    ));
+                }
+            }
+            if (!alertsToSave.isEmpty()) {
+                dtcAlertRepository.saveAll(alertsToSave);
+            }
 
             return Result.success(savedSnapshots);
 

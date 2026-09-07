@@ -7,8 +7,14 @@ import com.tuxlogic.shiftiq.platform.shared.domain.model.valueobjects.VehicleId;
  * starting from the start of its active driver registration.
  */
 public record GetVehicleDtcAlertHistoryQuery(
-        VehicleId vehicleId
+        VehicleId vehicleId,
+        int page,
+        int size
 ) {
+    public GetVehicleDtcAlertHistoryQuery(VehicleId vehicleId) {
+        this(vehicleId, 0, 20);
+    }
+
     public GetVehicleDtcAlertHistoryQuery {
         if (vehicleId == null) {
             throw new IllegalArgumentException("vehicleId cannot be null");

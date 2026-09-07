@@ -8,7 +8,10 @@ import com.tuxlogic.shiftiq.platform.core.interfaces.rest.resources.AssignSubscr
 
 import java.util.UUID;
 
-public class AssignSubscriptionCommandFromResourceAssembler {
+public final class AssignSubscriptionCommandFromResourceAssembler {
+
+    private AssignSubscriptionCommandFromResourceAssembler() {}
+
     public static AssignSubscriptionCommand toCommandFromResource(UUID branchId, AssignSubscriptionResource resource) {
         return new AssignSubscriptionCommand(
                 new BranchId(branchId),

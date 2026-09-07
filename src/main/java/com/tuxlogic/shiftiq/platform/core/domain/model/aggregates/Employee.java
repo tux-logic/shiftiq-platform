@@ -7,6 +7,8 @@ import com.tuxlogic.shiftiq.platform.core.domain.model.valueobjects.Phone;
 import com.tuxlogic.shiftiq.platform.core.domain.model.valueobjects.UserId;
 import com.tuxlogic.shiftiq.platform.shared.domain.model.aggregates.AbstractDomainAggregateRoot;
 
+import com.tuxlogic.shiftiq.platform.core.domain.model.events.EmployeeCreatedEvent;
+
 import lombok.Getter;
 
 import java.time.Instant;
@@ -45,11 +47,13 @@ public class Employee extends AbstractDomainAggregateRoot<Employee> {
         this.name = name;
         this.document = document;
         this.phone = phone;
+        this.registerDomainEvent(new EmployeeCreatedEvent(this, this.id.value(), this.userId != null ? this.userId.value() : null));
     }
 
     public void update(PersonName name, Document document, Phone phone) {
         this.name = name;
         this.document = document;
         this.phone = phone;
+        this.registerDomainEvent(new com.tuxlogic.shiftiq.platform.core.domain.model.events.EmployeeUpdatedEvent(this, this.id.value()));
     }
 }

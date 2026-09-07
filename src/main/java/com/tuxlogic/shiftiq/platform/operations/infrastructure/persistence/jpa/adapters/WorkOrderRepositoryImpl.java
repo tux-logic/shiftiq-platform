@@ -4,6 +4,7 @@ import com.tuxlogic.shiftiq.platform.operations.domain.model.aggregates.WorkOrde
 import com.tuxlogic.shiftiq.platform.operations.domain.model.valueobjects.AppointmentId;
 import com.tuxlogic.shiftiq.platform.operations.domain.model.valueobjects.WorkOrderId;
 import com.tuxlogic.shiftiq.platform.operations.domain.model.valueobjects.WorkOrderTaskId;
+import com.tuxlogic.shiftiq.platform.operations.domain.model.valueobjects.OperationsMessageKeys;
 import com.tuxlogic.shiftiq.platform.operations.domain.repositories.WorkOrderRepository;
 import com.tuxlogic.shiftiq.platform.operations.infrastructure.persistence.jpa.assemblers.WorkOrderPersistenceAssembler;
 import com.tuxlogic.shiftiq.platform.operations.infrastructure.persistence.jpa.entities.WorkOrderPersistenceEntity;
@@ -18,7 +19,10 @@ import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
+import org.springframework.transaction.annotation.Transactional;
+
 @Repository
+@Transactional(readOnly = true)
 public class WorkOrderRepositoryImpl implements WorkOrderRepository {
 
     private final WorkOrderPersistenceRepository workOrderPersistenceRepository;
@@ -30,14 +34,19 @@ public class WorkOrderRepositoryImpl implements WorkOrderRepository {
     }
 
     @Override
+    @Transactional
     public WorkOrder save(WorkOrder workOrder) {
-        WorkOrderPersistenceEntity entity = WorkOrderPersistenceAssembler.toPersistenceEntity(workOrder);
-        WorkOrderPersistenceEntity savedEntity = workOrderPersistenceRepository.save(entity);
-        WorkOrder savedWorkOrder = WorkOrderPersistenceAssembler.toDomainEntity(savedEntity);
-        workOrder.domainEvents().forEach(eventPublisher::publishEvent);
-        workOrder.clearDomainEvents();
+        try {
+            WorkOrderPersistenceEntity entity = WorkOrderPersistenceAssembler.toPersistenceEntity(workOrder);
+            WorkOrderPersistenceEntity savedEntity = workOrderPersistenceRepository.save(entity);
+            WorkOrder savedWorkOrder = WorkOrderPersistenceAssembler.toDomainEntity(savedEntity);
+            workOrder.domainEvents().forEach(eventPublisher::publishEvent);
+            workOrder.clearDomainEvents();
 
-        return savedWorkOrder;
+            return savedWorkOrder;
+        } catch (Exception e) {
+            throw new IllegalStateException(OperationsMessageKeys.REPOSITORY_SAVE_FAILED, e);
+        }
     }
 
     @Override

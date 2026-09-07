@@ -3,7 +3,10 @@ package com.tuxlogic.shiftiq.platform.core.interfaces.rest.transform;
 import com.tuxlogic.shiftiq.platform.core.domain.model.aggregates.BranchSubscription;
 import com.tuxlogic.shiftiq.platform.core.interfaces.rest.resources.BranchSubscriptionResource;
 
-public class BranchSubscriptionResourceFromEntityAssembler {
+public final class BranchSubscriptionResourceFromEntityAssembler {
+
+    private BranchSubscriptionResourceFromEntityAssembler() {}
+
     public static BranchSubscriptionResource toResourceFromEntity(BranchSubscription entity) {
         return new BranchSubscriptionResource(
                 entity.getId() != null ? entity.getId().value() : null,

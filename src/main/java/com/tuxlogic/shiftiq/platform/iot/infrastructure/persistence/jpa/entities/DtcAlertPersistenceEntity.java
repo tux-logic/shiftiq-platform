@@ -1,13 +1,13 @@
 package com.tuxlogic.shiftiq.platform.iot.infrastructure.persistence.jpa.entities;
 
 import com.tuxlogic.shiftiq.platform.shared.domain.model.valueobjects.BranchId;
+import com.tuxlogic.shiftiq.platform.shared.infrastructure.persistence.jpa.entities.AuditableAbstractPersistenceEntity;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 import org.springframework.data.domain.Persistable;
 
-import java.time.Instant;
 import java.util.UUID;
 
 /**
@@ -18,11 +18,7 @@ import java.util.UUID;
 @Getter
 @Setter
 @NoArgsConstructor
-public class DtcAlertPersistenceEntity implements Persistable<UUID> {
-
-    @Id
-    @Column(columnDefinition = "uuid", nullable = false)
-    private UUID id;
+public class DtcAlertPersistenceEntity extends AuditableAbstractPersistenceEntity implements Persistable<UUID> {
 
     @Column(name = "telemetry_snapshot_id", columnDefinition = "uuid", nullable = false)
     private UUID telemetrySnapshotId;
@@ -40,11 +36,8 @@ public class DtcAlertPersistenceEntity implements Persistable<UUID> {
     @Column(nullable = false, length = 20)
     private String severity;
 
-    @Column(name = "created_at", nullable = false, updatable = false)
-    private Instant createdAt;
-
     @Override
     public boolean isNew() {
-        return createdAt == null;
+        return getCreatedAt() == null;
     }
 }

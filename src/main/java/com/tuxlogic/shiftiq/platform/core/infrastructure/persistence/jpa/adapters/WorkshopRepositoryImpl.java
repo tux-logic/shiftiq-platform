@@ -12,8 +12,10 @@ import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
 import org.springframework.stereotype.Repository;
+import org.springframework.transaction.annotation.Transactional;
 
 @Repository
+@Transactional(readOnly = true)
 public class WorkshopRepositoryImpl implements WorkshopRepository {
 
     private final WorkshopPersistenceRepository workshopPersistenceRepository;
@@ -23,16 +25,15 @@ public class WorkshopRepositoryImpl implements WorkshopRepository {
     }
 
     @Override
+    @Transactional
     public Workshop save(Workshop workshop) {
-        WorkshopPersistenceEntity entity;
-        if (workshop.getId() != null) {
-            entity = workshopPersistenceRepository.findById(workshop.getId().value()).orElse(new WorkshopPersistenceEntity());
-        } else {
-            entity = new WorkshopPersistenceEntity();
-        }
+        var entity = JpaAdapterUtils.resolveEntity(
+                workshop.getId() != null ? workshop.getId().value() : null,
+                workshopPersistenceRepository::findById,
+                WorkshopPersistenceEntity::new
+        );
         WorkshopPersistenceAssembler.toEntity(workshop, entity);
-        WorkshopPersistenceEntity savedEntity = workshopPersistenceRepository.save(entity);
-        return WorkshopPersistenceAssembler.toDomain(savedEntity);
+        return WorkshopPersistenceAssembler.toDomain(workshopPersistenceRepository.save(entity));
     }
 
     @Override

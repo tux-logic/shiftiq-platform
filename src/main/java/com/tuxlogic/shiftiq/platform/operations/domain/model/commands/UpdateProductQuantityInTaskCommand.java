@@ -15,4 +15,11 @@ public record UpdateProductQuantityInTaskCommand(
         WorkOrderTaskId taskId,
         ProductId productId,
         Quantity newQuantity
-) {}
+) {
+    public UpdateProductQuantityInTaskCommand {
+        if (workOrderId == null) throw new IllegalArgumentException("operations.error.command.workOrderId.required");
+        if (taskId == null) throw new IllegalArgumentException("operations.error.command.taskId.required");
+        if (productId == null) throw new IllegalArgumentException("operations.error.command.productId.required");
+        if (newQuantity == null) throw new IllegalArgumentException("operations.error.command.quantity.required");
+    }
+}

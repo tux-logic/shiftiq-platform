@@ -17,29 +17,38 @@ import com.tuxlogic.shiftiq.platform.core.interfaces.rest.transform.EmployeeReso
 import com.tuxlogic.shiftiq.platform.core.interfaces.rest.transform.UpdateEmployeeCommandFromResourceAssembler;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.UUID;
 
+import com.tuxlogic.shiftiq.platform.shared.infrastructure.security.MultiTenancySecurityService;
+
 @RestController
 @RequestMapping(value = "/api/v1/employees", produces = MediaType.APPLICATION_JSON_VALUE)
 @Tag(name = "Employees", description = "Employee Management Endpoints")
+@PreAuthorize("isAuthenticated()")
 public class EmployeesController {
 
     private final EmployeeCommandService employeeCommandService;
     private final EmployeeQueryService employeeQueryService;
+    private final MultiTenancySecurityService multiTenancySecurityService;
 
-    public EmployeesController(EmployeeCommandService employeeCommandService, EmployeeQueryService employeeQueryService) {
+    public EmployeesController(EmployeeCommandService employeeCommandService, EmployeeQueryService employeeQueryService, MultiTenancySecurityService multiTenancySecurityService) {
         this.employeeCommandService = employeeCommandService;
         this.employeeQueryService = employeeQueryService;
+        this.multiTenancySecurityService = multiTenancySecurityService;
     }
 
     @Operation(summary = "Create a new employee profile", description = "Creates a new employee profile associated with a user ID")
     @PostMapping
-    public ResponseEntity<EmployeeResource> createEmployee(@RequestBody CreateEmployeeResource resource) {
+    @PreAuthorize("isAuthenticated() and @multiTenancySecurityService.isAuthorizedForUser(#resource.userId())")
+    public ResponseEntity<EmployeeResource> createEmployee(@Valid @RequestBody CreateEmployeeResource resource) {
+        multiTenancySecurityService.validateUserAccess(resource.userId());
         var command = CreateEmployeeCommandFromResourceAssembler.toCommandFromResource(resource);
         var employee = employeeCommandService.handle(command);
         if (employee.isEmpty()) {
@@ -52,7 +61,10 @@ public class EmployeesController {
 
     @Operation(summary = "Update an employee profile", description = "Updates an existing employee profile")
     @PutMapping("/{employeeId}")
-    public ResponseEntity<EmployeeResource> updateEmployee(@PathVariable UUID employeeId, @RequestBody UpdateEmployeeResource resource) {
+    public ResponseEntity<EmployeeResource> updateEmployee(@PathVariable UUID employeeId, @Valid @RequestBody UpdateEmployeeResource resource) {
+        var existing = employeeQueryService.handle(new GetEmployeeByIdQuery(new EmployeeId(employeeId)));
+        existing.ifPresent(e -> multiTenancySecurityService.validateUserAccess(e.getUserId().value()));
+
         var command = UpdateEmployeeCommandFromResourceAssembler.toCommandFromResource(employeeId, resource);
         var employee = employeeCommandService.handle(command);
         if (employee.isEmpty()) {
@@ -72,6 +84,7 @@ public class EmployeesController {
             return ResponseEntity.notFound().build();
         }
 
+        multiTenancySecurityService.validateUserAccess(employee.get().getUserId().value());
         var employeeResource = EmployeeResourceFromEntityAssembler.toResourceFromEntity(employee.get());
         return ResponseEntity.ok(employeeResource);
     }
@@ -79,6 +92,7 @@ public class EmployeesController {
     @Operation(summary = "Get an employee profile by User ID", description = "Retrieves the details of a specific employee profile using the User ID")
     @GetMapping(params = "userId")
     public ResponseEntity<EmployeeResource> getEmployeeByUserId(@RequestParam(name = "userId") UUID userId) {
+        multiTenancySecurityService.validateUserAccess(userId);
         var query = new GetEmployeeByUserIdQuery(new UserId(userId));
         var employee = employeeQueryService.handle(query);
         if (employee.isEmpty()) {
@@ -98,6 +112,7 @@ public class EmployeesController {
             return ResponseEntity.notFound().build();
         }
 
+        multiTenancySecurityService.validateUserAccess(employee.get().getUserId().value());
         var employeeResource = EmployeeResourceFromEntityAssembler.toResourceFromEntity(employee.get());
         return ResponseEntity.ok(employeeResource);
     }
@@ -105,8 +120,11 @@ public class EmployeesController {
     @Operation(summary = "Delete an employee profile", description = "Deletes an existing employee profile")
     @DeleteMapping("/{employeeId}")
     public ResponseEntity<?> deleteEmployee(@PathVariable UUID employeeId) {
+        var existing = employeeQueryService.handle(new GetEmployeeByIdQuery(new EmployeeId(employeeId)));
+        existing.ifPresent(e -> multiTenancySecurityService.validateUserAccess(e.getUserId().value()));
+
         var command = new DeleteEmployeeCommand(new EmployeeId(employeeId));
         employeeCommandService.handle(command);
-        return ResponseEntity.ok().build();
+        return ResponseEntity.noContent().build();
     }
 }

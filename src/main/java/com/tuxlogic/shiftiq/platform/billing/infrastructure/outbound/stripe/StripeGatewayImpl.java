@@ -4,6 +4,7 @@ import com.stripe.Stripe;
 import com.stripe.exception.StripeException;
 import com.stripe.model.PaymentIntent;
 import com.stripe.param.PaymentIntentCreateParams;
+import com.tuxlogic.shiftiq.platform.billing.application.outboundservices.PaymentIntentResult;
 import com.tuxlogic.shiftiq.platform.billing.application.outboundservices.StripeGateway;
 import com.tuxlogic.shiftiq.platform.billing.application.outboundservices.StripePaymentIntentResult;
 import org.slf4j.Logger;
@@ -15,7 +16,7 @@ import java.math.BigDecimal;
 import java.util.Optional;
 
 /**
- * Implementation of the StripeGateway outbound service interface.
+ * Implementation of PaymentGateway outbound service interface.
  * Adapter connecting to the official Stripe API via the stripe-java SDK.
  */
 @Service
@@ -28,7 +29,21 @@ public class StripeGatewayImpl implements StripeGateway {
     }
 
     @Override
-    public Optional<StripePaymentIntentResult> createPaymentIntent(BigDecimal amount, String currency, String description) {
+    public Optional<PaymentIntentResult> createPaymentIntent(BigDecimal amount, String currency, String description) {
+        return createStripePaymentIntent(amount, currency, description).map(res -> new PaymentIntentResult(
+                res.paymentIntentId(), res.clientSecret(), res.amount(), res.currency(), res.status()
+        ));
+    }
+
+    @Override
+    public Optional<PaymentIntentResult> getPaymentIntent(String paymentIntentId) {
+        return getStripePaymentIntent(paymentIntentId).map(res -> new PaymentIntentResult(
+                res.paymentIntentId(), res.clientSecret(), res.amount(), res.currency(), res.status()
+        ));
+    }
+
+    @Override
+    public Optional<StripePaymentIntentResult> createStripePaymentIntent(BigDecimal amount, String currency, String description) {
         try {
             // Stripe amounts are represented in cents (e.g. 10.00 -> 1000)
             long amountInCents = amount.multiply(new BigDecimal("100")).longValue();
@@ -54,13 +69,13 @@ public class StripeGatewayImpl implements StripeGateway {
                     paymentIntent.getStatus()
             ));
         } catch (StripeException e) {
-            LOGGER.error("Error creating Stripe PaymentIntent: {}", e.getMessage(), e);
+            LOGGER.error("Error creating payment intent: {}", e.getMessage(), e);
             return Optional.empty();
         }
     }
 
     @Override
-    public Optional<StripePaymentIntentResult> getPaymentIntent(String paymentIntentId) {
+    public Optional<StripePaymentIntentResult> getStripePaymentIntent(String paymentIntentId) {
         if (paymentIntentId == null || paymentIntentId.isBlank()) {
             return Optional.empty();
         }
@@ -75,7 +90,7 @@ public class StripeGatewayImpl implements StripeGateway {
                     paymentIntent.getStatus()
             ));
         } catch (StripeException e) {
-            LOGGER.error("Error retrieving Stripe PaymentIntent {}: {}", paymentIntentId, e.getMessage(), e);
+            LOGGER.error("Error retrieving payment intent {}: {}", paymentIntentId, e.getMessage(), e);
             return Optional.empty();
         }
     }

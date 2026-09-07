@@ -1,23 +1,30 @@
 package com.tuxlogic.shiftiq.platform.core.infrastructure.persistence.jpa.entities;
 
+import com.tuxlogic.shiftiq.platform.shared.infrastructure.persistence.jpa.entities.AuditableAbstractPersistenceEntity;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.hibernate.annotations.SQLDelete;
+import org.hibernate.annotations.SQLRestriction;
+import org.springframework.data.domain.Persistable;
 
+import java.time.Instant;
 import java.util.UUID;
 
 @Entity
 @Table(name = "subscription_plans")
+@SQLDelete(sql = "UPDATE subscription_plans SET deleted_at = CURRENT_TIMESTAMP WHERE id = ? AND version = ?")
+@SQLRestriction("deleted_at IS NULL")
 @Getter
 @Setter
 @NoArgsConstructor
-public class SubscriptionPlanPersistenceEntity {
+public class SubscriptionPlanPersistenceEntity extends AuditableAbstractPersistenceEntity implements Persistable<UUID> {
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.UUID)
-    @Column(columnDefinition = "uuid", updatable = false, nullable = false)
-    private UUID id;
+    @Override
+    public boolean isNew() {
+        return getCreatedAt() == null;
+    }
 
     @Column(nullable = false, unique = true)
     private String name;
@@ -39,4 +46,7 @@ public class SubscriptionPlanPersistenceEntity {
 
     @Column(name = "is_active", nullable = false)
     private boolean isActive;
+
+    @Column(name = "deleted_at")
+    private Instant deletedAt;
 }

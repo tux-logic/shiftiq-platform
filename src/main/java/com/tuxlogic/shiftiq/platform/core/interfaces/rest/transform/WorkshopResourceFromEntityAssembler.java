@@ -3,7 +3,10 @@ package com.tuxlogic.shiftiq.platform.core.interfaces.rest.transform;
 import com.tuxlogic.shiftiq.platform.core.domain.model.aggregates.Workshop;
 import com.tuxlogic.shiftiq.platform.core.interfaces.rest.resources.WorkshopResource;
 
-public class WorkshopResourceFromEntityAssembler {
+public final class WorkshopResourceFromEntityAssembler {
+
+    private WorkshopResourceFromEntityAssembler() {}
+
     public static WorkshopResource toResourceFromEntity(Workshop entity) {
         return new WorkshopResource(
                 entity.getId() != null ? entity.getId().value() : null,
@@ -11,7 +14,7 @@ public class WorkshopResourceFromEntityAssembler {
                 entity.getBusinessName(),
                 entity.getBrandName(),
                 entity.getTaxId() != null ? entity.getTaxId().value() : null,
-                entity.getMileageIntervalConfig()
+                entity.getMileageIntervalConfig() != null ? entity.getMileageIntervalConfig().value() : 1
         );
     }
 }

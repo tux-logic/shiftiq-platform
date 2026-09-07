@@ -77,9 +77,17 @@ public class QuotesController {
      * @return A ResponseEntity with the updated quote resource and a 200 OK status, 
      *         or an appropriate error status based on the business failure.
      */
+    private com.tuxlogic.shiftiq.platform.billing.domain.model.aggregates.Quote validateQuoteAccess(UUID id) {
+        var quote = queryService.handle(new GetQuoteByIdQuery(id))
+                .orElseThrow(() -> new IllegalArgumentException("billing.error.quote.notFound"));
+        multiTenancySecurityService.validateBranchAccess(quote.getBranchId().value());
+        return quote;
+    }
+
     @PutMapping("/{id}")
     @Operation(summary = "Update quote discount", description = "Updates the discount percentage of an existing DRAFT quote")
     public ResponseEntity<?> updateQuoteDiscount(@PathVariable UUID id, @Valid @RequestBody UpdateQuoteResource resource) {
+        validateQuoteAccess(id);
         var command = UpdateQuoteCommandFromResourceAssembler.toCommandFromResource(id, resource);
         var result = commandService.handle(command);
         if (result.isSuccess()) {
@@ -89,16 +97,10 @@ public class QuotesController {
         return toErrorResponse(result.failure().get());
     }
 
-    /**
-     * Handles the approval of an existing DRAFT quote.
-     * 
-     * @param id The unique identifier of the quote to approve.
-     * @return A ResponseEntity with the approved quote resource and a 200 OK status, 
-     *         or an appropriate error status based on the business failure.
-     */
     @PostMapping("/{id}/approvals")
     @Operation(summary = "Approve a quote", description = "Approves a Quote, transitioning its state from DRAFT to APPROVED")
     public ResponseEntity<?> approveQuote(@PathVariable UUID id) {
+        validateQuoteAccess(id);
         var command = new ApproveQuoteCommand(id);
         var result = commandService.handle(command);
         if (result.isSuccess()) {
@@ -108,16 +110,10 @@ public class QuotesController {
         return toErrorResponse(result.failure().get());
     }
 
-    /**
-     * Handles the cancellation of an existing quote.
-     * 
-     * @param id The unique identifier of the quote to cancel.
-     * @return A ResponseEntity with the canceled quote resource and a 200 OK status, 
-     *         or an appropriate error status based on the business failure.
-     */
     @PostMapping("/{id}/cancellations")
     @Operation(summary = "Cancel a quote", description = "Cancels a Quote, transitioning its state to CANCELED")
     public ResponseEntity<?> cancelQuote(@PathVariable UUID id) {
+        validateQuoteAccess(id);
         var command = new CancelQuoteCommand(id);
         var result = commandService.handle(command);
         if (result.isSuccess()) {
@@ -127,16 +123,10 @@ public class QuotesController {
         return toErrorResponse(result.failure().get());
     }
 
-    /**
-     * Handles the retrieval of a quote by its ID.
-     * 
-     * @param id The unique identifier of the quote.
-     * @return A ResponseEntity with the quote resource and a 200 OK status, 
-     *         or a 404 NOT FOUND status if the quote does not exist.
-     */
     @GetMapping("/{id}")
     @Operation(summary = "Get quote by ID", description = "Retrieves a Quote by its unique identifier")
     public ResponseEntity<QuoteResource> getQuoteById(@PathVariable UUID id) {
+        validateQuoteAccess(id);
         var query = new GetQuoteByIdQuery(id);
         var quote = queryService.handle(query);
         if (quote.isEmpty()) {
