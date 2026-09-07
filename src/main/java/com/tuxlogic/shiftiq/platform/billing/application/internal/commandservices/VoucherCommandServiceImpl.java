@@ -33,7 +33,7 @@ import java.util.UUID;
  * Handles the business use cases for Voucher operations, interacting with repositories
  * and with the Factos external service to emit documents to the tax authority.
  */
-import com.tuxlogic.shiftiq.platform.billing.application.outboundservices.StripeGateway;
+import com.tuxlogic.shiftiq.platform.billing.application.outboundservices.PaymentGateway;
 
 @Service
 @Transactional
@@ -44,7 +44,7 @@ public class VoucherCommandServiceImpl implements VoucherCommandService {
     private final BranchQueryService branchQueryService;
     private final WorkshopQueryService workshopQueryService;
     private final FactosGateway factosGateway;
-    private final StripeGateway stripeGateway;
+    private final PaymentGateway paymentGateway;
     private final WorkOrderQueryService workOrderQueryService;
     private final ProductQueryService productQueryService;
 
@@ -54,7 +54,7 @@ public class VoucherCommandServiceImpl implements VoucherCommandService {
             BranchQueryService branchQueryService,
             WorkshopQueryService workshopQueryService,
             FactosGateway factosGateway,
-            StripeGateway stripeGateway,
+            PaymentGateway paymentGateway,
             WorkOrderQueryService workOrderQueryService,
             ProductQueryService productQueryService) {
         this.voucherRepository = voucherRepository;
@@ -62,7 +62,7 @@ public class VoucherCommandServiceImpl implements VoucherCommandService {
         this.branchQueryService = branchQueryService;
         this.workshopQueryService = workshopQueryService;
         this.factosGateway = factosGateway;
-        this.stripeGateway = stripeGateway;
+        this.paymentGateway = paymentGateway;
         this.workOrderQueryService = workOrderQueryService;
         this.productQueryService = productQueryService;
     }
@@ -264,8 +264,8 @@ public class VoucherCommandServiceImpl implements VoucherCommandService {
         }
         var quote = quoteOpt.get();
 
-        // 2. Verify Stripe PaymentIntent status and amount
-        var stripeIntentOpt = stripeGateway.getPaymentIntent(command.paymentIntentId());
+        // 2. Verify PaymentIntent status and amount
+        var stripeIntentOpt = paymentGateway.getPaymentIntent(command.paymentIntentId());
         if (stripeIntentOpt.isEmpty()) {
             return Result.failure(VoucherCommandFailure.PAYMENT_NOT_FOUND);
         }
