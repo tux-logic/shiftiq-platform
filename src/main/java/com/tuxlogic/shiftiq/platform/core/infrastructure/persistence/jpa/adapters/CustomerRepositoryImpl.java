@@ -25,12 +25,9 @@ public class CustomerRepositoryImpl implements CustomerRepository {
     @Override
     @Transactional
     public Customer save(Customer customer) {
-        CustomerPersistenceEntity entity;
-        if (customer.getId() != null) {
-            entity = customerPersistenceRepository.findById(customer.getId().value()).orElse(new CustomerPersistenceEntity());
-        } else {
-            entity = new CustomerPersistenceEntity();
-        }
+        var entity = (customer.getId() != null)
+                ? customerPersistenceRepository.findById(customer.getId().value()).orElseGet(CustomerPersistenceEntity::new)
+                : new CustomerPersistenceEntity();
         
         CustomerPersistenceAssembler.toEntity(customer, entity);
         CustomerPersistenceEntity savedEntity = customerPersistenceRepository.save(entity);
@@ -68,12 +65,13 @@ public class CustomerRepositoryImpl implements CustomerRepository {
     @Override
     @Transactional
     public void delete(Customer customer) {
-        if (customer.getId() == null) {
-            throw new IllegalArgumentException("Customer ID cannot be null for deletion");
+        if (customer == null || customer.getId() == null) {
+            throw new IllegalArgumentException("Customer or Customer ID cannot be null for deletion");
         }
-        CustomerPersistenceEntity entity = customerPersistenceRepository.findById(customer.getId().value())
-                .orElseThrow(() -> new IllegalArgumentException("Customer not found with ID: " + customer.getId().value()));
-        customerPersistenceRepository.delete(entity);
+        if (!customerPersistenceRepository.existsById(customer.getId().value())) {
+            throw new IllegalArgumentException("Customer not found with ID: " + customer.getId().value());
+        }
+        customerPersistenceRepository.deleteById(customer.getId().value());
     }
 }
 

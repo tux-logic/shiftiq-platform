@@ -28,12 +28,9 @@ public class BranchSubscriptionRepositoryImpl implements BranchSubscriptionRepos
     @Override
     @Transactional
     public BranchSubscription save(BranchSubscription branchSubscription) {
-        BranchSubscriptionPersistenceEntity entity;
-        if (branchSubscription.getId() != null) {
-            entity = branchSubscriptionPersistenceRepository.findById(branchSubscription.getId().value()).orElse(new BranchSubscriptionPersistenceEntity());
-        } else {
-            entity = new BranchSubscriptionPersistenceEntity();
-        }
+        var entity = (branchSubscription.getId() != null)
+                ? branchSubscriptionPersistenceRepository.findById(branchSubscription.getId().value()).orElseGet(BranchSubscriptionPersistenceEntity::new)
+                : new BranchSubscriptionPersistenceEntity();
         BranchSubscriptionPersistenceAssembler.toEntity(branchSubscription, entity);
         BranchSubscriptionPersistenceEntity savedEntity = branchSubscriptionPersistenceRepository.save(entity);
         return BranchSubscriptionPersistenceAssembler.toDomain(savedEntity);

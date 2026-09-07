@@ -27,12 +27,10 @@ public class BranchRepositoryImpl implements BranchRepository {
     @Override
     @Transactional
     public Branch save(Branch branch) {
-        BranchPersistenceEntity entity;
-        if (branch.getId() != null) {
-            entity = branchPersistenceRepository.findById(branch.getId().value()).orElse(new BranchPersistenceEntity());
-        } else {
-            entity = new BranchPersistenceEntity();
-        }
+        var entity = (branch.getId() != null)
+                ? branchPersistenceRepository.findById(branch.getId().value()).orElseGet(BranchPersistenceEntity::new)
+                : new BranchPersistenceEntity();
+
         BranchPersistenceAssembler.toEntity(branch, entity);
         BranchPersistenceEntity savedEntity = branchPersistenceRepository.save(entity);
         return BranchPersistenceAssembler.toDomain(savedEntity);

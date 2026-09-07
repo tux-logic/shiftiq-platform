@@ -25,12 +25,9 @@ public class OwnerRepositoryImpl implements OwnerRepository {
     @Override
     @Transactional
     public Owner save(Owner owner) {
-        OwnerPersistenceEntity entity;
-        if (owner.getId() != null) {
-            entity = ownerPersistenceRepository.findById(owner.getId().value()).orElse(new OwnerPersistenceEntity());
-        } else {
-            entity = new OwnerPersistenceEntity();
-        }
+        var entity = (owner.getId() != null)
+                ? ownerPersistenceRepository.findById(owner.getId().value()).orElseGet(OwnerPersistenceEntity::new)
+                : new OwnerPersistenceEntity();
         
         OwnerPersistenceAssembler.toEntity(owner, entity);
         OwnerPersistenceEntity savedEntity = ownerPersistenceRepository.save(entity);
@@ -65,11 +62,12 @@ public class OwnerRepositoryImpl implements OwnerRepository {
     @Override
     @Transactional
     public void delete(Owner owner) {
-        if (owner.getId() == null) {
-            throw new IllegalArgumentException("Owner ID cannot be null for deletion");
+        if (owner == null || owner.getId() == null) {
+            throw new IllegalArgumentException("Owner or Owner ID cannot be null for deletion");
         }
-        OwnerPersistenceEntity entity = ownerPersistenceRepository.findById(owner.getId().value())
-                .orElseThrow(() -> new IllegalArgumentException("Owner not found with ID: " + owner.getId().value()));
-        ownerPersistenceRepository.delete(entity);
+        if (!ownerPersistenceRepository.existsById(owner.getId().value())) {
+            throw new IllegalArgumentException("Owner not found with ID: " + owner.getId().value());
+        }
+        ownerPersistenceRepository.deleteById(owner.getId().value());
     }
 }

@@ -25,12 +25,9 @@ public class EmployeeRepositoryImpl implements EmployeeRepository {
     @Override
     @Transactional
     public Employee save(Employee employee) {
-        EmployeePersistenceEntity entity;
-        if (employee.getId() != null) {
-            entity = employeePersistenceRepository.findById(employee.getId().value()).orElse(new EmployeePersistenceEntity());
-        } else {
-            entity = new EmployeePersistenceEntity();
-        }
+        var entity = (employee.getId() != null)
+                ? employeePersistenceRepository.findById(employee.getId().value()).orElseGet(EmployeePersistenceEntity::new)
+                : new EmployeePersistenceEntity();
         
         EmployeePersistenceAssembler.toEntity(employee, entity);
         EmployeePersistenceEntity savedEntity = employeePersistenceRepository.save(entity);
@@ -60,11 +57,12 @@ public class EmployeeRepositoryImpl implements EmployeeRepository {
     @Override
     @Transactional
     public void delete(Employee employee) {
-        if (employee.getId() == null) {
-            throw new IllegalArgumentException("Employee ID cannot be null for deletion");
+        if (employee == null || employee.getId() == null) {
+            throw new IllegalArgumentException("Employee or Employee ID cannot be null for deletion");
         }
-        EmployeePersistenceEntity entity = employeePersistenceRepository.findById(employee.getId().value())
-                .orElseThrow(() -> new IllegalArgumentException("Employee not found with ID: " + employee.getId().value()));
-        employeePersistenceRepository.delete(entity);
+        if (!employeePersistenceRepository.existsById(employee.getId().value())) {
+            throw new IllegalArgumentException("Employee not found with ID: " + employee.getId().value());
+        }
+        employeePersistenceRepository.deleteById(employee.getId().value());
     }
 }

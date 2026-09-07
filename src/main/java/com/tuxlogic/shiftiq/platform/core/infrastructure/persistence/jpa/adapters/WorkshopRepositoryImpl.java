@@ -27,12 +27,9 @@ public class WorkshopRepositoryImpl implements WorkshopRepository {
     @Override
     @Transactional
     public Workshop save(Workshop workshop) {
-        WorkshopPersistenceEntity entity;
-        if (workshop.getId() != null) {
-            entity = workshopPersistenceRepository.findById(workshop.getId().value()).orElse(new WorkshopPersistenceEntity());
-        } else {
-            entity = new WorkshopPersistenceEntity();
-        }
+        var entity = (workshop.getId() != null)
+                ? workshopPersistenceRepository.findById(workshop.getId().value()).orElseGet(WorkshopPersistenceEntity::new)
+                : new WorkshopPersistenceEntity();
         WorkshopPersistenceAssembler.toEntity(workshop, entity);
         WorkshopPersistenceEntity savedEntity = workshopPersistenceRepository.save(entity);
         return WorkshopPersistenceAssembler.toDomain(savedEntity);
