@@ -27,12 +27,13 @@ public class WorkshopRepositoryImpl implements WorkshopRepository {
     @Override
     @Transactional
     public Workshop save(Workshop workshop) {
-        var entity = (workshop.getId() != null)
-                ? workshopPersistenceRepository.findById(workshop.getId().value()).orElseGet(WorkshopPersistenceEntity::new)
-                : new WorkshopPersistenceEntity();
+        var entity = JpaAdapterUtils.resolveEntity(
+                workshop.getId() != null ? workshop.getId().value() : null,
+                workshopPersistenceRepository::findById,
+                WorkshopPersistenceEntity::new
+        );
         WorkshopPersistenceAssembler.toEntity(workshop, entity);
-        WorkshopPersistenceEntity savedEntity = workshopPersistenceRepository.save(entity);
-        return WorkshopPersistenceAssembler.toDomain(savedEntity);
+        return WorkshopPersistenceAssembler.toDomain(workshopPersistenceRepository.save(entity));
     }
 
     @Override

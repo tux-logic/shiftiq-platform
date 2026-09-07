@@ -25,13 +25,13 @@ public class OwnerRepositoryImpl implements OwnerRepository {
     @Override
     @Transactional
     public Owner save(Owner owner) {
-        var entity = (owner.getId() != null)
-                ? ownerPersistenceRepository.findById(owner.getId().value()).orElseGet(OwnerPersistenceEntity::new)
-                : new OwnerPersistenceEntity();
-        
+        var entity = JpaAdapterUtils.resolveEntity(
+                owner.getId() != null ? owner.getId().value() : null,
+                ownerPersistenceRepository::findById,
+                OwnerPersistenceEntity::new
+        );
         OwnerPersistenceAssembler.toEntity(owner, entity);
-        OwnerPersistenceEntity savedEntity = ownerPersistenceRepository.save(entity);
-        return OwnerPersistenceAssembler.toDomain(savedEntity);
+        return OwnerPersistenceAssembler.toDomain(ownerPersistenceRepository.save(entity));
     }
 
     @Override
@@ -64,9 +64,6 @@ public class OwnerRepositoryImpl implements OwnerRepository {
     public void delete(Owner owner) {
         if (owner == null || owner.getId() == null) {
             throw new IllegalArgumentException("Owner or Owner ID cannot be null for deletion");
-        }
-        if (!ownerPersistenceRepository.existsById(owner.getId().value())) {
-            throw new IllegalArgumentException("Owner not found with ID: " + owner.getId().value());
         }
         ownerPersistenceRepository.deleteById(owner.getId().value());
     }

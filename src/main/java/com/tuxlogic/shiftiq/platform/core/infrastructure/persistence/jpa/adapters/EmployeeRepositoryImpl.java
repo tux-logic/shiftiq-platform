@@ -25,13 +25,13 @@ public class EmployeeRepositoryImpl implements EmployeeRepository {
     @Override
     @Transactional
     public Employee save(Employee employee) {
-        var entity = (employee.getId() != null)
-                ? employeePersistenceRepository.findById(employee.getId().value()).orElseGet(EmployeePersistenceEntity::new)
-                : new EmployeePersistenceEntity();
-        
+        var entity = JpaAdapterUtils.resolveEntity(
+                employee.getId() != null ? employee.getId().value() : null,
+                employeePersistenceRepository::findById,
+                EmployeePersistenceEntity::new
+        );
         EmployeePersistenceAssembler.toEntity(employee, entity);
-        EmployeePersistenceEntity savedEntity = employeePersistenceRepository.save(entity);
-        return EmployeePersistenceAssembler.toDomain(savedEntity);
+        return EmployeePersistenceAssembler.toDomain(employeePersistenceRepository.save(entity));
     }
 
     @Override
@@ -59,9 +59,6 @@ public class EmployeeRepositoryImpl implements EmployeeRepository {
     public void delete(Employee employee) {
         if (employee == null || employee.getId() == null) {
             throw new IllegalArgumentException("Employee or Employee ID cannot be null for deletion");
-        }
-        if (!employeePersistenceRepository.existsById(employee.getId().value())) {
-            throw new IllegalArgumentException("Employee not found with ID: " + employee.getId().value());
         }
         employeePersistenceRepository.deleteById(employee.getId().value());
     }

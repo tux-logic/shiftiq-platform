@@ -25,13 +25,13 @@ public class CustomerRepositoryImpl implements CustomerRepository {
     @Override
     @Transactional
     public Customer save(Customer customer) {
-        var entity = (customer.getId() != null)
-                ? customerPersistenceRepository.findById(customer.getId().value()).orElseGet(CustomerPersistenceEntity::new)
-                : new CustomerPersistenceEntity();
-        
+        var entity = JpaAdapterUtils.resolveEntity(
+                customer.getId() != null ? customer.getId().value() : null,
+                customerPersistenceRepository::findById,
+                CustomerPersistenceEntity::new
+        );
         CustomerPersistenceAssembler.toEntity(customer, entity);
-        CustomerPersistenceEntity savedEntity = customerPersistenceRepository.save(entity);
-        return CustomerPersistenceAssembler.toDomain(savedEntity);
+        return CustomerPersistenceAssembler.toDomain(customerPersistenceRepository.save(entity));
     }
 
     @Override
@@ -67,9 +67,6 @@ public class CustomerRepositoryImpl implements CustomerRepository {
     public void delete(Customer customer) {
         if (customer == null || customer.getId() == null) {
             throw new IllegalArgumentException("Customer or Customer ID cannot be null for deletion");
-        }
-        if (!customerPersistenceRepository.existsById(customer.getId().value())) {
-            throw new IllegalArgumentException("Customer not found with ID: " + customer.getId().value());
         }
         customerPersistenceRepository.deleteById(customer.getId().value());
     }

@@ -26,12 +26,13 @@ public class SubscriptionPlanRepositoryImpl implements SubscriptionPlanRepositor
     @Override
     @Transactional
     public SubscriptionPlan save(SubscriptionPlan subscriptionPlan) {
-        var entity = (subscriptionPlan.getId() != null)
-                ? subscriptionPlanPersistenceRepository.findById(subscriptionPlan.getId().value()).orElseGet(SubscriptionPlanPersistenceEntity::new)
-                : new SubscriptionPlanPersistenceEntity();
+        var entity = JpaAdapterUtils.resolveEntity(
+                subscriptionPlan.getId() != null ? subscriptionPlan.getId().value() : null,
+                subscriptionPlanPersistenceRepository::findById,
+                SubscriptionPlanPersistenceEntity::new
+        );
         SubscriptionPlanPersistenceAssembler.toEntity(subscriptionPlan, entity);
-        SubscriptionPlanPersistenceEntity savedEntity = subscriptionPlanPersistenceRepository.save(entity);
-        return SubscriptionPlanPersistenceAssembler.toDomain(savedEntity);
+        return SubscriptionPlanPersistenceAssembler.toDomain(subscriptionPlanPersistenceRepository.save(entity));
     }
 
     @Override

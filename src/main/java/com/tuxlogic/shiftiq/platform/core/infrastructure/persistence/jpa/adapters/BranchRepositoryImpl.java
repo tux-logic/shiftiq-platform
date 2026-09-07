@@ -27,13 +27,13 @@ public class BranchRepositoryImpl implements BranchRepository {
     @Override
     @Transactional
     public Branch save(Branch branch) {
-        var entity = (branch.getId() != null)
-                ? branchPersistenceRepository.findById(branch.getId().value()).orElseGet(BranchPersistenceEntity::new)
-                : new BranchPersistenceEntity();
-
+        var entity = JpaAdapterUtils.resolveEntity(
+                branch.getId() != null ? branch.getId().value() : null,
+                branchPersistenceRepository::findById,
+                BranchPersistenceEntity::new
+        );
         BranchPersistenceAssembler.toEntity(branch, entity);
-        BranchPersistenceEntity savedEntity = branchPersistenceRepository.save(entity);
-        return BranchPersistenceAssembler.toDomain(savedEntity);
+        return BranchPersistenceAssembler.toDomain(branchPersistenceRepository.save(entity));
     }
 
     @Override
