@@ -7,6 +7,8 @@ import com.tuxlogic.shiftiq.platform.fleet.domain.model.valueobjects.Appointment
 import com.tuxlogic.shiftiq.platform.fleet.domain.repositories.AppointmentRepository;
 import com.tuxlogic.shiftiq.platform.shared.application.result.Result;
 import com.tuxlogic.shiftiq.platform.shared.domain.model.valueobjects.BranchId;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -14,6 +16,8 @@ import java.util.UUID;
 
 @Service
 public class AppointmentQueryServiceImpl implements AppointmentQueryService {
+
+    private static final Logger log = LoggerFactory.getLogger(AppointmentQueryServiceImpl.class);
 
     private final AppointmentRepository appointmentRepository;
 
