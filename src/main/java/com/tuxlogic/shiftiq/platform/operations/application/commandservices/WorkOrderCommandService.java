@@ -101,4 +101,18 @@ public interface WorkOrderCommandService {
      * @return returns a Result containing either the deleted Work Order (or a confirmation of deletion) or a specific failure reason if the operation fails (e.g., Work Order not found, work order not in a state that allows deletion, etc.).
      */
     Result<WorkOrder, WorkOrderCommandFailure> handle(DeleteWorkOrderCommand command);
+
+    /**
+     * Complete a Work Order globally.
+     * @param command The command object containing the Work Order ID.
+     * @return returns a Result containing either the completed Work Order or a specific failure reason.
+     */
+    Result<WorkOrder, WorkOrderCommandFailure> handle(CompleteWorkOrderCommand command);
+
+    /**
+     * Assign or reassign a mechanic to a specific Task in a Work Order.
+     * @param command The command object containing the Work Order ID, Task ID, and Mechanic ID.
+     * @return returns a Result containing either the updated Work Order or a specific failure reason.
+     */
+    Result<WorkOrder, WorkOrderCommandFailure> handle(AssignMechanicToTaskCommand command);
 }

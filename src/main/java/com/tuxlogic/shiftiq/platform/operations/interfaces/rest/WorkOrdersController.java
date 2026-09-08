@@ -179,4 +179,14 @@ public class WorkOrdersController {
         var result = commandService.handle(command);
         return toResponse(result);
     }
+
+    @PostMapping("/{id}/complete")
+    @Operation(summary = "Complete a Work Order", description = "Marks a Work Order as COMPLETED when all tasks are finished and triggers the WorkOrderCompletedEvent")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<?> completeWorkOrder(@PathVariable UUID id) {
+        validateWorkOrderAccess(id);
+        var command = new CompleteWorkOrderCommand(new WorkOrderId(id));
+        var result = commandService.handle(command);
+        return toResponse(result);
+    }
 }
