@@ -7,13 +7,18 @@ import com.tuxlogic.shiftiq.platform.fleet.domain.model.queries.GetEmployeeRegis
 import com.tuxlogic.shiftiq.platform.fleet.domain.model.queries.GetEmployeeRegistrationsByBranchIdQuery;
 import com.tuxlogic.shiftiq.platform.fleet.domain.model.queries.GetEmployeeRegistrationsByBranchIdAndStatusQuery;
 import com.tuxlogic.shiftiq.platform.fleet.domain.repositories.EmployeeRegistrationRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 
 @Service
 public class EmployeeRegistrationQueryServiceImpl implements EmployeeRegistrationQueryService {
+
+    private static final Logger log = LoggerFactory.getLogger(EmployeeRegistrationQueryServiceImpl.class);
 
     private final EmployeeRegistrationRepository employeeRegistrationRepository;
 
@@ -23,21 +28,41 @@ public class EmployeeRegistrationQueryServiceImpl implements EmployeeRegistratio
 
     @Override
     public Optional<EmployeeRegistration> handle(GetEmployeeRegistrationByIdQuery query) {
-        return employeeRegistrationRepository.findById(query.id());
+        try {
+            return employeeRegistrationRepository.findById(query.id());
+        } catch (IllegalArgumentException ex) {
+            log.error("Failed to query employee registration by id: {}", ex.getMessage());
+            return Optional.empty();
+        }
     }
 
     @Override
     public Optional<EmployeeRegistration> handle(GetEmployeeRegistrationByEmployeeIdQuery query) {
-        return employeeRegistrationRepository.findByEmployeeId(query.employeeId());
+        try {
+            return employeeRegistrationRepository.findByEmployeeId(query.employeeId());
+        } catch (IllegalArgumentException ex) {
+            log.error("Failed to query employee registration by employee id: {}", ex.getMessage());
+            return Optional.empty();
+        }
     }
 
     @Override
     public List<EmployeeRegistration> handle(GetEmployeeRegistrationsByBranchIdQuery query) {
-        return employeeRegistrationRepository.findByBranchId(query.branchId());
+        try {
+            return employeeRegistrationRepository.findByBranchId(query.branchId());
+        } catch (IllegalArgumentException ex) {
+            log.error("Failed to query employee registrations by branch id: {}", ex.getMessage());
+            return Collections.emptyList();
+        }
     }
 
     @Override
     public List<EmployeeRegistration> handle(GetEmployeeRegistrationsByBranchIdAndStatusQuery query) {
-        return employeeRegistrationRepository.findByBranchIdAndStatus(query.branchId(), query.status());
+        try {
+            return employeeRegistrationRepository.findByBranchIdAndStatus(query.branchId(), query.status());
+        } catch (IllegalArgumentException ex) {
+            log.error("Failed to query employee registrations by branch id and status: {}", ex.getMessage());
+            return Collections.emptyList();
+        }
     }
 }

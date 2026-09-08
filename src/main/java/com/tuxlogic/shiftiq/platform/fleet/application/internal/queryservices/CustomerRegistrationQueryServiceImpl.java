@@ -8,6 +8,8 @@ import com.tuxlogic.shiftiq.platform.fleet.domain.repositories.CustomerRegistrat
 import com.tuxlogic.shiftiq.platform.shared.application.result.Result;
 import com.tuxlogic.shiftiq.platform.fleet.domain.model.queries.GetCustomerRegistrationByCustomerIdQuery;
 import com.tuxlogic.shiftiq.platform.shared.domain.model.valueobjects.BranchId;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -15,6 +17,8 @@ import java.util.UUID;
 
 @Service
 public class CustomerRegistrationQueryServiceImpl implements CustomerRegistrationQueryService {
+
+    private static final Logger log = LoggerFactory.getLogger(CustomerRegistrationQueryServiceImpl.class);
 
     private final CustomerRegistrationRepository repository;
 
