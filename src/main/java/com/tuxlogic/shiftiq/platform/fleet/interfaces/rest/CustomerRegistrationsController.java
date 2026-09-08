@@ -18,6 +18,8 @@ import com.tuxlogic.shiftiq.platform.shared.interfaces.rest.transform.ErrorRespo
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import com.tuxlogic.shiftiq.platform.shared.infrastructure.security.MultiTenancySecurityService;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.context.MessageSource;
 import org.springframework.context.i18n.LocaleContextHolder;
 import org.springframework.http.HttpStatus;
@@ -29,22 +31,27 @@ import java.util.UUID;
 @RestController
 @RequestMapping(value = "/api/v1/customer-registrations", produces = "application/json")
 @Tag(name = "CustomerRegistrations", description = "Customer Registration Management Endpoints")
+@PreAuthorize("isAuthenticated()")
 public class CustomerRegistrationsController {
 
     private final CustomerRegistrationCommandService commandService;
     private final CustomerRegistrationQueryService queryService;
     private final MessageSource messageSource;
+    private final MultiTenancySecurityService multiTenancySecurityService;
 
     public CustomerRegistrationsController(CustomerRegistrationCommandService commandService,
                                            CustomerRegistrationQueryService queryService,
-                                           MessageSource messageSource) {
+                                           MessageSource messageSource,
+                                           MultiTenancySecurityService multiTenancySecurityService) {
         this.commandService = commandService;
         this.queryService = queryService;
         this.messageSource = messageSource;
+        this.multiTenancySecurityService = multiTenancySecurityService;
     }
 
     @PostMapping
     @Operation(summary = "Create a new customer registration", description = "Creates a new customer registration")
+    @PreAuthorize("isAuthenticated() and (hasRole('ADMIN') or @multiTenancySecurityService.isAuthorizedForBranch(#resource.branchId()))")
     public ResponseEntity<?> create(@Valid @RequestBody CreateCustomerRegistrationResource resource) {
         var command = CreateCustomerRegistrationCommandFromResourceAssembler.toCommandFromResource(resource);
         var result = commandService.handle(command);
@@ -115,7 +122,12 @@ public class CustomerRegistrationsController {
     public ResponseEntity<?> getById(@PathVariable UUID registrationId) {
         var result = queryService.handle(registrationId);
         return result.fold(
-                reg -> ResponseEntity.ok(CustomerRegistrationResourceFromAggregateAssembler.toResourceFromAggregate(reg)),
+                reg -> {
+                    if (reg.getBranchId() != null && !multiTenancySecurityService.isAuthorizedForBranch(reg.getBranchId().value())) {
+                        return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+                    }
+                    return ResponseEntity.ok(CustomerRegistrationResourceFromAggregateAssembler.toResourceFromAggregate(reg));
+                },
                 this::handleQueryFailure
         );
     }

@@ -21,6 +21,8 @@ import com.tuxlogic.shiftiq.platform.shared.interfaces.rest.transform.ErrorRespo
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import com.tuxlogic.shiftiq.platform.shared.infrastructure.security.MultiTenancySecurityService;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.context.MessageSource;
 import org.springframework.context.i18n.LocaleContextHolder;
 import org.springframework.http.HttpStatus;
@@ -32,22 +34,27 @@ import java.util.UUID;
 @RestController
 @RequestMapping(value = "/api/v1/employee-registrations", produces = "application/json")
 @Tag(name = "EmployeeRegistrations", description = "Employee Registration Management Endpoints")
+@PreAuthorize("isAuthenticated()")
 public class EmployeeRegistrationsController {
 
     private final EmployeeRegistrationCommandService commandService;
     private final EmployeeRegistrationQueryService queryService;
     private final MessageSource messageSource;
+    private final MultiTenancySecurityService multiTenancySecurityService;
 
     public EmployeeRegistrationsController(EmployeeRegistrationCommandService commandService,
                                            EmployeeRegistrationQueryService queryService,
-                                           MessageSource messageSource) {
+                                           MessageSource messageSource,
+                                           MultiTenancySecurityService multiTenancySecurityService) {
         this.commandService = commandService;
         this.queryService = queryService;
         this.messageSource = messageSource;
+        this.multiTenancySecurityService = multiTenancySecurityService;
     }
 
     @PostMapping
     @Operation(summary = "Create a new employee registration", description = "Creates a new employee registration")
+    @PreAuthorize("isAuthenticated() and (hasRole('ADMIN') or @multiTenancySecurityService.isAuthorizedForBranch(#resource.branchId()))")
     public ResponseEntity<?> create(@Valid @RequestBody CreateEmployeeRegistrationResource resource) {
         var command = CreateEmployeeRegistrationCommandFromResourceAssembler.toCommandFromResource(resource);
         var result = commandService.handle(command);
@@ -65,6 +72,9 @@ public class EmployeeRegistrationsController {
         var registration = queryService.handle(query);
         if (registration.isEmpty()) {
             return ResponseEntity.notFound().build();
+        }
+        if (registration.get().getBranchId() != null && !multiTenancySecurityService.isAuthorizedForBranch(registration.get().getBranchId().value())) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
         }
         var resource = EmployeeRegistrationResourceFromAggregateAssembler.toResourceFromAggregate(registration.get());
         return ResponseEntity.ok(resource);
