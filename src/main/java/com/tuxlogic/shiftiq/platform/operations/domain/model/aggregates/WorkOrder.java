@@ -194,12 +194,19 @@ public class WorkOrder extends AbstractDomainAggregateRoot<WorkOrder> {
 
     public void completeWorkOrder() {
         boolean allTasksCompleted = this.tasks.stream()
+                .filter(t -> !t.isDeleted())
                 .allMatch(t -> t.getStatus() == WorkOrderTaskStatus.COMPLETED);
         if (!allTasksCompleted) {
             throw new IllegalStateException(OperationsMessageKeys.WORK_ORDER_PENDING_TASKS_EXIST);
         }
         this.status = this.status.transitionTo(WorkOrderStatus.COMPLETED);
         this.registerEvent(new WorkOrderCompletedEvent(this, this.branchId, this.id, this.appointmentId, this.totalAmount));
+    }
+
+    public void assignMechanicToTask(WorkOrderTaskId taskId, MechanicId mechanicId) {
+        verifyOrderNotClosed();
+        WorkOrderTask task = findTaskOrThrow(taskId);
+        task.assignMechanic(mechanicId);
     }
 
     public void markAsPaid() {
@@ -220,9 +227,11 @@ public class WorkOrder extends AbstractDomainAggregateRoot<WorkOrder> {
 
     private void recalculateTotalAmount() {
         this.totalAmount = this.tasks.stream()
+                .filter(t -> !t.isDeleted())
                 .map(WorkOrderTask::getPrice)
                 .reduce(Money.ZERO, Money::plus);
     }
+
 
     private WorkOrderTask findTaskOrThrow(WorkOrderTaskId taskId) {
         return this.tasks.stream()

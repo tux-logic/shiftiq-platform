@@ -26,8 +26,9 @@ public record UpdateVehicleCommand(
         if (model == null || model.isBlank()) {
             throw new IllegalArgumentException("model cannot be null or empty");
         }
-        if (year == null || year <= 0) {
-            throw new IllegalArgumentException("year must be a positive integer");
+        int maxYear = java.time.Year.now().getValue() + 1;
+        if (year == null || year < 1900 || year > maxYear) {
+            throw new IllegalArgumentException("year must be between 1900 and " + maxYear);
         }
         if (vin == null || vin.isBlank()) {
             throw new IllegalArgumentException("vin cannot be null or empty");

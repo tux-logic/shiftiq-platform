@@ -229,20 +229,11 @@ public class WorkOrderCommandServiceImpl implements WorkOrderCommandService {
     public Result<WorkOrder, WorkOrderCommandFailure> handle(AssignMechanicToTaskCommand command) {
         return executeCommand(() -> {
             WorkOrder workOrder = findWorkOrderOrThrow(command.workOrderId());
-            var task = workOrder.getTasks().stream()
-                    .filter(t -> t.getId().equals(command.taskId()))
-                    .findFirst()
-                    .orElseThrow(() -> new IllegalArgumentException(OperationsMessageKeys.TASK_NOT_FOUND));
-            workOrder.updateTaskDetails(
-                    command.taskId(),
-                    task.getServiceId(),
-                    command.mechanicId(),
-                    task.getDescription(),
-                    task.getPrice()
-            );
+            workOrder.assignMechanicToTask(command.taskId(), command.mechanicId());
             return workOrderRepository.save(workOrder);
         });
     }
+
 
     private WorkOrder findWorkOrderOrThrow(WorkOrderId workOrderId) {
         return workOrderRepository.findById(workOrderId)
