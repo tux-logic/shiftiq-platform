@@ -25,10 +25,18 @@ public class AppointmentRepositoryAdapter implements AppointmentRepository {
 
     @Override
     public Appointment save(Appointment appointment) {
-        var entity = AppointmentPersistenceAssembler.toEntityFromAggregate(appointment);
+        AppointmentPersistenceEntity entity;
+        if (appointment.getId() != null) {
+            entity = appointmentJpaRepository.findById(appointment.getId())
+                    .orElseGet(AppointmentPersistenceEntity::new);
+        } else {
+            entity = new AppointmentPersistenceEntity();
+        }
+        AppointmentPersistenceAssembler.toEntityFromAggregate(appointment, entity);
         var savedEntity = appointmentJpaRepository.save(entity);
         return AppointmentPersistenceAssembler.toAggregateFromEntity(savedEntity);
     }
+
 
     @Override
     public Optional<Appointment> findById(UUID appointmentId) {

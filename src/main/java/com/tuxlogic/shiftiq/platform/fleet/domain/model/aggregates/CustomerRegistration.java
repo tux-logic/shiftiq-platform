@@ -17,6 +17,7 @@ public class CustomerRegistration extends AbstractDomainAggregateRoot<CustomerRe
     private BranchId branchId;
     private CustomerRegistrationStatus status;
     private Instant createdAt;
+    private Instant updatedAt;
     private Instant deletedAt;
 
     public CustomerRegistration() {
@@ -28,23 +29,27 @@ public class CustomerRegistration extends AbstractDomainAggregateRoot<CustomerRe
         this.branchId = branchId;
         this.status = CustomerRegistrationStatus.ACTIVE;
         this.createdAt = Instant.now();
+        this.updatedAt = Instant.now();
         this.registerEvent(new com.tuxlogic.shiftiq.platform.fleet.domain.model.events.CustomerRegistrationCreatedEvent(
                 this, this.id.value(), new CustomerId(this.customerId), this.branchId
         ));
     }
 
-    public CustomerRegistration(CustomerId id, UUID customerId, BranchId branchId, CustomerRegistrationStatus status, Instant createdAt, Instant deletedAt) {
+    public CustomerRegistration(CustomerId id, UUID customerId, BranchId branchId, CustomerRegistrationStatus status, Instant createdAt, Instant updatedAt, Instant deletedAt) {
         this.id = id;
         this.customerId = customerId;
         this.branchId = branchId;
         this.status = status;
         this.createdAt = createdAt;
+        this.updatedAt = updatedAt;
         this.deletedAt = deletedAt;
     }
 
     public void deactivate() {
         this.status = CustomerRegistrationStatus.INACTIVE;
+        this.updatedAt = Instant.now();
         this.deletedAt = Instant.now();
     }
 }
+
 

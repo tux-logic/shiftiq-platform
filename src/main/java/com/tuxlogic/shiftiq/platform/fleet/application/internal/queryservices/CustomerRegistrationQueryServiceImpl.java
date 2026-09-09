@@ -27,7 +27,7 @@ public class CustomerRegistrationQueryServiceImpl implements CustomerRegistratio
     @Override
     public Result<List<CustomerRegistration>, CustomerRegistrationQueryFailure> handle(BranchId branchId) {
         try {
-            var list = repository.findByBranchIdAndStatus(branchId, CustomerRegistrationStatus.ACTIVE.value());
+            var list = repository.findByBranchIdAndStatus(branchId, CustomerRegistrationStatus.ACTIVE);
             return Result.success(list);
         } catch (IllegalArgumentException ex) {
             return Result.failure(CustomerRegistrationQueryFailure.INVALID_QUERY_PARAMS);
@@ -37,12 +37,13 @@ public class CustomerRegistrationQueryServiceImpl implements CustomerRegistratio
     @Override
     public Result<List<CustomerRegistration>, CustomerRegistrationQueryFailure> handle(BranchId branchId, CustomerRegistrationStatus status) {
         try {
-            var list = repository.findByBranchIdAndStatus(branchId, status.value());
+            var list = repository.findByBranchIdAndStatus(branchId, status);
             return Result.success(list);
         } catch (IllegalArgumentException ex) {
             return Result.failure(CustomerRegistrationQueryFailure.INVALID_QUERY_PARAMS);
         }
     }
+
 
     @Override
     public Result<CustomerRegistration, CustomerRegistrationQueryFailure> handle(UUID registrationId) {
