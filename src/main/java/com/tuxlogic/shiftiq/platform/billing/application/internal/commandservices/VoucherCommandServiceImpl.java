@@ -151,10 +151,10 @@ public class VoucherCommandServiceImpl implements VoucherCommandService {
             return Result.success(savedVoucher);
         } catch (IllegalStateException e) {
             String msg = e.getMessage() != null ? e.getMessage() : "";
-            if (msg.contains("alreadyPaid") || msg.contains("already paid")) {
+            if (msg.contains("alreadyPaid") || msg.contains("already paid") || msg.contains("alreadyPaidInFull")) {
                 return Result.failure(VoucherCommandFailure.VOUCHER_ALREADY_PAID);
             }
-            if (msg.contains("canceled") || msg.contains("Canceled")) {
+            if (msg.contains("canceled") || msg.contains("Canceled") || msg.contains("cannotAddPaymentCanceled")) {
                 return Result.failure(VoucherCommandFailure.VOUCHER_CANCELED);
             }
             if (msg.contains("exceeds") || msg.contains("paymentExceedsDebt")) {
@@ -164,6 +164,7 @@ public class VoucherCommandServiceImpl implements VoucherCommandService {
         } catch (IllegalArgumentException e) {
             return Result.failure(VoucherCommandFailure.INVALID_VOUCHER_DATA);
         }
+
     }
 
     @Override
