@@ -2,6 +2,7 @@ package com.tuxlogic.shiftiq.platform.fleet.application.internal.commandservices
 
 import com.tuxlogic.shiftiq.platform.fleet.application.commandservices.EmployeeRegistrationCommandFailure;
 import com.tuxlogic.shiftiq.platform.fleet.application.commandservices.EmployeeRegistrationCommandService;
+import com.tuxlogic.shiftiq.platform.fleet.application.outboundservices.ExternalCoreService;
 import com.tuxlogic.shiftiq.platform.fleet.domain.model.aggregates.EmployeeRegistration;
 import com.tuxlogic.shiftiq.platform.fleet.domain.model.commands.CreateEmployeeRegistrationCommand;
 import com.tuxlogic.shiftiq.platform.fleet.domain.model.commands.UpdateEmployeeRegistrationCommand;
@@ -17,9 +18,11 @@ import org.springframework.transaction.annotation.Transactional;
 public class EmployeeRegistrationCommandServiceImpl implements EmployeeRegistrationCommandService {
 
     private final EmployeeRegistrationRepository repository;
+    private final ExternalCoreService externalCoreService;
 
-    public EmployeeRegistrationCommandServiceImpl(EmployeeRegistrationRepository repository) {
+    public EmployeeRegistrationCommandServiceImpl(EmployeeRegistrationRepository repository, ExternalCoreService externalCoreService) {
         this.repository = repository;
+        this.externalCoreService = externalCoreService;
     }
 
     @Override
@@ -27,6 +30,15 @@ public class EmployeeRegistrationCommandServiceImpl implements EmployeeRegistrat
     public Result<EmployeeRegistration, EmployeeRegistrationCommandFailure> handle(
             CreateEmployeeRegistrationCommand command) {
         try {
+            if (!externalCoreService.existsBranchById(command.branchId())) {
+                log.warn("Employee registration failed: Branch {} does not exist", command.branchId());
+                return Result.failure(EmployeeRegistrationCommandFailure.INVALID_REGISTRATION_DATA);
+            }
+            if (!externalCoreService.existsEmployeeById(command.employeeId())) {
+                log.warn("Employee registration failed: Employee {} does not exist", command.employeeId());
+                return Result.failure(EmployeeRegistrationCommandFailure.INVALID_REGISTRATION_DATA);
+            }
+
             if (repository.existsByEmployeeIdAndBranchId(command.employeeId().value(), command.branchId().value())) {
                 log.warn("Employee registration conflict: employee {} already registered in branch {}", command.employeeId(), command.branchId());
                 return Result.failure(EmployeeRegistrationCommandFailure.REGISTRATION_ALREADY_EXISTS);

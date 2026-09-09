@@ -169,4 +169,17 @@ public class Voucher extends AbstractDomainAggregateRoot<Voucher> {
             this.status = VoucherStatus.PAID;
         }
     }
+
+    /**
+     * Cancels the voucher if it is not already paid in full.
+     * 
+     * @throws IllegalStateException if the voucher is already in PAID status
+     */
+    public void cancel() {
+        if (this.status == VoucherStatus.PAID) {
+            throw new IllegalStateException("billing.error.voucher.cannotCancelPaidVoucher");
+        }
+        this.status = VoucherStatus.CANCELED;
+    }
 }
+
