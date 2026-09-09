@@ -1,12 +1,10 @@
 package com.tuxlogic.shiftiq.platform.operations.interfaces.rest;
 
-import com.tuxlogic.shiftiq.platform.operations.application.commandservices.WorkOrderCommandFailure;
 import com.tuxlogic.shiftiq.platform.operations.application.commandservices.WorkOrderCommandService;
 import com.tuxlogic.shiftiq.platform.operations.application.queryservices.WorkOrderQueryService;
 import com.tuxlogic.shiftiq.platform.operations.domain.model.aggregates.WorkOrder;
 import com.tuxlogic.shiftiq.platform.operations.domain.model.commands.CompleteWorkOrderCommand;
 import com.tuxlogic.shiftiq.platform.operations.domain.model.queries.GetWorkOrderByIdQuery;
-import com.tuxlogic.shiftiq.platform.operations.domain.model.valueobjects.WorkOrderId;
 import com.tuxlogic.shiftiq.platform.shared.application.result.Result;
 import com.tuxlogic.shiftiq.platform.shared.domain.model.valueobjects.BranchId;
 import com.tuxlogic.shiftiq.platform.shared.infrastructure.security.MultiTenancySecurityService;
