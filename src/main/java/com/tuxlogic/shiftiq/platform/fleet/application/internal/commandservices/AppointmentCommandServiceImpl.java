@@ -9,34 +9,27 @@ import com.tuxlogic.shiftiq.platform.fleet.domain.model.commands.UpdateAppointme
 import com.tuxlogic.shiftiq.platform.fleet.domain.repositories.AppointmentRepository;
 import com.tuxlogic.shiftiq.platform.fleet.application.outboundservices.ExternalCoreService;
 import com.tuxlogic.shiftiq.platform.fleet.application.outboundservices.ExternalVehicleService;
-import com.tuxlogic.shiftiq.platform.fleet.domain.model.events.AppointmentCreatedEvent;
 import com.tuxlogic.shiftiq.platform.shared.application.result.Result;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.context.ApplicationEventPublisher;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.UUID;
 
+@Slf4j
 @Service
 public class AppointmentCommandServiceImpl implements AppointmentCommandService {
-
-    private static final Logger log = LoggerFactory.getLogger(AppointmentCommandServiceImpl.class);
 
     private final AppointmentRepository appointmentRepository;
     private final ExternalCoreService externalCoreService;
     private final ExternalVehicleService externalVehicleService;
-    private final ApplicationEventPublisher eventPublisher;
 
     public AppointmentCommandServiceImpl(AppointmentRepository appointmentRepository,
                                          ExternalCoreService externalCoreService,
-                                         ExternalVehicleService externalVehicleService,
-                                         ApplicationEventPublisher eventPublisher) {
+                                         ExternalVehicleService externalVehicleService) {
         this.appointmentRepository = appointmentRepository;
         this.externalCoreService = externalCoreService;
         this.externalVehicleService = externalVehicleService;
-        this.eventPublisher = eventPublisher;
     }
 
     @Override
@@ -65,15 +58,6 @@ public class AppointmentCommandServiceImpl implements AppointmentCommandService 
             );
 
             var savedAppointment = appointmentRepository.save(appointment);
-
-            eventPublisher.publishEvent(new AppointmentCreatedEvent(
-                    this,
-                    savedAppointment.getId(),
-                    savedAppointment.getBranchId(),
-                    savedAppointment.getCustomerId(),
-                    savedAppointment.getVehicleId(),
-                    savedAppointment.getScheduledStart()
-            ));
 
             log.info("Appointment created successfully with ID {}", savedAppointment.getId());
             return Result.success(savedAppointment);

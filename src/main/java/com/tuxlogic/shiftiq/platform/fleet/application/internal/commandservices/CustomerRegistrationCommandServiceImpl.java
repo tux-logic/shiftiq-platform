@@ -7,28 +7,21 @@ import com.tuxlogic.shiftiq.platform.fleet.domain.model.commands.CreateCustomerR
 import com.tuxlogic.shiftiq.platform.fleet.domain.model.commands.DeleteCustomerRegistrationCommand;
 import com.tuxlogic.shiftiq.platform.fleet.domain.model.commands.UpdateCustomerRegistrationCommand;
 import com.tuxlogic.shiftiq.platform.fleet.domain.repositories.CustomerRegistrationRepository;
-import com.tuxlogic.shiftiq.platform.fleet.domain.model.events.CustomerRegistrationCreatedEvent;
 import com.tuxlogic.shiftiq.platform.shared.application.result.Result;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.context.ApplicationEventPublisher;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.UUID;
 
+@Slf4j
 @Service
 public class CustomerRegistrationCommandServiceImpl implements CustomerRegistrationCommandService {
 
-    private static final Logger log = LoggerFactory.getLogger(CustomerRegistrationCommandServiceImpl.class);
-
     private final CustomerRegistrationRepository repository;
-    private final ApplicationEventPublisher eventPublisher;
 
-    public CustomerRegistrationCommandServiceImpl(CustomerRegistrationRepository repository,
-                                                   ApplicationEventPublisher eventPublisher) {
+    public CustomerRegistrationCommandServiceImpl(CustomerRegistrationRepository repository) {
         this.repository = repository;
-        this.eventPublisher = eventPublisher;
     }
 
     @Override
@@ -43,13 +36,6 @@ public class CustomerRegistrationCommandServiceImpl implements CustomerRegistrat
 
             var registration = new CustomerRegistration(command.customerId().value(), command.branchId());
             var saved = repository.save(registration);
-
-            eventPublisher.publishEvent(new CustomerRegistrationCreatedEvent(
-                    this,
-                    saved.getId() != null ? saved.getId().value() : null,
-                    command.customerId(),
-                    command.branchId()
-            ));
 
             log.info("Customer registration created successfully with ID {}", saved.getId());
             return Result.success(saved);

@@ -69,14 +69,15 @@ public class EmployeeRegistrationsController {
     @Operation(summary = "Get an employee registration by ID", description = "Retrieves an employee registration by ID")
     public ResponseEntity<?> getById(@PathVariable UUID id) {
         var query = new GetEmployeeRegistrationByIdQuery(new EmployeeId(id));
-        var registration = queryService.handle(query);
-        if (registration.isEmpty()) {
+        var result = queryService.handle(query);
+        if (result.isFailure()) {
             return ResponseEntity.notFound().build();
         }
-        if (registration.get().getBranchId() != null && !multiTenancySecurityService.isAuthorizedForBranch(registration.get().getBranchId().value())) {
+        var registration = result.success().get();
+        if (registration.getBranchId() != null && !multiTenancySecurityService.isAuthorizedForBranch(registration.getBranchId().value())) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
         }
-        var resource = EmployeeRegistrationResourceFromAggregateAssembler.toResourceFromAggregate(registration.get());
+        var resource = EmployeeRegistrationResourceFromAggregateAssembler.toResourceFromAggregate(registration);
         return ResponseEntity.ok(resource);
     }
 
@@ -89,21 +90,27 @@ public class EmployeeRegistrationsController {
 
         if (employeeId != null) {
             var query = new GetEmployeeRegistrationByEmployeeIdQuery(employeeId);
-            var registration = queryService.handle(query);
-            if (registration.isEmpty()) {
+            var result = queryService.handle(query);
+            if (result.isFailure()) {
                 return ResponseEntity.notFound().build();
             }
-            return ResponseEntity.ok(EmployeeRegistrationResourceFromAggregateAssembler.toResourceFromAggregate(registration.get()));
+            return ResponseEntity.ok(EmployeeRegistrationResourceFromAggregateAssembler.toResourceFromAggregate(result.success().get()));
         } else if (branchId != null && status != null) {
             var query = new GetEmployeeRegistrationsByBranchIdAndStatusQuery(new BranchId(branchId), new EmployeeRegistrationStatus(status.toUpperCase()));
-            var registrations = queryService.handle(query);
-            return ResponseEntity.ok(registrations.stream()
+            var result = queryService.handle(query);
+            if (result.isFailure()) {
+                return ResponseEntity.badRequest().build();
+            }
+            return ResponseEntity.ok(result.success().get().stream()
                     .map(EmployeeRegistrationResourceFromAggregateAssembler::toResourceFromAggregate)
                     .toList());
         } else if (branchId != null) {
             var query = new GetEmployeeRegistrationsByBranchIdQuery(new BranchId(branchId));
-            var registrations = queryService.handle(query);
-            return ResponseEntity.ok(registrations.stream()
+            var result = queryService.handle(query);
+            if (result.isFailure()) {
+                return ResponseEntity.badRequest().build();
+            }
+            return ResponseEntity.ok(result.success().get().stream()
                     .map(EmployeeRegistrationResourceFromAggregateAssembler::toResourceFromAggregate)
                     .toList());
         }

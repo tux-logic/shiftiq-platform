@@ -10,4 +10,15 @@ public record UpdateEmployeeRegistrationCommand(
         String specialityName,
         BigDecimal salary
 ) {
+    public UpdateEmployeeRegistrationCommand {
+        if (id == null) {
+            throw new IllegalArgumentException("EmployeeId cannot be null");
+        }
+        if (speciality == null || speciality.isBlank()) {
+            throw new IllegalArgumentException("Speciality cannot be null or blank");
+        }
+        if (salary == null || salary.compareTo(BigDecimal.ZERO) < 0) {
+            throw new IllegalArgumentException("Salary cannot be null or negative");
+        }
+    }
 }

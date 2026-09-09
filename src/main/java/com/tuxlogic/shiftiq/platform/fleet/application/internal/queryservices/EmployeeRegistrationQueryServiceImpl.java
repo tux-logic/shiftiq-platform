@@ -6,19 +6,17 @@ import com.tuxlogic.shiftiq.platform.fleet.domain.model.queries.GetEmployeeRegis
 import com.tuxlogic.shiftiq.platform.fleet.domain.model.queries.GetEmployeeRegistrationByEmployeeIdQuery;
 import com.tuxlogic.shiftiq.platform.fleet.domain.model.queries.GetEmployeeRegistrationsByBranchIdQuery;
 import com.tuxlogic.shiftiq.platform.fleet.domain.model.queries.GetEmployeeRegistrationsByBranchIdAndStatusQuery;
+import com.tuxlogic.shiftiq.platform.fleet.domain.model.valueobjects.EmployeeRegistrationQueryFailure;
 import com.tuxlogic.shiftiq.platform.fleet.domain.repositories.EmployeeRegistrationRepository;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import com.tuxlogic.shiftiq.platform.shared.application.result.Result;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
-import java.util.Collections;
 import java.util.List;
-import java.util.Optional;
 
+@Slf4j
 @Service
 public class EmployeeRegistrationQueryServiceImpl implements EmployeeRegistrationQueryService {
-
-    private static final Logger log = LoggerFactory.getLogger(EmployeeRegistrationQueryServiceImpl.class);
 
     private final EmployeeRegistrationRepository employeeRegistrationRepository;
 
@@ -27,42 +25,72 @@ public class EmployeeRegistrationQueryServiceImpl implements EmployeeRegistratio
     }
 
     @Override
-    public Optional<EmployeeRegistration> handle(GetEmployeeRegistrationByIdQuery query) {
+    public Result<EmployeeRegistration, EmployeeRegistrationQueryFailure> handle(GetEmployeeRegistrationByIdQuery query) {
         try {
-            return employeeRegistrationRepository.findById(query.id());
+            if (query == null || query.id() == null) {
+                return Result.failure(EmployeeRegistrationQueryFailure.INVALID_QUERY_DATA);
+            }
+            var registrationOpt = employeeRegistrationRepository.findById(query.id());
+            return registrationOpt.map(Result::<EmployeeRegistration, EmployeeRegistrationQueryFailure>success)
+                    .orElseGet(() -> Result.failure(EmployeeRegistrationQueryFailure.EMPLOYEE_REGISTRATION_NOT_FOUND));
         } catch (IllegalArgumentException ex) {
             log.error("Failed to query employee registration by id: {}", ex.getMessage());
-            return Optional.empty();
+            return Result.failure(EmployeeRegistrationQueryFailure.INVALID_QUERY_DATA);
+        } catch (Exception ex) {
+            log.error("Unexpected error querying employee registration by id: {}", ex.getMessage(), ex);
+            return Result.failure(EmployeeRegistrationQueryFailure.UNEXPECTED_ERROR);
         }
     }
 
     @Override
-    public Optional<EmployeeRegistration> handle(GetEmployeeRegistrationByEmployeeIdQuery query) {
+    public Result<EmployeeRegistration, EmployeeRegistrationQueryFailure> handle(GetEmployeeRegistrationByEmployeeIdQuery query) {
         try {
-            return employeeRegistrationRepository.findByEmployeeId(query.employeeId());
+            if (query == null || query.employeeId() == null) {
+                return Result.failure(EmployeeRegistrationQueryFailure.INVALID_QUERY_DATA);
+            }
+            var registrationOpt = employeeRegistrationRepository.findByEmployeeId(query.employeeId());
+            return registrationOpt.map(Result::<EmployeeRegistration, EmployeeRegistrationQueryFailure>success)
+                    .orElseGet(() -> Result.failure(EmployeeRegistrationQueryFailure.EMPLOYEE_REGISTRATION_NOT_FOUND));
         } catch (IllegalArgumentException ex) {
             log.error("Failed to query employee registration by employee id: {}", ex.getMessage());
-            return Optional.empty();
+            return Result.failure(EmployeeRegistrationQueryFailure.INVALID_QUERY_DATA);
+        } catch (Exception ex) {
+            log.error("Unexpected error querying employee registration by employee id: {}", ex.getMessage(), ex);
+            return Result.failure(EmployeeRegistrationQueryFailure.UNEXPECTED_ERROR);
         }
     }
 
     @Override
-    public List<EmployeeRegistration> handle(GetEmployeeRegistrationsByBranchIdQuery query) {
+    public Result<List<EmployeeRegistration>, EmployeeRegistrationQueryFailure> handle(GetEmployeeRegistrationsByBranchIdQuery query) {
         try {
-            return employeeRegistrationRepository.findByBranchId(query.branchId());
+            if (query == null || query.branchId() == null) {
+                return Result.failure(EmployeeRegistrationQueryFailure.INVALID_QUERY_DATA);
+            }
+            var list = employeeRegistrationRepository.findByBranchId(query.branchId());
+            return Result.success(list);
         } catch (IllegalArgumentException ex) {
             log.error("Failed to query employee registrations by branch id: {}", ex.getMessage());
-            return Collections.emptyList();
+            return Result.failure(EmployeeRegistrationQueryFailure.INVALID_QUERY_DATA);
+        } catch (Exception ex) {
+            log.error("Unexpected error querying employee registrations by branch id: {}", ex.getMessage(), ex);
+            return Result.failure(EmployeeRegistrationQueryFailure.UNEXPECTED_ERROR);
         }
     }
 
     @Override
-    public List<EmployeeRegistration> handle(GetEmployeeRegistrationsByBranchIdAndStatusQuery query) {
+    public Result<List<EmployeeRegistration>, EmployeeRegistrationQueryFailure> handle(GetEmployeeRegistrationsByBranchIdAndStatusQuery query) {
         try {
-            return employeeRegistrationRepository.findByBranchIdAndStatus(query.branchId(), query.status());
+            if (query == null || query.branchId() == null) {
+                return Result.failure(EmployeeRegistrationQueryFailure.INVALID_QUERY_DATA);
+            }
+            var list = employeeRegistrationRepository.findByBranchIdAndStatus(query.branchId(), query.status());
+            return Result.success(list);
         } catch (IllegalArgumentException ex) {
             log.error("Failed to query employee registrations by branch id and status: {}", ex.getMessage());
-            return Collections.emptyList();
+            return Result.failure(EmployeeRegistrationQueryFailure.INVALID_QUERY_DATA);
+        } catch (Exception ex) {
+            log.error("Unexpected error querying employee registrations by branch id and status: {}", ex.getMessage(), ex);
+            return Result.failure(EmployeeRegistrationQueryFailure.UNEXPECTED_ERROR);
         }
     }
 }
