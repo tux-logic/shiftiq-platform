@@ -1,5 +1,6 @@
 package com.tuxlogic.shiftiq.platform.iot.interfaces.rest.resources;
 
+import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -18,7 +19,8 @@ public record RegisterVehicleResource(
         String model,
 
         @NotNull(message = "Year is required")
-        @Min(value = 1886, message = "Year must be a valid manufacturing year")
+        @Min(value = 1900, message = "Year must be a valid manufacturing year")
+        @Max(value = 2100, message = "Year must be a valid manufacturing year")
         Integer year,
 
         @NotBlank(message = "VIN is required")

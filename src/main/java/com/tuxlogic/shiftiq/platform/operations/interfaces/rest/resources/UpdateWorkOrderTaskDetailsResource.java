@@ -19,6 +19,7 @@ public record UpdateWorkOrderTaskDetailsResource(
         UUID assignedMechanicId,
 
         @NotNull(message = "operations.error.resource.description.required")
-        @Size(min = 5, max = 1000, message = "operations.error.resource.description.size")
+        @Size(min = 10, max = 1000, message = "operations.error.resource.description.size")
         String description
 ) {}
+

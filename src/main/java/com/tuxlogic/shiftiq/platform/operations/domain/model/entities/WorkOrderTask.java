@@ -195,6 +195,13 @@ public class WorkOrderTask {
         return oldQuantity;
     }
 
+    public void assignMechanic(MechanicId mechanicId) {
+        if (this.status == WorkOrderTaskStatus.COMPLETED) {
+            throw new IllegalStateException(OperationsMessageKeys.TASK_CANNOT_MODIFY_COMPLETED);
+        }
+        this.assignedMechanicId = mechanicId;
+    }
+
     /**
      * Checks if the task has been marked as deleted by verifying if the deletedAt timestamp is not null. This method is used to determine if the task has been logically deleted from the system, which is important for ensuring that deleted tasks are not included in active queries or operations. If the deletedAt field has a value, it indicates that the task has been marked as deleted; otherwise, it is considered active.
      * @return true if the task is marked as deleted (i.e., deletedAt is not null), false otherwise. This allows callers to easily check the deletion status of the task and handle it accordingly in their logic, such as excluding deleted tasks from results or preventing operations on them.
@@ -207,3 +214,4 @@ public class WorkOrderTask {
         return this.products != null ? java.util.Collections.unmodifiableList(this.products) : java.util.Collections.emptyList();
     }
 }
+

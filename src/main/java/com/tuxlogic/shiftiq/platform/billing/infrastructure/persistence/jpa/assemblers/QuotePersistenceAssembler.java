@@ -14,6 +14,9 @@ public class QuotePersistenceAssembler {
 
     public static void updateEntityFromAggregate(QuotePersistenceEntity entity, Quote aggregate) {
         if (aggregate == null || entity == null) return;
+        if (aggregate.getId() != null) {
+            entity.setId(aggregate.getId());
+        }
         entity.setWorkOrderId(aggregate.getWorkOrderId());
         entity.setBranchId(aggregate.getBranchId());
         entity.setSubtotalAmount(aggregate.getSubtotalAmount());
@@ -21,6 +24,7 @@ public class QuotePersistenceAssembler {
         entity.setTotalAmount(aggregate.getTotalAmount());
         entity.setStatus(aggregate.getStatus());
     }
+
 
     public static Quote toAggregate(QuotePersistenceEntity entity) {
         if (entity == null) return null;
