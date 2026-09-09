@@ -40,7 +40,10 @@ public class CustomerVehiclesController {
     @Operation(summary = "Get active vehicles for customer", description = "Retrieves all vehicles currently associated with an active registration for the customer")
     public ResponseEntity<List<VehicleResource>> getActiveVehiclesByCustomerId(@PathVariable UUID customerId) {
         var userIdOpt = customerDirectoryPort.findUserIdByCustomerId(customerId);
-        if (userIdOpt.isPresent() && !userSecurityService.isCurrentUser(userIdOpt.get())) {
+        if (userIdOpt.isEmpty()) {
+            return ResponseEntity.notFound().build();
+        }
+        if (!userSecurityService.isCurrentUser(userIdOpt.get())) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
         }
         var query = new GetActiveVehiclesByCustomerIdQuery(new CustomerId(customerId));

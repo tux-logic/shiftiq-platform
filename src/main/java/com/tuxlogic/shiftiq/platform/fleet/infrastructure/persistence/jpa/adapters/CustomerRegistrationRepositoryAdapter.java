@@ -13,6 +13,8 @@ import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
+import com.tuxlogic.shiftiq.platform.fleet.domain.model.valueobjects.CustomerRegistrationStatus;
+
 @Repository
 public class CustomerRegistrationRepositoryAdapter implements CustomerRegistrationRepository {
 
@@ -55,12 +57,14 @@ public class CustomerRegistrationRepositoryAdapter implements CustomerRegistrati
     }
 
     @Override
-    public List<CustomerRegistration> findByBranchIdAndStatus(BranchId branchId, String status) {
-        return persistenceRepository.findByBranchIdAndStatus(branchId.value(), status)
+    public List<CustomerRegistration> findByBranchIdAndStatus(BranchId branchId, CustomerRegistrationStatus status) {
+        String statusStr = status != null ? status.value() : null;
+        return persistenceRepository.findByBranchIdAndStatus(branchId.value(), statusStr)
                 .stream()
                 .map(CustomerRegistrationPersistenceAssembler::toDomain)
                 .collect(Collectors.toList());
     }
+
 
     @Override
     public boolean existsByCustomerIdAndBranchId(UUID customerId, UUID branchId) {
