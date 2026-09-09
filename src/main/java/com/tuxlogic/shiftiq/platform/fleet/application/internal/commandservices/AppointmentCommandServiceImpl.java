@@ -7,8 +7,6 @@ import com.tuxlogic.shiftiq.platform.fleet.domain.model.commands.CreateAppointme
 import com.tuxlogic.shiftiq.platform.fleet.domain.model.commands.DeleteAppointmentCommand;
 import com.tuxlogic.shiftiq.platform.fleet.domain.model.commands.UpdateAppointmentCommand;
 import com.tuxlogic.shiftiq.platform.fleet.domain.repositories.AppointmentRepository;
-import com.tuxlogic.shiftiq.platform.fleet.application.outboundservices.ExternalCoreService;
-import com.tuxlogic.shiftiq.platform.fleet.application.outboundservices.ExternalVehicleService;
 import com.tuxlogic.shiftiq.platform.shared.application.result.Result;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -21,16 +19,11 @@ import java.util.UUID;
 public class AppointmentCommandServiceImpl implements AppointmentCommandService {
 
     private final AppointmentRepository appointmentRepository;
-    private final ExternalCoreService externalCoreService;
-    private final ExternalVehicleService externalVehicleService;
 
-    public AppointmentCommandServiceImpl(AppointmentRepository appointmentRepository,
-                                         ExternalCoreService externalCoreService,
-                                         ExternalVehicleService externalVehicleService) {
+    public AppointmentCommandServiceImpl(AppointmentRepository appointmentRepository) {
         this.appointmentRepository = appointmentRepository;
-        this.externalCoreService = externalCoreService;
-        this.externalVehicleService = externalVehicleService;
     }
+
 
     @Override
     @Transactional

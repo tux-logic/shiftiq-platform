@@ -1,9 +1,6 @@
 package com.tuxlogic.shiftiq.platform.fleet.interfaces.rest;
 
-import com.tuxlogic.shiftiq.platform.core.domain.model.valueobjects.EmployeeId;
-import com.tuxlogic.shiftiq.platform.fleet.application.commandservices.EmployeeRegistrationCommandFailure;
 import com.tuxlogic.shiftiq.platform.fleet.application.commandservices.EmployeeRegistrationCommandService;
-import com.tuxlogic.shiftiq.platform.fleet.domain.model.valueobjects.EmployeeRegistrationQueryFailure;
 import com.tuxlogic.shiftiq.platform.fleet.application.queryservices.EmployeeRegistrationQueryService;
 import com.tuxlogic.shiftiq.platform.fleet.domain.model.aggregates.EmployeeRegistration;
 import com.tuxlogic.shiftiq.platform.fleet.domain.model.commands.DeleteEmployeeRegistrationCommand;

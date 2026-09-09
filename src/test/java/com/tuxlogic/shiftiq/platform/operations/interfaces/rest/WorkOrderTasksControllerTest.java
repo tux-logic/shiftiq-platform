@@ -5,7 +5,6 @@ import com.tuxlogic.shiftiq.platform.operations.application.queryservices.WorkOr
 import com.tuxlogic.shiftiq.platform.operations.domain.model.aggregates.WorkOrder;
 import com.tuxlogic.shiftiq.platform.operations.domain.model.commands.AssignMechanicToTaskCommand;
 import com.tuxlogic.shiftiq.platform.operations.domain.model.queries.GetWorkOrderByTaskIdQuery;
-import com.tuxlogic.shiftiq.platform.operations.domain.model.valueobjects.WorkOrderId;
 import com.tuxlogic.shiftiq.platform.shared.application.result.Result;
 import com.tuxlogic.shiftiq.platform.shared.domain.model.valueobjects.BranchId;
 import com.tuxlogic.shiftiq.platform.shared.infrastructure.security.MultiTenancySecurityService;
@@ -75,5 +74,30 @@ class WorkOrderTasksControllerTest {
         assertEquals(HttpStatus.OK, response.getStatusCode());
         verify(multiTenancySecurityService).validateBranchAccess(branchId);
         verify(commandService).handle(any(AssignMechanicToTaskCommand.class));
+    }
+
+    @Test
+    void removeProductFromTask_WhenSucceeds_ShouldReturnNoContent() {
+        UUID taskId = UUID.randomUUID();
+        UUID productId = UUID.randomUUID();
+        UUID branchId = UUID.randomUUID();
+
+        WorkOrder realWorkOrder = new WorkOrder(
+                new com.tuxlogic.shiftiq.platform.operations.domain.model.valueobjects.AppointmentId(UUID.randomUUID()),
+                new BranchId(branchId),
+                new com.tuxlogic.shiftiq.platform.shared.domain.model.valueobjects.VehicleId(UUID.randomUUID()),
+                new com.tuxlogic.shiftiq.platform.shared.domain.model.valueobjects.CustomerId(UUID.randomUUID()),
+                101,
+                new com.tuxlogic.shiftiq.platform.operations.domain.model.valueobjects.DiagnosticSummary("Diagnostico test"),
+                new com.tuxlogic.shiftiq.platform.shared.domain.model.valueobjects.Mileage(50000)
+        );
+
+        when(queryService.handle(any(GetWorkOrderByTaskIdQuery.class))).thenReturn(Optional.of(realWorkOrder));
+        when(commandService.handle(any(com.tuxlogic.shiftiq.platform.operations.domain.model.commands.RemoveProductFromTaskCommand.class))).thenReturn(Result.success(realWorkOrder));
+
+        ResponseEntity<?> response = controller.removeProductFromTask(taskId, productId);
+
+        assertNotNull(response);
+        assertEquals(HttpStatus.NO_CONTENT, response.getStatusCode());
     }
 }

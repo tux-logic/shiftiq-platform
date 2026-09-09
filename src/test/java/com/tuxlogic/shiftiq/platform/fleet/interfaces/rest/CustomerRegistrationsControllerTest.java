@@ -6,7 +6,6 @@ import com.tuxlogic.shiftiq.platform.fleet.domain.model.aggregates.CustomerRegis
 import com.tuxlogic.shiftiq.platform.fleet.interfaces.rest.resources.UpdateCustomerRegistrationResource;
 import com.tuxlogic.shiftiq.platform.shared.application.result.Result;
 import com.tuxlogic.shiftiq.platform.shared.domain.model.valueobjects.BranchId;
-import com.tuxlogic.shiftiq.platform.shared.domain.model.valueobjects.CustomerId;
 import com.tuxlogic.shiftiq.platform.shared.infrastructure.security.MultiTenancySecurityService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -20,7 +19,6 @@ import org.springframework.http.ResponseEntity;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
