@@ -4,6 +4,7 @@ import com.tuxlogic.shiftiq.platform.billing.application.commandservices.StripeP
 import com.tuxlogic.shiftiq.platform.billing.application.outboundservices.StripePaymentIntentResult;
 import com.tuxlogic.shiftiq.platform.billing.interfaces.rest.resources.CreatePaymentIntentResource;
 import com.tuxlogic.shiftiq.platform.billing.interfaces.rest.resources.PaymentIntentResource;
+import com.tuxlogic.shiftiq.platform.shared.infrastructure.security.MultiTenancySecurityService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -26,11 +27,14 @@ class StripePaymentsControllerTest {
     @Mock
     private StripePaymentCommandService paymentCommandService;
 
+    @Mock
+    private MultiTenancySecurityService multiTenancySecurityService;
+
     private StripePaymentsController controller;
 
     @BeforeEach
     void setUp() {
-        controller = new StripePaymentsController(paymentCommandService);
+        controller = new StripePaymentsController(paymentCommandService, multiTenancySecurityService);
     }
 
     @Test
