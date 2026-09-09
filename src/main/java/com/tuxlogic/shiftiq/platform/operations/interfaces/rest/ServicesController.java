@@ -60,12 +60,12 @@ public class ServicesController {
     @PreAuthorize("isAuthenticated() and @multiTenancySecurityService.isAuthorizedForBranch(#resource.branchId())")
     public ResponseEntity<ServiceResource> createService(@Valid @RequestBody CreateServiceResource resource) {
         var command = CreateServiceCommandFromResourceAssembler.toCommandFromResource(resource);
-        var service = serviceCommandService.handle(command);
-        if (service.isEmpty()) {
+        var result = serviceCommandService.handle(command);
+        if (result.isFailure()) {
             return ResponseEntity.badRequest().build();
         }
 
-        var serviceResource = ServiceResourceFromEntityAssembler.toResourceFromEntity(service.get());
+        var serviceResource = ServiceResourceFromEntityAssembler.toResourceFromEntity(result.success().get());
         return new ResponseEntity<>(serviceResource, HttpStatus.CREATED);
     }
 
@@ -75,14 +75,15 @@ public class ServicesController {
     public ResponseEntity<ServiceResource> updateService(@PathVariable UUID serviceId, @Valid @RequestBody UpdateServiceResource resource) {
         validateServiceAccess(serviceId);
         var command = UpdateServiceCommandFromResourceAssembler.toCommandFromResource(serviceId, resource);
-        var service = serviceCommandService.handle(command);
-        if (service.isEmpty()) {
+        var result = serviceCommandService.handle(command);
+        if (result.isFailure()) {
             return ResponseEntity.badRequest().build();
         }
 
-        var serviceResource = ServiceResourceFromEntityAssembler.toResourceFromEntity(service.get());
+        var serviceResource = ServiceResourceFromEntityAssembler.toResourceFromEntity(result.success().get());
         return ResponseEntity.ok(serviceResource);
     }
+
 
     @Operation(summary = "Delete a service", description = "Deletes an existing service using the service ID")
     @DeleteMapping("/{serviceId}")
@@ -90,9 +91,13 @@ public class ServicesController {
     public ResponseEntity<?> deleteService(@PathVariable UUID serviceId) {
         validateServiceAccess(serviceId);
         var command = new DeleteServiceCommand(new ServiceId(serviceId));
-        serviceCommandService.handle(command);
+        var result = serviceCommandService.handle(command);
+        if (result.isFailure()) {
+            return ResponseEntity.badRequest().build();
+        }
         return ResponseEntity.noContent().build();
     }
+
 
     @Operation(summary = "Get services by branch ID", description = "Retrieves all services belonging to a specific branch")
     @GetMapping

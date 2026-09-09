@@ -4,6 +4,7 @@ import com.tuxlogic.shiftiq.platform.fleet.domain.model.aggregates.Appointment;
 import com.tuxlogic.shiftiq.platform.fleet.domain.model.valueobjects.AppointmentStatus;
 import com.tuxlogic.shiftiq.platform.fleet.domain.repositories.AppointmentRepository;
 import com.tuxlogic.shiftiq.platform.fleet.infrastructure.persistence.jpa.assemblers.AppointmentPersistenceAssembler;
+import com.tuxlogic.shiftiq.platform.fleet.infrastructure.persistence.jpa.entities.AppointmentPersistenceEntity;
 import com.tuxlogic.shiftiq.platform.fleet.infrastructure.persistence.jpa.repositories.AppointmentJpaRepository;
 import com.tuxlogic.shiftiq.platform.shared.domain.model.valueobjects.BranchId;
 import com.tuxlogic.shiftiq.platform.shared.domain.model.valueobjects.CustomerId;
@@ -13,6 +14,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+
 
 @Repository
 public class AppointmentRepositoryAdapter implements AppointmentRepository {
