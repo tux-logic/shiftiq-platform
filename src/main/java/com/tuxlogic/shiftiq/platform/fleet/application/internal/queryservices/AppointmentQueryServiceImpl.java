@@ -7,11 +7,13 @@ import com.tuxlogic.shiftiq.platform.fleet.domain.model.valueobjects.Appointment
 import com.tuxlogic.shiftiq.platform.fleet.domain.repositories.AppointmentRepository;
 import com.tuxlogic.shiftiq.platform.shared.application.result.Result;
 import com.tuxlogic.shiftiq.platform.shared.domain.model.valueobjects.BranchId;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
 import java.util.UUID;
 
+@Slf4j
 @Service
 public class AppointmentQueryServiceImpl implements AppointmentQueryService {
 

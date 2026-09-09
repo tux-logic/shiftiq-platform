@@ -8,11 +8,13 @@ import com.tuxlogic.shiftiq.platform.fleet.domain.model.commands.DeleteCustomerR
 import com.tuxlogic.shiftiq.platform.fleet.domain.model.commands.UpdateCustomerRegistrationCommand;
 import com.tuxlogic.shiftiq.platform.fleet.domain.repositories.CustomerRegistrationRepository;
 import com.tuxlogic.shiftiq.platform.shared.application.result.Result;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.UUID;
 
+@Slf4j
 @Service
 public class CustomerRegistrationCommandServiceImpl implements CustomerRegistrationCommandService {
 
@@ -28,14 +30,18 @@ public class CustomerRegistrationCommandServiceImpl implements CustomerRegistrat
         try {
             boolean exists = repository.existsByCustomerIdAndBranchId(command.customerId().value(), command.branchId().value());
             if (exists) {
+                log.warn("Customer registration conflict: customer {} already registered in branch {}", command.customerId(), command.branchId());
                 return Result.failure(CustomerRegistrationCommandFailure.REGISTRATION_ALREADY_EXISTS);
             }
 
             var registration = new CustomerRegistration(command.customerId().value(), command.branchId());
             var saved = repository.save(registration);
+
+            log.info("Customer registration created successfully with ID {}", saved.getId());
             return Result.success(saved);
 
         } catch (IllegalArgumentException ex) {
+            log.error("Failed to create customer registration: {}", ex.getMessage());
             return Result.failure(CustomerRegistrationCommandFailure.INVALID_REGISTRATION_DATA);
         }
     }

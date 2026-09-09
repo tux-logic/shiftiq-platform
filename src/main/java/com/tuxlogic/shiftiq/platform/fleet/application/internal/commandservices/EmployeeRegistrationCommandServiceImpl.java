@@ -8,9 +8,11 @@ import com.tuxlogic.shiftiq.platform.fleet.domain.model.commands.UpdateEmployeeR
 import com.tuxlogic.shiftiq.platform.fleet.domain.model.commands.DeleteEmployeeRegistrationCommand;
 import com.tuxlogic.shiftiq.platform.fleet.domain.repositories.EmployeeRegistrationRepository;
 import com.tuxlogic.shiftiq.platform.shared.application.result.Result;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+@Slf4j
 @Service
 public class EmployeeRegistrationCommandServiceImpl implements EmployeeRegistrationCommandService {
 
@@ -25,8 +27,10 @@ public class EmployeeRegistrationCommandServiceImpl implements EmployeeRegistrat
     public Result<EmployeeRegistration, EmployeeRegistrationCommandFailure> handle(
             CreateEmployeeRegistrationCommand command) {
         try {
-            if (repository.existsByEmployeeIdAndBranchId(command.employeeId().value(), command.branchId().value()))
+            if (repository.existsByEmployeeIdAndBranchId(command.employeeId().value(), command.branchId().value())) {
+                log.warn("Employee registration conflict: employee {} already registered in branch {}", command.employeeId(), command.branchId());
                 return Result.failure(EmployeeRegistrationCommandFailure.REGISTRATION_ALREADY_EXISTS);
+            }
 
             var registration = new EmployeeRegistration(
                     command.employeeId().value(),
@@ -34,8 +38,12 @@ public class EmployeeRegistrationCommandServiceImpl implements EmployeeRegistrat
                     command.speciality(),
                     command.specialityName(),
                     command.salary());
-            return Result.success(repository.save(registration));
+            var saved = repository.save(registration);
+
+            log.info("Employee registration created successfully with ID {}", saved.getId());
+            return Result.success(saved);
         } catch (IllegalArgumentException ex) {
+            log.error("Failed to create employee registration: {}", ex.getMessage());
             return Result.failure(EmployeeRegistrationCommandFailure.INVALID_REGISTRATION_DATA);
         }
     }
