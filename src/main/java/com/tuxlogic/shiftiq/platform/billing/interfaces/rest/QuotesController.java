@@ -60,6 +60,7 @@ public class QuotesController {
     @PostMapping
     @Operation(summary = "Create a new quote", description = "Creates a new Quote based on a Work Order")
     public ResponseEntity<?> createQuote(@Valid @RequestBody CreateQuoteResource resource) {
+        multiTenancySecurityService.validateBranchAccess(resource.branchId());
         var command = CreateQuoteCommandFromResourceAssembler.toCommandFromResource(resource);
         var result = commandService.handle(command);
         if (result.isSuccess()) {

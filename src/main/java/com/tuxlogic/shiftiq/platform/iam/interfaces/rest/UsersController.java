@@ -31,10 +31,12 @@ public class UsersController {
 
     private final UserCommandService userCommandService;
     private final UserQueryService userQueryService;
+    private final com.tuxlogic.shiftiq.platform.shared.infrastructure.security.UserSecurityService userSecurityService;
 
-    public UsersController(UserCommandService userCommandService, UserQueryService userQueryService) {
+    public UsersController(UserCommandService userCommandService, UserQueryService userQueryService, com.tuxlogic.shiftiq.platform.shared.infrastructure.security.UserSecurityService userSecurityService) {
         this.userCommandService = userCommandService;
         this.userQueryService = userQueryService;
+        this.userSecurityService = userSecurityService;
     }
 
     @PostMapping
@@ -73,6 +75,10 @@ public class UsersController {
 
         if (user.isEmpty()) {
             return ResponseEntity.notFound().build();
+        }
+
+        if (!userSecurityService.isCurrentUser(user.get().getId().value())) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
         }
 
         var userResource = UserResourceFromEntityAssembler.toResourceFromEntity(user.get());

@@ -2,7 +2,6 @@ package com.tuxlogic.shiftiq.platform.fleet.interfaces.rest;
 
 import com.tuxlogic.shiftiq.platform.fleet.application.commandservices.AppointmentCommandFailure;
 import com.tuxlogic.shiftiq.platform.fleet.application.commandservices.AppointmentCommandService;
-import com.tuxlogic.shiftiq.platform.fleet.application.queryservices.AppointmentQueryFailure;
 import com.tuxlogic.shiftiq.platform.fleet.application.queryservices.AppointmentQueryService;
 import com.tuxlogic.shiftiq.platform.fleet.domain.model.aggregates.Appointment;
 import com.tuxlogic.shiftiq.platform.fleet.domain.model.commands.CreateAppointmentCommand;

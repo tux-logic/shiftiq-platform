@@ -25,14 +25,21 @@ import org.springframework.web.bind.annotation.RestController;
 public class StripePaymentsController {
 
     private final StripePaymentCommandService paymentCommandService;
+    private final com.tuxlogic.shiftiq.platform.shared.infrastructure.security.MultiTenancySecurityService multiTenancySecurityService;
 
-    public StripePaymentsController(StripePaymentCommandService paymentCommandService) {
+    public StripePaymentsController(StripePaymentCommandService paymentCommandService, com.tuxlogic.shiftiq.platform.shared.infrastructure.security.MultiTenancySecurityService multiTenancySecurityService) {
         this.paymentCommandService = paymentCommandService;
+        this.multiTenancySecurityService = multiTenancySecurityService;
     }
 
     @PostMapping("/payment-intents")
     @Operation(summary = "Create a Stripe PaymentIntent", description = "Generates a Stripe PaymentIntent and clientSecret for card payment processing")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<PaymentIntentResource> createPaymentIntent(@Valid @RequestBody CreatePaymentIntentResource resource) {
+        if (resource.branchId() != null) {
+            multiTenancySecurityService.validateBranchAccess(resource.branchId());
+        }
+
         var resultOpt = paymentCommandService.createPaymentIntent(
                 resource.amount(),
                 resource.currency(),
@@ -54,4 +61,5 @@ public class StripePaymentsController {
 
         return new ResponseEntity<>(responseResource, HttpStatus.CREATED);
     }
+
 }

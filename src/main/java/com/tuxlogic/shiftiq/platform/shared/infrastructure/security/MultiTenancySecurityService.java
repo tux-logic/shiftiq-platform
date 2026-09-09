@@ -63,4 +63,26 @@ public class MultiTenancySecurityService {
             throw new AccessDeniedException("Unauthorized access for requested user identifier: " + userId);
         }
     }
+
+    public boolean isAuthorizedForWorkshop(UUID workshopId) {
+        if (workshopId == null) {
+            return true;
+        }
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null || !authentication.isAuthenticated()) {
+            return false;
+        }
+        Object principal = authentication.getPrincipal();
+        if (principal instanceof UserDetailsImpl userDetails) {
+            return userDetails.getAuthorities().stream()
+                    .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN") || a.getAuthority().equals("ROLE_OWNER"));
+        }
+        return false;
+    }
+
+    public void validateWorkshopAccess(UUID workshopId) {
+        if (!isAuthorizedForWorkshop(workshopId)) {
+            throw new AccessDeniedException("Unauthorized access for requested workshop identifier: " + workshopId);
+        }
+    }
 }

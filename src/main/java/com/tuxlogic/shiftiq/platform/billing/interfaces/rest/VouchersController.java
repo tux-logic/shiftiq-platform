@@ -60,6 +60,9 @@ public class VouchersController {
     @PostMapping
     @Operation(summary = "Generate a new voucher", description = "Generates a new Voucher (Invoice/Receipt) based on an Approved Quote and sends it to SUNAT via Facthub")
     public ResponseEntity<?> generateVoucher(@Valid @RequestBody GenerateVoucherResource resource) {
+        var quote = quoteQueryService.handle(new com.tuxlogic.shiftiq.platform.billing.domain.model.queries.GetQuoteByIdQuery(resource.quoteId()));
+        quote.ifPresent(q -> multiTenancySecurityService.validateBranchAccess(q.getBranchId().value()));
+
         var command = GenerateVoucherCommandFromResourceAssembler.toCommandFromResource(resource);
         var result = commandService.handle(command);
         
@@ -144,8 +147,7 @@ public class VouchersController {
         var result = commandService.handle(command);
 
         if (result.isSuccess()) {
-            var voucherResource = VoucherResourceFromAggregateAssembler.toResourceFromAggregate(result.success().get());
-            return ResponseEntity.ok(voucherResource);
+            return ResponseEntity.noContent().build();
         }
 
         return toErrorResponse(result.failure().get());

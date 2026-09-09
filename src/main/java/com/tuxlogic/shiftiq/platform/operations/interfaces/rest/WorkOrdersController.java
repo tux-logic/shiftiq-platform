@@ -112,7 +112,7 @@ public class WorkOrdersController {
         validateWorkOrderAccess(id);
         var command = new RemoveTaskFromWorkOrderCommand(new WorkOrderId(id), new WorkOrderTaskId(taskId));
         var result = commandService.handle(command);
-        return toResponse(result);
+        return toResponse(result, HttpStatus.NO_CONTENT);
     }
 
     @DeleteMapping("/{id}")
@@ -122,7 +122,7 @@ public class WorkOrdersController {
         validateWorkOrderAccess(id);
         var command = new DeleteWorkOrderCommand(new WorkOrderId(id));
         var result = commandService.handle(command);
-        return toResponse(result);
+        return toResponse(result, HttpStatus.NO_CONTENT);
     }
 
     @GetMapping("/{id}")
