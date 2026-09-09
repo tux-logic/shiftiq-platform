@@ -94,8 +94,15 @@ public class EmployeeRegistrationsController {
             if (result.isFailure()) {
                 return ResponseEntity.notFound().build();
             }
-            return ResponseEntity.ok(EmployeeRegistrationResourceFromAggregateAssembler.toResourceFromAggregate(result.success().get()));
+            var registration = result.success().get();
+            if (registration.getBranchId() != null && !multiTenancySecurityService.isAuthorizedForBranch(registration.getBranchId().value())) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+            }
+            return ResponseEntity.ok(EmployeeRegistrationResourceFromAggregateAssembler.toResourceFromAggregate(registration));
         } else if (branchId != null && status != null) {
+            if (!multiTenancySecurityService.isAuthorizedForBranch(branchId)) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+            }
             var query = new GetEmployeeRegistrationsByBranchIdAndStatusQuery(new BranchId(branchId), new EmployeeRegistrationStatus(status.toUpperCase()));
             var result = queryService.handle(query);
             if (result.isFailure()) {
@@ -105,6 +112,9 @@ public class EmployeeRegistrationsController {
                     .map(EmployeeRegistrationResourceFromAggregateAssembler::toResourceFromAggregate)
                     .toList());
         } else if (branchId != null) {
+            if (!multiTenancySecurityService.isAuthorizedForBranch(branchId)) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+            }
             var query = new GetEmployeeRegistrationsByBranchIdQuery(new BranchId(branchId));
             var result = queryService.handle(query);
             if (result.isFailure()) {
@@ -122,13 +132,22 @@ public class EmployeeRegistrationsController {
     @Operation(summary = "Update an employee registration", description = "Updates the speciality and salary of an existing employee registration")
     public ResponseEntity<?> updateEmployeeRegistration(
             @PathVariable UUID id,
-            @RequestBody UpdateEmployeeRegistrationResource resource) {
+            @Valid @RequestBody UpdateEmployeeRegistrationResource resource) {
         
+        var queryResult = queryService.handle(new GetEmployeeRegistrationByIdQuery(new EmployeeId(id)));
+        if (queryResult.isFailure()) {
+            return ResponseEntity.notFound().build();
+        }
+        var registration = queryResult.success().get();
+        if (registration.getBranchId() != null && !multiTenancySecurityService.isAuthorizedForBranch(registration.getBranchId().value())) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
+
         var command = UpdateEmployeeRegistrationCommandFromResourceAssembler.toCommandFromResource(id, resource);
         var result = commandService.handle(command);
         
         return result.fold(
-                registration -> ResponseEntity.ok(EmployeeRegistrationResourceFromAggregateAssembler.toResourceFromAggregate(registration)),
+                updatedReg -> ResponseEntity.ok(EmployeeRegistrationResourceFromAggregateAssembler.toResourceFromAggregate(updatedReg)),
                 this::handleCommandFailure
         );
     }
@@ -136,11 +155,20 @@ public class EmployeeRegistrationsController {
     @DeleteMapping("/{id}")
     @Operation(summary = "Deactivate an employee registration", description = "Performs a soft delete on an employee registration, marking it as inactive")
     public ResponseEntity<?> deactivateEmployeeRegistration(@PathVariable UUID id) {
+        var queryResult = queryService.handle(new GetEmployeeRegistrationByIdQuery(new EmployeeId(id)));
+        if (queryResult.isFailure()) {
+            return ResponseEntity.notFound().build();
+        }
+        var registration = queryResult.success().get();
+        if (registration.getBranchId() != null && !multiTenancySecurityService.isAuthorizedForBranch(registration.getBranchId().value())) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
+
         var command = new DeleteEmployeeRegistrationCommand(new EmployeeId(id));
         var result = commandService.handle(command);
         
         return result.fold(
-                registration -> ResponseEntity.ok(EmployeeRegistrationResourceFromAggregateAssembler.toResourceFromAggregate(registration)),
+                deletedReg -> ResponseEntity.noContent().build(),
                 this::handleCommandFailure
         );
     }
