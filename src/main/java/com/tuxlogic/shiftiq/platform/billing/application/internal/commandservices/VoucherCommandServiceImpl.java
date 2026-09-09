@@ -7,6 +7,7 @@ import com.tuxlogic.shiftiq.platform.billing.domain.model.aggregates.Voucher;
 import com.tuxlogic.shiftiq.platform.billing.domain.model.commands.AddPaymentCommand;
 import com.tuxlogic.shiftiq.platform.billing.domain.model.commands.GenerateVoucherCommand;
 import com.tuxlogic.shiftiq.platform.billing.domain.model.valueobjects.QuoteStatus;
+import com.tuxlogic.shiftiq.platform.billing.domain.model.valueobjects.VoucherStatus;
 import com.tuxlogic.shiftiq.platform.billing.domain.repositories.QuoteRepository;
 import com.tuxlogic.shiftiq.platform.billing.domain.repositories.VoucherRepository;
 import com.tuxlogic.shiftiq.platform.core.application.queryservices.BranchQueryService;
@@ -146,22 +147,20 @@ public class VoucherCommandServiceImpl implements VoucherCommandService {
         var branchId = quoteOpt.get().getBranchId().value();
 
         try {
+            if (voucher.getStatus() == VoucherStatus.PAID) {
+                return Result.failure(VoucherCommandFailure.VOUCHER_ALREADY_PAID);
+            }
+            if (voucher.getStatus() == VoucherStatus.CANCELED) {
+                return Result.failure(VoucherCommandFailure.VOUCHER_CANCELED);
+            }
+            if (voucher.getTotalPaidAmount().add(command.amount().amount()).compareTo(voucher.getTotalAmount().amount()) > 0) {
+                return Result.failure(VoucherCommandFailure.PAYMENT_EXCEEDS_TOTAL_DEBT);
+            }
+
             voucher.addPayment(command.amount(), command.method(), branchId);
             var savedVoucher = voucherRepository.save(voucher);
             return Result.success(savedVoucher);
-        } catch (IllegalStateException e) {
-            String msg = e.getMessage() != null ? e.getMessage() : "";
-            if (msg.contains("alreadyPaid") || msg.contains("already paid") || msg.contains("alreadyPaidInFull")) {
-                return Result.failure(VoucherCommandFailure.VOUCHER_ALREADY_PAID);
-            }
-            if (msg.contains("canceled") || msg.contains("Canceled") || msg.contains("cannotAddPaymentCanceled")) {
-                return Result.failure(VoucherCommandFailure.VOUCHER_CANCELED);
-            }
-            if (msg.contains("exceeds") || msg.contains("paymentExceedsDebt")) {
-                return Result.failure(VoucherCommandFailure.PAYMENT_EXCEEDS_TOTAL_DEBT);
-            }
-            return Result.failure(VoucherCommandFailure.INVALID_VOUCHER_DATA);
-        } catch (IllegalArgumentException e) {
+        } catch (IllegalArgumentException | IllegalStateException e) {
             return Result.failure(VoucherCommandFailure.INVALID_VOUCHER_DATA);
         }
 
