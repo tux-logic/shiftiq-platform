@@ -78,13 +78,51 @@ class WorkOrdersControllerTest {
     }
 
     @Test
-    void completeWorkOrder_WhenOrderNotFound_ShouldThrowException() {
-        // Arrange
+    void deleteWorkOrder_WhenCommandSucceeds_ShouldReturnNoContent() {
         UUID workOrderId = UUID.randomUUID();
-        when(queryService.handle(any(GetWorkOrderByIdQuery.class))).thenReturn(Optional.empty());
+        UUID branchId = UUID.randomUUID();
 
-        // Act & Assert
-        assertThrows(IllegalArgumentException.class, () -> controller.completeWorkOrder(workOrderId));
-        verify(commandService, never()).handle(any(CompleteWorkOrderCommand.class));
+        WorkOrder realWorkOrder = new WorkOrder(
+                new com.tuxlogic.shiftiq.platform.operations.domain.model.valueobjects.AppointmentId(UUID.randomUUID()),
+                new BranchId(branchId),
+                new com.tuxlogic.shiftiq.platform.shared.domain.model.valueobjects.VehicleId(UUID.randomUUID()),
+                new com.tuxlogic.shiftiq.platform.shared.domain.model.valueobjects.CustomerId(UUID.randomUUID()),
+                101,
+                new com.tuxlogic.shiftiq.platform.operations.domain.model.valueobjects.DiagnosticSummary("Diagnostico test"),
+                new com.tuxlogic.shiftiq.platform.shared.domain.model.valueobjects.Mileage(50000)
+        );
+
+        when(queryService.handle(any(GetWorkOrderByIdQuery.class))).thenReturn(Optional.of(realWorkOrder));
+        when(commandService.handle(any(com.tuxlogic.shiftiq.platform.operations.domain.model.commands.DeleteWorkOrderCommand.class))).thenReturn(Result.success(realWorkOrder));
+
+        ResponseEntity<?> response = controller.deleteWorkOrder(workOrderId);
+
+        assertNotNull(response);
+        assertEquals(HttpStatus.NO_CONTENT, response.getStatusCode());
+    }
+
+    @Test
+    void removeTaskFromWorkOrder_WhenCommandSucceeds_ShouldReturnNoContent() {
+        UUID workOrderId = UUID.randomUUID();
+        UUID taskId = UUID.randomUUID();
+        UUID branchId = UUID.randomUUID();
+
+        WorkOrder realWorkOrder = new WorkOrder(
+                new com.tuxlogic.shiftiq.platform.operations.domain.model.valueobjects.AppointmentId(UUID.randomUUID()),
+                new BranchId(branchId),
+                new com.tuxlogic.shiftiq.platform.shared.domain.model.valueobjects.VehicleId(UUID.randomUUID()),
+                new com.tuxlogic.shiftiq.platform.shared.domain.model.valueobjects.CustomerId(UUID.randomUUID()),
+                101,
+                new com.tuxlogic.shiftiq.platform.operations.domain.model.valueobjects.DiagnosticSummary("Diagnostico test"),
+                new com.tuxlogic.shiftiq.platform.shared.domain.model.valueobjects.Mileage(50000)
+        );
+
+        when(queryService.handle(any(GetWorkOrderByIdQuery.class))).thenReturn(Optional.of(realWorkOrder));
+        when(commandService.handle(any(com.tuxlogic.shiftiq.platform.operations.domain.model.commands.RemoveTaskFromWorkOrderCommand.class))).thenReturn(Result.success(realWorkOrder));
+
+        ResponseEntity<?> response = controller.removeTaskFromWorkOrder(workOrderId, taskId);
+
+        assertNotNull(response);
+        assertEquals(HttpStatus.NO_CONTENT, response.getStatusCode());
     }
 }

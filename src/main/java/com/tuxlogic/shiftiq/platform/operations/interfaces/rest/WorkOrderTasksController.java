@@ -118,7 +118,7 @@ public class WorkOrderTasksController {
             UUID id = validateTaskAccess(taskId);
             var command = new RemoveProductFromTaskCommand(new WorkOrderId(id), new WorkOrderTaskId(taskId), new ProductId(productId));
             var result = commandService.handle(command);
-            return toResponse(result);
+            return toResponse(result, HttpStatus.NO_CONTENT);
         } catch (IllegalArgumentException e) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
         }
