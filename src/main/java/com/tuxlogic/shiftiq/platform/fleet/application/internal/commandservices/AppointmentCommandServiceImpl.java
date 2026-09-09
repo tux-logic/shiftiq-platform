@@ -2,6 +2,8 @@ package com.tuxlogic.shiftiq.platform.fleet.application.internal.commandservices
 
 import com.tuxlogic.shiftiq.platform.fleet.application.commandservices.AppointmentCommandFailure;
 import com.tuxlogic.shiftiq.platform.fleet.application.commandservices.AppointmentCommandService;
+import com.tuxlogic.shiftiq.platform.fleet.application.outboundservices.ExternalCoreService;
+import com.tuxlogic.shiftiq.platform.fleet.application.outboundservices.ExternalVehicleService;
 import com.tuxlogic.shiftiq.platform.fleet.domain.model.aggregates.Appointment;
 import com.tuxlogic.shiftiq.platform.fleet.domain.model.commands.CreateAppointmentCommand;
 import com.tuxlogic.shiftiq.platform.fleet.domain.model.commands.DeleteAppointmentCommand;
@@ -19,16 +21,34 @@ import java.util.UUID;
 public class AppointmentCommandServiceImpl implements AppointmentCommandService {
 
     private final AppointmentRepository appointmentRepository;
+    private final ExternalCoreService externalCoreService;
+    private final ExternalVehicleService externalVehicleService;
 
-    public AppointmentCommandServiceImpl(AppointmentRepository appointmentRepository) {
+    public AppointmentCommandServiceImpl(AppointmentRepository appointmentRepository,
+                                         ExternalCoreService externalCoreService,
+                                         ExternalVehicleService externalVehicleService) {
         this.appointmentRepository = appointmentRepository;
+        this.externalCoreService = externalCoreService;
+        this.externalVehicleService = externalVehicleService;
     }
-
 
     @Override
     @Transactional
     public Result<Appointment, AppointmentCommandFailure> handle(CreateAppointmentCommand command) {
         try {
+            if (!externalCoreService.existsBranchById(command.branchId())) {
+                log.warn("Appointment creation failed: Branch {} does not exist", command.branchId());
+                return Result.failure(AppointmentCommandFailure.INVALID_APPOINTMENT_DATA);
+            }
+            if (!externalCoreService.existsCustomerById(command.customerId())) {
+                log.warn("Appointment creation failed: Customer {} does not exist", command.customerId());
+                return Result.failure(AppointmentCommandFailure.INVALID_APPOINTMENT_DATA);
+            }
+            if (!externalVehicleService.existsVehicleById(command.vehicleId())) {
+                log.warn("Appointment creation failed: Vehicle {} does not exist", command.vehicleId());
+                return Result.failure(AppointmentCommandFailure.INVALID_APPOINTMENT_DATA);
+            }
+
             var scheduledStart = command.scheduledStart();
             var scheduledEnd = scheduledStart.plusHours(1);
 
@@ -65,6 +85,12 @@ public class AppointmentCommandServiceImpl implements AppointmentCommandService 
     @Transactional
     public Result<Appointment, AppointmentCommandFailure> handle(UpdateAppointmentCommand command) {
         try {
+            if (!externalCoreService.existsBranchById(command.branchId()) ||
+                !externalCoreService.existsCustomerById(command.customerId()) ||
+                !externalVehicleService.existsVehicleById(command.vehicleId())) {
+                return Result.failure(AppointmentCommandFailure.INVALID_APPOINTMENT_DATA);
+            }
+
             var appointmentOptional = appointmentRepository.findById(command.appointmentId());
 
             if (appointmentOptional.isEmpty()) {

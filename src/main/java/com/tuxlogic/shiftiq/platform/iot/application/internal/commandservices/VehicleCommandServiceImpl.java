@@ -169,6 +169,9 @@ public class VehicleCommandServiceImpl implements VehicleCommandService {
                 obd2DeviceRegistrationRepository.save(activeObd2Reg);
             }
 
+            Vehicle vehicle = vehicleOpt.get();
+            vehicle.delete();
+            vehicleRepository.save(vehicle);
             vehicleRepository.delete(command.vehicleId());
 
             return Result.success(null);

@@ -6,6 +6,7 @@ import com.tuxlogic.shiftiq.platform.iot.infrastructure.persistence.jpa.assemble
 import com.tuxlogic.shiftiq.platform.iot.infrastructure.persistence.jpa.entities.VehiclePersistenceEntity;
 import com.tuxlogic.shiftiq.platform.iot.infrastructure.persistence.jpa.repositories.VehiclePersistenceRepository;
 import com.tuxlogic.shiftiq.platform.shared.domain.model.valueobjects.VehicleId;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -16,9 +17,11 @@ import java.util.Optional;
 public class VehicleRepositoryImpl implements VehicleRepository {
 
     private final VehiclePersistenceRepository persistenceRepository;
+    private final ApplicationEventPublisher eventPublisher;
 
-    public VehicleRepositoryImpl(VehiclePersistenceRepository persistenceRepository) {
+    public VehicleRepositoryImpl(VehiclePersistenceRepository persistenceRepository, ApplicationEventPublisher eventPublisher) {
         this.persistenceRepository = persistenceRepository;
+        this.eventPublisher = eventPublisher;
     }
 
     @Override
@@ -33,7 +36,12 @@ public class VehicleRepositoryImpl implements VehicleRepository {
     public Vehicle save(Vehicle vehicle) {
         VehiclePersistenceEntity entity = VehiclePersistenceAssembler.toPersistenceEntity(vehicle);
         VehiclePersistenceEntity savedEntity = persistenceRepository.save(entity);
-        return VehiclePersistenceAssembler.toDomainEntity(savedEntity);
+        Vehicle savedVehicle = VehiclePersistenceAssembler.toDomainEntity(savedEntity);
+        if (savedVehicle != null) {
+            vehicle.domainEvents().forEach(eventPublisher::publishEvent);
+            vehicle.clearDomainEvents();
+        }
+        return savedVehicle;
     }
 
     @Override

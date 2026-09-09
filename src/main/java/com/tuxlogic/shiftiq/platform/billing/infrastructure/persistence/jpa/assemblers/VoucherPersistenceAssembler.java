@@ -20,7 +20,9 @@ public class VoucherPersistenceAssembler {
     public static void updateEntityFromAggregate(VoucherPersistenceEntity entity, Voucher aggregate) {
         if (aggregate == null || entity == null) return;
         
-        // ID is managed by JPA for new entities. We don't set it manually to avoid detached entity exceptions.
+        if (aggregate.getId() != null) {
+            entity.setId(aggregate.getId());
+        }
         entity.setQuoteId(aggregate.getQuoteId());
         entity.setType(aggregate.getType());
         entity.setCustomerDocumentType(aggregate.getCustomerDocumentType());
@@ -30,6 +32,7 @@ public class VoucherPersistenceAssembler {
         entity.setStatus(aggregate.getStatus());
         entity.setExternalInvoiceId(aggregate.getExternalInvoiceId());
         entity.setPdfUrl(aggregate.getPdfUrl());
+
 
         // Map payments
         if (aggregate.getPayments() != null) {

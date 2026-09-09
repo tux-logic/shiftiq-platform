@@ -48,7 +48,4 @@ public class VehiclePersistenceEntity extends AuditableAbstractPersistenceEntity
 
     @Column(name = "deleted_at")
     private Instant deletedAt;
-
-    @Version
-    private Long version;
 }

@@ -2,6 +2,7 @@ package com.tuxlogic.shiftiq.platform.fleet.application.internal.commandservices
 
 import com.tuxlogic.shiftiq.platform.fleet.application.commandservices.CustomerRegistrationCommandFailure;
 import com.tuxlogic.shiftiq.platform.fleet.application.commandservices.CustomerRegistrationCommandService;
+import com.tuxlogic.shiftiq.platform.fleet.application.outboundservices.ExternalCoreService;
 import com.tuxlogic.shiftiq.platform.fleet.domain.model.aggregates.CustomerRegistration;
 import com.tuxlogic.shiftiq.platform.fleet.domain.model.commands.CreateCustomerRegistrationCommand;
 import com.tuxlogic.shiftiq.platform.fleet.domain.model.commands.DeleteCustomerRegistrationCommand;
@@ -19,15 +20,26 @@ import java.util.UUID;
 public class CustomerRegistrationCommandServiceImpl implements CustomerRegistrationCommandService {
 
     private final CustomerRegistrationRepository repository;
+    private final ExternalCoreService externalCoreService;
 
-    public CustomerRegistrationCommandServiceImpl(CustomerRegistrationRepository repository) {
+    public CustomerRegistrationCommandServiceImpl(CustomerRegistrationRepository repository, ExternalCoreService externalCoreService) {
         this.repository = repository;
+        this.externalCoreService = externalCoreService;
     }
 
     @Override
     @Transactional
     public Result<CustomerRegistration, CustomerRegistrationCommandFailure> handle(CreateCustomerRegistrationCommand command) {
         try {
+            if (!externalCoreService.existsBranchById(command.branchId())) {
+                log.warn("Customer registration failed: Branch {} does not exist", command.branchId());
+                return Result.failure(CustomerRegistrationCommandFailure.INVALID_REGISTRATION_DATA);
+            }
+            if (!externalCoreService.existsCustomerById(command.customerId())) {
+                log.warn("Customer registration failed: Customer {} does not exist", command.customerId());
+                return Result.failure(CustomerRegistrationCommandFailure.INVALID_REGISTRATION_DATA);
+            }
+
             boolean exists = repository.existsByCustomerIdAndBranchId(command.customerId().value(), command.branchId().value());
             if (exists) {
                 log.warn("Customer registration conflict: customer {} already registered in branch {}", command.customerId(), command.branchId());
@@ -89,4 +101,5 @@ public class CustomerRegistrationCommandServiceImpl implements CustomerRegistrat
         }
     }
 }
+
 
