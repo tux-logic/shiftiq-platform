@@ -6,33 +6,42 @@ import com.tuxlogic.shiftiq.platform.fleet.infrastructure.persistence.jpa.entiti
 public class AppointmentPersistenceAssembler {
 
     public static AppointmentPersistenceEntity toEntityFromAggregate(Appointment aggregate) {
-        var entity = new AppointmentPersistenceEntity();
+        return toEntityFromAggregate(aggregate, new AppointmentPersistenceEntity());
+    }
 
-        if (aggregate.getVersion() != null) {
-            entity.setId(aggregate.getId());
-            entity.setVersion(aggregate.getVersion());
+    public static AppointmentPersistenceEntity toEntityFromAggregate(Appointment aggregate, AppointmentPersistenceEntity targetEntity) {
+        if (targetEntity == null) {
+            targetEntity = new AppointmentPersistenceEntity();
         }
-        entity.setBranchId(aggregate.getBranchId());
-        entity.setCustomerId(aggregate.getCustomerId());
-        entity.setVehicleId(aggregate.getVehicleId());
-        entity.setStatus(aggregate.getStatus());
-        entity.setScheduledStart(aggregate.getScheduledStart());
-        entity.setScheduledEnd(aggregate.getScheduledEnd());
-        entity.setNotes(aggregate.getNotes());
-        entity.setDeletedAt(aggregate.getDeletedAt());
-        entity.setCreatedBy(aggregate.getCreatedBy());
-        entity.setUpdatedBy(aggregate.getUpdatedBy());
+
+        if (aggregate.getId() != null) {
+            targetEntity.setId(aggregate.getId());
+        }
+        if (aggregate.getVersion() != null) {
+            targetEntity.setVersion(aggregate.getVersion());
+        }
+        targetEntity.setBranchId(aggregate.getBranchId());
+        targetEntity.setCustomerId(aggregate.getCustomerId());
+        targetEntity.setVehicleId(aggregate.getVehicleId());
+        targetEntity.setStatus(aggregate.getStatus());
+        targetEntity.setScheduledStart(aggregate.getScheduledStart());
+        targetEntity.setScheduledEnd(aggregate.getScheduledEnd());
+        targetEntity.setNotes(aggregate.getNotes());
+        targetEntity.setDeletedAt(aggregate.getDeletedAt());
+        targetEntity.setCreatedBy(aggregate.getCreatedBy());
+        targetEntity.setUpdatedBy(aggregate.getUpdatedBy());
 
         if (aggregate.getCreatedAt() != null) {
-            entity.setCreatedAt(aggregate.getCreatedAt());
+            targetEntity.setCreatedAt(aggregate.getCreatedAt());
         }
 
         if (aggregate.getUpdatedAt() != null) {
-            entity.setUpdatedAt(aggregate.getUpdatedAt());
+            targetEntity.setUpdatedAt(aggregate.getUpdatedAt());
         }
 
-        return entity;
+        return targetEntity;
     }
+
 
     public static Appointment toAggregateFromEntity(AppointmentPersistenceEntity entity) {
         return new Appointment(

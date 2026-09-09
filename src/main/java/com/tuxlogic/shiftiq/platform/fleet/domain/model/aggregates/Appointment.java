@@ -93,6 +93,8 @@ public class Appointment extends AbstractDomainAggregateRoot<Appointment> {
         this.scheduledEnd = scheduledStart.plusHours(1);
         this.status = AppointmentStatus.PENDING;
         this.notes = notes;
+        this.createdAt = Instant.now();
+        this.updatedAt = Instant.now();
         this.registerEvent(new com.tuxlogic.shiftiq.platform.fleet.domain.model.events.AppointmentCreatedEvent(
                 this, this.id, this.branchId, this.customerId, this.vehicleId, this.scheduledStart
         ));
@@ -129,5 +131,6 @@ public class Appointment extends AbstractDomainAggregateRoot<Appointment> {
         this.scheduledEnd = scheduledStart.plusHours(1);
         this.status = status;
         this.notes = notes;
+        this.updatedAt = Instant.now();
     }
 }

@@ -78,6 +78,13 @@ public class Vehicle extends AbstractDomainAggregateRoot<Vehicle> {
         ));
     }
 
+    /**
+     * Soft-deletes the vehicle by marking its deletion timestamp.
+     */
+    public void delete() {
+        this.deletedAt = Instant.now();
+    }
+
     private void validate(String plateNumber, String brand, String model, Integer year, String vin) {
         if (plateNumber == null || plateNumber.isBlank()) {
             throw new IllegalArgumentException("iot.error.vehicle.plateNumberRequired");
@@ -88,7 +95,8 @@ public class Vehicle extends AbstractDomainAggregateRoot<Vehicle> {
         if (model == null || model.isBlank()) {
             throw new IllegalArgumentException("iot.error.vehicle.modelRequired");
         }
-        if (year == null || year < 1886) {
+        int maxYear = java.time.Year.now().getValue() + 1;
+        if (year == null || year < 1900 || year > maxYear) {
             throw new IllegalArgumentException("iot.error.vehicle.yearInvalid");
         }
         if (vin == null || vin.isBlank()) {
