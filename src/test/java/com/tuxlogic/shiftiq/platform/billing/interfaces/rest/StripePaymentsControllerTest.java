@@ -12,14 +12,16 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.AccessDeniedException;
 
 import java.math.BigDecimal;
 import java.util.Optional;
+import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
 class StripePaymentsControllerTest {
@@ -71,6 +73,41 @@ class StripePaymentsControllerTest {
     }
 
     @Test
+    void createPaymentIntent_WhenBranchAccessProvided_ShouldValidateBranchAccess() {
+        BigDecimal amount = new BigDecimal("100.00");
+        UUID branchId = UUID.randomUUID();
+        CreatePaymentIntentResource resource = new CreatePaymentIntentResource(amount, "PEN", "Pago taller", branchId);
+
+        StripePaymentIntentResult mockResponse = new StripePaymentIntentResult(
+                "pi_123456",
+                "pi_123456_secret_789",
+                amount,
+                "PEN",
+                "requires_payment_method"
+        );
+
+        when(paymentCommandService.createPaymentIntent(any(), any(), any()))
+                .thenReturn(Optional.of(mockResponse));
+
+        ResponseEntity<PaymentIntentResource> response = controller.createPaymentIntent(resource);
+
+        assertEquals(HttpStatus.CREATED, response.getStatusCode());
+        verify(multiTenancySecurityService).validateBranchAccess(branchId);
+    }
+
+    @Test
+    void createPaymentIntent_WhenBranchAccessDenied_ShouldThrowException() {
+        BigDecimal amount = new BigDecimal("100.00");
+        UUID branchId = UUID.randomUUID();
+        CreatePaymentIntentResource resource = new CreatePaymentIntentResource(amount, "PEN", "Pago taller", branchId);
+
+        doThrow(new AccessDeniedException("Access denied to branch"))
+                .when(multiTenancySecurityService).validateBranchAccess(branchId);
+
+        assertThrows(AccessDeniedException.class, () -> controller.createPaymentIntent(resource));
+    }
+
+    @Test
     void createPaymentIntent_WhenGatewayFails_ShouldReturnInternalServerError() {
         // Arrange
         BigDecimal amount = new BigDecimal("100.00");
@@ -87,3 +124,4 @@ class StripePaymentsControllerTest {
         assertNull(response.getBody());
     }
 }
+

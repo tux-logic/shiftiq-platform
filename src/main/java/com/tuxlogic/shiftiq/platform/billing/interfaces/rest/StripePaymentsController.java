@@ -36,6 +36,10 @@ public class StripePaymentsController {
     @Operation(summary = "Create a Stripe PaymentIntent", description = "Generates a Stripe PaymentIntent and clientSecret for card payment processing")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<PaymentIntentResource> createPaymentIntent(@Valid @RequestBody CreatePaymentIntentResource resource) {
+        if (resource.branchId() != null) {
+            multiTenancySecurityService.validateBranchAccess(resource.branchId());
+        }
+
         var resultOpt = paymentCommandService.createPaymentIntent(
                 resource.amount(),
                 resource.currency(),
@@ -57,4 +61,5 @@ public class StripePaymentsController {
 
         return new ResponseEntity<>(responseResource, HttpStatus.CREATED);
     }
+
 }
