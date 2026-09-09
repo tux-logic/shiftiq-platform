@@ -85,6 +85,7 @@ public class Appointment extends AbstractDomainAggregateRoot<Appointment> {
             throw new IllegalArgumentException("Scheduled start is required");
         }
 
+        this.id = UUID.randomUUID();
         this.branchId = branchId;
         this.customerId = customerId;
         this.vehicleId = vehicleId;
@@ -92,6 +93,9 @@ public class Appointment extends AbstractDomainAggregateRoot<Appointment> {
         this.scheduledEnd = scheduledStart.plusHours(1);
         this.status = AppointmentStatus.PENDING;
         this.notes = notes;
+        this.registerEvent(new com.tuxlogic.shiftiq.platform.fleet.domain.model.events.AppointmentCreatedEvent(
+                this, this.id, this.branchId, this.customerId, this.vehicleId, this.scheduledStart
+        ));
     }
 
     public void update(

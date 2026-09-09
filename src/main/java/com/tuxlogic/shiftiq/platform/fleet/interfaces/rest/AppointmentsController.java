@@ -68,6 +68,15 @@ public class AppointmentsController {
         public ResponseEntity<?> updateAppointment(
                         @PathVariable UUID appointmentId,
                         @Valid @RequestBody UpdateAppointmentResource resource) {
+                var queryResult = queryService.handle(appointmentId);
+                if (queryResult.isFailure()) {
+                        return handleQueryFailure(queryResult.failure().get());
+                }
+                var existingApp = queryResult.success().get();
+                if (existingApp.getBranchId() != null && !multiTenancySecurityService.isAuthorizedForBranch(existingApp.getBranchId().value())) {
+                        return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+                }
+
                 var command = UpdateAppointmentCommandFromResourceAssembler
                                 .toCommandFromResource(appointmentId, resource);
                 var result = commandService.handle(command);
@@ -81,6 +90,15 @@ public class AppointmentsController {
         @DeleteMapping("/{appointmentId}")
         @Operation(summary = "Delete an appointment", description = "Soft deletes an appointment by ID")
         public ResponseEntity<?> deleteAppointment(@PathVariable UUID appointmentId) {
+                var queryResult = queryService.handle(appointmentId);
+                if (queryResult.isFailure()) {
+                        return handleQueryFailure(queryResult.failure().get());
+                }
+                var existingApp = queryResult.success().get();
+                if (existingApp.getBranchId() != null && !multiTenancySecurityService.isAuthorizedForBranch(existingApp.getBranchId().value())) {
+                        return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+                }
+
                 var command = new DeleteAppointmentCommand(appointmentId);
                 var result = commandService.handle(command);
                 return result.fold(
@@ -97,6 +115,9 @@ public class AppointmentsController {
                         @RequestParam(required = false) UUID vehicleId) {
 
                 if (branchId != null && status != null) {
+                        if (!multiTenancySecurityService.isAuthorizedForBranch(branchId)) {
+                                return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+                        }
                         var result = queryService.handle(new BranchId(branchId), status);
                         return result.fold(
                                         appointments -> ResponseEntity.ok(
@@ -105,6 +126,9 @@ public class AppointmentsController {
                                                                         .toList()),
                                         this::handleQueryFailure);
                 } else if (branchId != null) {
+                        if (!multiTenancySecurityService.isAuthorizedForBranch(branchId)) {
+                                return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+                        }
                         var result = queryService.handle(new BranchId(branchId));
                         return result.fold(
                                         appointments -> ResponseEntity.ok(
@@ -117,6 +141,7 @@ public class AppointmentsController {
                         return result.fold(
                                         appointments -> ResponseEntity.ok(
                                                         appointments.stream()
+                                                                        .filter(a -> a.getBranchId() == null || multiTenancySecurityService.isAuthorizedForBranch(a.getBranchId().value()))
                                                                         .map(AppointmentResourceFromAggregateAssembler::toResourceFromAggregate)
                                                                         .toList()),
                                         this::handleQueryFailure);
@@ -125,6 +150,7 @@ public class AppointmentsController {
                         return result.fold(
                                         appointments -> ResponseEntity.ok(
                                                         appointments.stream()
+                                                                        .filter(a -> a.getBranchId() == null || multiTenancySecurityService.isAuthorizedForBranch(a.getBranchId().value()))
                                                                         .map(AppointmentResourceFromAggregateAssembler::toResourceFromAggregate)
                                                                         .toList()),
                                         this::handleQueryFailure);

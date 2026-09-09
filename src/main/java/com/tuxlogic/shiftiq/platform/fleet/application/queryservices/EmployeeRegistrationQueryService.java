@@ -5,13 +5,14 @@ import com.tuxlogic.shiftiq.platform.fleet.domain.model.queries.GetEmployeeRegis
 import com.tuxlogic.shiftiq.platform.fleet.domain.model.queries.GetEmployeeRegistrationByEmployeeIdQuery;
 import com.tuxlogic.shiftiq.platform.fleet.domain.model.queries.GetEmployeeRegistrationsByBranchIdQuery;
 import com.tuxlogic.shiftiq.platform.fleet.domain.model.queries.GetEmployeeRegistrationsByBranchIdAndStatusQuery;
+import com.tuxlogic.shiftiq.platform.fleet.domain.model.valueobjects.EmployeeRegistrationQueryFailure;
+import com.tuxlogic.shiftiq.platform.shared.application.result.Result;
 
 import java.util.List;
-import java.util.Optional;
 
 public interface EmployeeRegistrationQueryService {
-    Optional<EmployeeRegistration> handle(GetEmployeeRegistrationByIdQuery query);
-    Optional<EmployeeRegistration> handle(GetEmployeeRegistrationByEmployeeIdQuery query);
-    List<EmployeeRegistration> handle(GetEmployeeRegistrationsByBranchIdQuery query);
-    List<EmployeeRegistration> handle(GetEmployeeRegistrationsByBranchIdAndStatusQuery query);
+    Result<EmployeeRegistration, EmployeeRegistrationQueryFailure> handle(GetEmployeeRegistrationByIdQuery query);
+    Result<EmployeeRegistration, EmployeeRegistrationQueryFailure> handle(GetEmployeeRegistrationByEmployeeIdQuery query);
+    Result<List<EmployeeRegistration>, EmployeeRegistrationQueryFailure> handle(GetEmployeeRegistrationsByBranchIdQuery query);
+    Result<List<EmployeeRegistration>, EmployeeRegistrationQueryFailure> handle(GetEmployeeRegistrationsByBranchIdAndStatusQuery query);
 }

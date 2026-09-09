@@ -66,6 +66,15 @@ public class CustomerRegistrationsController {
     @Operation(summary = "Update a customer registration", description = "Updates an existing customer registration by ID (e.g., change status)")
     public ResponseEntity<?> update(@PathVariable UUID registrationId,
                                     @Valid @RequestBody UpdateCustomerRegistrationResource resource) {
+        var queryResult = queryService.handle(registrationId);
+        if (queryResult.isFailure()) {
+            return handleQueryFailure(queryResult.failure().get());
+        }
+        var existingReg = queryResult.success().get();
+        if (existingReg.getBranchId() != null && !multiTenancySecurityService.isAuthorizedForBranch(existingReg.getBranchId().value())) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
+
         var command = UpdateCustomerRegistrationCommandFromResourceAssembler.toCommandFromResource(registrationId, resource);
         var result = commandService.handle(command);
         return result.fold(
@@ -77,6 +86,15 @@ public class CustomerRegistrationsController {
     @DeleteMapping("/{registrationId}")
     @Operation(summary = "Delete (deactivate) a customer registration", description = "Soft-deactivates a customer registration by ID")
     public ResponseEntity<?> delete(@PathVariable UUID registrationId) {
+        var queryResult = queryService.handle(registrationId);
+        if (queryResult.isFailure()) {
+            return handleQueryFailure(queryResult.failure().get());
+        }
+        var existingReg = queryResult.success().get();
+        if (existingReg.getBranchId() != null && !multiTenancySecurityService.isAuthorizedForBranch(existingReg.getBranchId().value())) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
+
         var command = new DeleteCustomerRegistrationCommand(registrationId);
         var result = commandService.handle(command);
         return result.fold(
@@ -95,10 +113,18 @@ public class CustomerRegistrationsController {
         if (customerId != null) {
             var result = queryService.handle(new GetCustomerRegistrationByCustomerIdQuery(customerId));
             return result.fold(
-                    reg -> ResponseEntity.ok(CustomerRegistrationResourceFromAggregateAssembler.toResourceFromAggregate(reg)),
+                    reg -> {
+                        if (reg.getBranchId() != null && !multiTenancySecurityService.isAuthorizedForBranch(reg.getBranchId().value())) {
+                            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+                        }
+                        return ResponseEntity.ok(CustomerRegistrationResourceFromAggregateAssembler.toResourceFromAggregate(reg));
+                    },
                     this::handleQueryFailure
             );
         } else if (branchId != null && status != null) {
+            if (!multiTenancySecurityService.isAuthorizedForBranch(branchId)) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+            }
             var result = queryService.handle(new BranchId(branchId), status);
             return result.fold(
                     regs -> ResponseEntity.ok(regs.stream()
@@ -106,6 +132,9 @@ public class CustomerRegistrationsController {
                     this::handleQueryFailure
             );
         } else if (branchId != null) {
+            if (!multiTenancySecurityService.isAuthorizedForBranch(branchId)) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+            }
             var result = queryService.handle(new BranchId(branchId));
             return result.fold(
                     regs -> ResponseEntity.ok(regs.stream()

@@ -7,26 +7,19 @@ import com.tuxlogic.shiftiq.platform.fleet.domain.model.commands.CreateEmployeeR
 import com.tuxlogic.shiftiq.platform.fleet.domain.model.commands.UpdateEmployeeRegistrationCommand;
 import com.tuxlogic.shiftiq.platform.fleet.domain.model.commands.DeleteEmployeeRegistrationCommand;
 import com.tuxlogic.shiftiq.platform.fleet.domain.repositories.EmployeeRegistrationRepository;
-import com.tuxlogic.shiftiq.platform.fleet.domain.model.events.EmployeeRegistrationCreatedEvent;
 import com.tuxlogic.shiftiq.platform.shared.application.result.Result;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.context.ApplicationEventPublisher;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+@Slf4j
 @Service
 public class EmployeeRegistrationCommandServiceImpl implements EmployeeRegistrationCommandService {
 
-    private static final Logger log = LoggerFactory.getLogger(EmployeeRegistrationCommandServiceImpl.class);
-
     private final EmployeeRegistrationRepository repository;
-    private final ApplicationEventPublisher eventPublisher;
 
-    public EmployeeRegistrationCommandServiceImpl(EmployeeRegistrationRepository repository,
-                                                   ApplicationEventPublisher eventPublisher) {
+    public EmployeeRegistrationCommandServiceImpl(EmployeeRegistrationRepository repository) {
         this.repository = repository;
-        this.eventPublisher = eventPublisher;
     }
 
     @Override
@@ -46,13 +39,6 @@ public class EmployeeRegistrationCommandServiceImpl implements EmployeeRegistrat
                     command.specialityName(),
                     command.salary());
             var saved = repository.save(registration);
-
-            eventPublisher.publishEvent(new EmployeeRegistrationCreatedEvent(
-                    this,
-                    saved.getId() != null ? saved.getId().value() : null,
-                    command.employeeId(),
-                    command.branchId()
-            ));
 
             log.info("Employee registration created successfully with ID {}", saved.getId());
             return Result.success(saved);

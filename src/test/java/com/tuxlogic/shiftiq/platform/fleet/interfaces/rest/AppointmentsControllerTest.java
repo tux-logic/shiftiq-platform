@@ -130,4 +130,59 @@ class AppointmentsControllerTest {
         assertNotNull(response);
         assertEquals(HttpStatus.FORBIDDEN, response.getStatusCode());
     }
+
+    @Test
+    void updateAppointment_WhenForbidden_ShouldReturnForbiddenStatus() {
+        UUID appointmentId = UUID.randomUUID();
+        UUID branchId = UUID.randomUUID();
+
+        Appointment appointment = new Appointment(
+                new BranchId(branchId),
+                new CustomerId(UUID.randomUUID()),
+                new VehicleId(UUID.randomUUID()),
+                LocalDateTime.now(),
+                new AppointmentSummary("Forbidden check")
+        );
+
+        when(queryService.handle(appointmentId)).thenReturn(Result.success(appointment));
+        when(multiTenancySecurityService.isAuthorizedForBranch(branchId)).thenReturn(false);
+
+        ResponseEntity<?> response = controller.updateAppointment(appointmentId, null);
+
+        assertNotNull(response);
+        assertEquals(HttpStatus.FORBIDDEN, response.getStatusCode());
+    }
+
+    @Test
+    void deleteAppointment_WhenForbidden_ShouldReturnForbiddenStatus() {
+        UUID appointmentId = UUID.randomUUID();
+        UUID branchId = UUID.randomUUID();
+
+        Appointment appointment = new Appointment(
+                new BranchId(branchId),
+                new CustomerId(UUID.randomUUID()),
+                new VehicleId(UUID.randomUUID()),
+                LocalDateTime.now(),
+                new AppointmentSummary("Forbidden check")
+        );
+
+        when(queryService.handle(appointmentId)).thenReturn(Result.success(appointment));
+        when(multiTenancySecurityService.isAuthorizedForBranch(branchId)).thenReturn(false);
+
+        ResponseEntity<?> response = controller.deleteAppointment(appointmentId);
+
+        assertNotNull(response);
+        assertEquals(HttpStatus.FORBIDDEN, response.getStatusCode());
+    }
+
+    @Test
+    void getAppointments_WhenBranchForbidden_ShouldReturnForbiddenStatus() {
+        UUID branchId = UUID.randomUUID();
+        when(multiTenancySecurityService.isAuthorizedForBranch(branchId)).thenReturn(false);
+
+        ResponseEntity<?> response = controller.getAppointments(branchId, null, null, null);
+
+        assertNotNull(response);
+        assertEquals(HttpStatus.FORBIDDEN, response.getStatusCode());
+    }
 }
