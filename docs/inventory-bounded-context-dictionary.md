@@ -6,7 +6,7 @@ El **Bounded Context `Inventory`** administra el catálogo de repuestos, autopar
 
 ## 1. Domain Layer (Capa de Dominio)
 
-La Capa de Dominio define las reglas inmutables del inventario, gestionando el stock disponible, la deducción FIFO mediante métodos **Factory** (`ProductBatch.forStockAdjustment`), reglas de validación en `StockDomainService`, la activación de alertas de bajo stock y las validaciones de negocio sin dependencias tecnológicas.
+La Capa de Dominio define las reglas inmutables del inventario, gestionando el stock disponible, la deducción FIFO encapsulada en el agregado `Product`, los métodos de creación y reconstitución (patrón **Factory**), la activación de alertas de bajo stock y las validaciones de negocio sin dependencias tecnológicas externas.
 
 ```mermaid
 classDiagram
@@ -25,6 +25,8 @@ classDiagram
         -boolean lowStockAlert
         -Long version
         -List~ProductBatch~ batches
+        +Product(UUID, BranchId, ProductCategory, ProductName, Sku, Money, String, Integer)
+        +reconstitute(...)$ Product
         +addBatch(ProductBatch) void
         +applyStockMovement(StockMovementQuantity, Money) Optional~ProductBatch~
         +updateDetails(ProductName, ProductCategory, Sku, Money, String, Integer) void
@@ -40,6 +42,8 @@ classDiagram
         -Money acquisitionCost
         -Instant receptionDate
         -Long version
+        +ProductBatch(UUID, InventoryQuantity, Money)
+        +reconstitute(...)$ ProductBatch
         +deductQuantity(InventoryQuantity) void
         +addQuantity(InventoryQuantity) void
         +forStockAdjustment(int, Money, int)$ ProductBatch
@@ -74,6 +78,12 @@ classDiagram
         +absoluteValue() InventoryQuantity
     }
 
+    class Money {
+        <<Value Object>>
+        -BigDecimal amount
+        +getAmount() BigDecimal
+    }
+
     class ProductCommandFailure {
         <<Enumeration>>
         PRODUCT_NOT_FOUND
@@ -84,16 +94,28 @@ classDiagram
     }
 
     Product "1" *-- "0..*" ProductBatch : contains >
+    Product "1" *-- "1" BranchId
     Product "1" *-- "1" ProductName
     Product "1" *-- "1" Sku
     Product "1" *-- "1" ProductCategory
     Product "1" *-- "1" InventoryQuantity
+    Product "1" *-- "1" Money
     ProductBatch "1" *-- "2" InventoryQuantity
+    ProductBatch "1" *-- "1" Money
 ```
 
 ---
 
 ### 1.1. Value Objects, Enums & Exceptions
+
+#### 📌 Record: `BranchId(UUID value)`
+* **Propósito:** Identificador único fuertemente tipado de la sucursal de taller asociada al inventario.
+* **Validaciones:** No nulo.
+
+#### 📌 Record: `Money(BigDecimal amount)`
+* **Propósito:** Representa montos monetarios para precios de venta y costos de adquisición de lotes.
+* **Validaciones:** `amount` no nulo y `>= 0`.
+* **Métodos:** `getAmount()`.
 
 #### 📌 Record: `ProductName(String name)`
 * **Propósito:** Nombre comercial de la autoparte o repuesto.
@@ -112,11 +134,11 @@ classDiagram
 * **Validaciones:** No nulo y `>= 0` (`inventory.error.quantity.invalid`).
 * **Métodos:**
   * `add(InventoryQuantity)`: Suma cantidades.
-  * `subtract(InventoryQuantity)`: Resta cantidades; lanza `IllegalArgumentException("inventory.error.quantity.resultingNegative")` si el resultado es negativo.
+  * `subtract(InventoryQuantity)`: Resta cantidades; lanza `IllegalArgumentException` si el resultado es negativo.
 
 #### 📌 Record: `StockMovementQuantity(Integer value)`
 * **Propósito:** Representa un movimiento o ajuste de inventario (positivo para ingresos, negativo para egresos).
-* **Validaciones:** No nulo y distinto de cero (`inventory.error.resource.quantity.required`, `inventory.error.resource.quantity.nonZero`).
+* **Validaciones:** No nulo y distinto de cero.
 * **Métodos:** `isPositive()`, `absoluteValue()`.
 
 #### 📌 Enum: `ProductCommandFailure`
@@ -129,23 +151,38 @@ classDiagram
 
 ### 1.2. Aggregates & Entities
 
-#### 📌 Aggregate: `Product`
-* **Hereda de:** `AbstractAggregateRoot<Product>`
-* **Propósito:** Raíz de agregado que representa un producto del inventario de una sucursal (`BranchId`).
+#### 📌 Aggregate Root: `Product`
+* **Hereda de:** `org.springframework.data.domain.AbstractAggregateRoot<Product>` (Spring Data).
+* **Propósito:** Raíz del agregado que representa un producto del inventario en una sucursal (`BranchId`). Su clave primaria es un `UUID id` directo.
 * **Reglas de Negocio:**
-  * Mantiene una lista inmutable de lotes de ingreso (`batches`).
-  * `reserveStock(InventoryQuantity amount)`: Descuenta stock recorriendo los lotes activos en orden FIFO. Lanza `InsufficientStockException` si `currentStock < amount`.
-  * `releaseStock(InventoryQuantity amount)`: Reingresa stock a los lotes en caso de cancelación de reserva.
-  * `refreshLowStockAlert()`: Evalúa si `currentStock <= minimumStock`. Si el estado cambia, emite `LowStockAlertTriggeredEvent` o `LowStockAlertClearedEvent`.
+  * Mantiene la lista de lotes físicos recibidos (`batches`).
+  * `reserveStock(InventoryQuantity amount)`: Lógica pura de negocio que recorre los lotes activos (`ProductBatch`) en estricto orden FIFO (`receptionDate` ascendente) descontando existencias. Lanza `InsufficientStockException` si `currentStock < amount`.
+  * `releaseStock(InventoryQuantity amount)`: Reingresa existencias a los lotes en caso de cancelación de reserva.
+  * `refreshLowStockAlert()`: Compara `currentStock <= minimumStock`. Si el estado de la alerta cambia, emite `LowStockAlertTriggeredEvent` o `LowStockAlertClearedEvent`.
 
 #### 📌 Entity: `ProductBatch`
-* **Propósito:** Entidad que representa un lote físico específico recibido con costo de adquisición y fecha de recepción.
+* **Propósito:** Entidad de dominio que representa un lote físico recibido con costo de adquisición y fecha de recepción. Su clave primaria es `UUID batchId`.
 * **Atributos:** `batchId` (UUID), `initialQuantity` (InventoryQuantity), `availableQuantity` (InventoryQuantity), `acquisitionCost` (Money), `receptionDate` (Instant), `version` (Long).
 * **Comportamiento:** `deductQuantity` y `addQuantity` actualizan `availableQuantity`.
 
 ---
 
-### 1.3. Domain Events
+### 1.3. Creation & Reconstitution Methods (Factory Pattern)
+
+* **Constructor Público `Product(...)`**:
+  * **Firma:** `public Product(UUID id, BranchId branchId, ProductCategory category, ProductName name, Sku sku, Money currentSellingPrice, String description, Integer minimumStock)`
+  * **Comportamiento:** Si `id == null`, asigna `UUID.randomUUID()`. Inicializa `currentStock = 0`, `lowStockAlert = false` y emite `ProductCreatedEvent`.
+* **`Product.reconstitute(...)`**:
+  * **Firma:** `public static Product reconstitute(UUID id, BranchId branchId, ProductCategory category, ProductName name, Sku sku, InventoryQuantity currentStock, Money currentSellingPrice, String description, Integer minimumStock, boolean lowStockAlert, Long version, List<ProductBatch> batches)`
+  * **Comportamiento:** Método Factory de reconstitución para reconstruir el Agregado desde la capa de infraestructura sin emitir eventos de creación.
+* **`ProductBatch.forStockAdjustment(int signedQuantity, Money acquisitionCost, int resultingStock)`**:
+  * **Firma:** `public static ProductBatch forStockAdjustment(int signedQuantity, Money acquisitionCost, int resultingStock)`
+  * **Parámetros:** `signedQuantity` (cantidad del ajuste), `acquisitionCost` (costo de adquisición), `resultingStock` (saldo de stock resultante).
+  * **Comportamiento:** Reconstituye un `ProductBatch` para ajustes manuales de almacén asignando `initialQuantity = 0` y `availableQuantity = resultingStock`.
+
+---
+
+### 1.4. Domain Events
 
 * `ProductCreatedEvent`: Notifica la creación de un nuevo producto en una sucursal.
 * `ProductUpdatedEvent`: Notifica la actualización de los datos del producto.
@@ -157,7 +194,7 @@ classDiagram
 
 ---
 
-### 1.4. Domain Repositories (Interfaces)
+### 1.6. Domain Repositories (Interfaces)
 
 * `ProductRepository`:
   * `Product save(Product product)`
@@ -216,6 +253,14 @@ classDiagram
 #### Queries
 * 🟩 **`GetProductByIdQuery(UUID productId)`**
 * 🟩 **`GetProductsByBranchIdQuery(BranchId branchId, String name, String category, Boolean lowStockOnly)`**
+
+---
+
+### 2.2. Capabilities & Scheduled Tasks
+
+* **`MinimumStockAlertEvaluationJob`**:
+  * **Tipo:** Capability / Proceso de fondo programado (`@Scheduled(cron = "0 0 * * * *")`).
+  * **Responsabilidad:** Inspecciona el estado de existencias de todos los productos por sucursal en la base de datos, invocando `StockDomainService.evaluateMinimumStock` para actualizar el indicador `lowStockAlert` y publicar eventos `LowStockAlertTriggeredEvent` cuando el stock disponible cae por debajo de la reserva mínima configurada.
 
 ---
 
@@ -353,6 +398,22 @@ classDiagram
 
 ---
 
+### 4.2. Repository Adapters & Infrastructure Components
+
+#### 📌 `ProductRepositoryAdapter`
+* **Implementa:** Interface de dominio `ProductRepository`.
+* **Inyecta:** `ProductJpaRepository` (Spring Data JPA).
+* **Responsabilidad:** Provee persistencia relacional con aislamiento total del modelo de dominio. Realiza el mapeo bidireccional entre los agregados de dominio (`Product`, `ProductBatch`) y las entidades de persistencia JPA (`ProductJpaEntity`, `ProductBatchJpaEntity`).
+* **Métodos Implementados:**
+  * `save(Product product)`: Mapea la raíz del agregado a `ProductJpaEntity` y sus lotes a `ProductBatchJpaEntity`, persistiendo ambas jerarquías en una sola transacción.
+  * `findById(UUID id)`: Recupera la entidad JPA con sus lotes activos y reconstruye el Agregado de Dominio `Product`.
+  * `findAllByBranchId(BranchId branchId)`: Recupera todos los productos de una sucursal.
+  * `findAllByBranchIdWithFilters(BranchId branchId, String name, String category, Boolean lowStockOnly)`: Ejecuta búsquedas filtradas dinámicamente con criterios de bajo stock.
+  * `existsByBranchIdAndSku(BranchId branchId, String sku)`: Verifica duplicidad de SKU.
+  * `deleteById(UUID id)`: Realiza soft-delete seteando `deleted_at = Instant.now()`.
+
+---
+
 ## 5. Software Architecture Component Level Diagrams (C4 Model - Level 3)
 
 El siguiente diagrama C4 descompone el Container API en sus componentes principales para el Bounded Context **Inventory**.
@@ -397,6 +458,18 @@ graph TB
     ProdJpaRepo --> PostgreSql
 ```
 
+### 5.2. Descomposición y Responsabilidad de Componentes
+
+| Componente | Capa Architectural | Responsabilidad Técnica Principal | Tecnologías / Protocolos |
+| :--- | :--- | :--- | :--- |
+| **`ProductsController`** | Interface Layer | Expone los endpoints RESTful para la creación, consulta filtrada, actualización y eliminación de productos y registro de lotes. | Spring Web MVC, REST over HTTPS, Jackson JSON |
+| **`InventoryStockListener`** | Interface Layer | Escucha asíncronamente eventos de dominio emitidos por `Operations` (`ProductReservedEvent`, `ProductReservationCanceledEvent`) e invoca reglas de reserva. | Spring Application Events / Domain Event Listener |
+| **`MinimumStockAlertEvaluationJob`** | Application Layer | Capability programada en segundo plano que evalúa los umbrales de stock mínimo mediante `StockDomainService`. | Spring Scheduled Tasks (`@Scheduled`), Spring Framework |
+| **`ProductCommandService`** | Application Layer | Orquesta los comandos de creación, edición, borrado de productos y adición de lotes de inventario. | Spring Service (`@Service`), Functional `Result<T, E>` |
+| **`ProductQueryService`** | Application Layer | Ejecuta consultas filtradas por sucursal, categoría y estado de alerta de bajo stock. | Spring Service (`@Service`), Read-only Transactions |
+| **`ProductRepositoryAdapter`** | Infrastructure Layer | Adaptador de infraestructura que mapea agregados y entidades de dominio hacia/desde entidades relacionales JPA. | Spring Component (`@Component`), JPA Hibernate Mapping |
+| **`ProductJpaRepository`** | Infrastructure Layer | Repositorio Spring Data JPA que interactúa directamente con PostgreSQL 16. | Spring Data JPA, Hibernate ORM, SQL Native Queries |
+
 ---
 
 ## 6. Code Level Diagrams
@@ -409,7 +482,7 @@ classDiagram
 
     class Product {
         <<Aggregate Root>>
-        -ProductId id
+        -UUID id
         -BranchId branchId
         -ProductCategory category
         -ProductName name
@@ -421,14 +494,15 @@ classDiagram
         -boolean lowStockAlert
         -Long version
         -List~ProductBatch~ batches
-        +Product(BranchId branchId, ProductCategory category, ProductName name, Sku sku, Money currentSellingPrice, String description, Integer minimumStock)
+        +Product(UUID id, BranchId branchId, ProductCategory category, ProductName name, Sku sku, Money currentSellingPrice, String description, Integer minimumStock)
+        +reconstitute(...)$ Product
         +addBatch(ProductBatch batch) void
         +applyStockMovement(StockMovementQuantity quantity, Money price) Optional~ProductBatch~
         +updateDetails(ProductName name, ProductCategory category, Sku sku, Money price, String description, Integer minimumStock) void
         +refreshLowStockAlert() boolean
         +reserveStock(InventoryQuantity quantity) void
         +releaseStock(InventoryQuantity quantity) void
-        +getId() ProductId
+        +getId() UUID
         +getBranchId() BranchId
         +getCurrentStock() InventoryQuantity
         +getSku() Sku
@@ -436,33 +510,20 @@ classDiagram
 
     class ProductBatch {
         <<Entity>>
-        -BatchId batchId
+        -UUID batchId
         -InventoryQuantity initialQuantity
         -InventoryQuantity availableQuantity
         -Money acquisitionCost
         -Instant receptionDate
         -Long version
-        +ProductBatch(InventoryQuantity initialQuantity, Money acquisitionCost)
+        +ProductBatch(UUID batchId, InventoryQuantity initialQuantity, Money acquisitionCost)
+        +reconstitute(...)$ ProductBatch
         +deductQuantity(InventoryQuantity quantity) void
         +addQuantity(InventoryQuantity quantity) void
-        +forStockAdjustment(int quantity, Money cost, int adjustment)$ ProductBatch
-        +getBatchId() BatchId
+        +forStockAdjustment(int signedQuantity, Money acquisitionCost, int resultingStock)$ ProductBatch
+        +getBatchId() UUID
         +getAvailableQuantity() InventoryQuantity
         +getAcquisitionCost() Money
-    }
-
-    class ProductId {
-        <<Value Object>>
-        -UUID value
-        +ProductId(UUID value)
-        +value() UUID
-    }
-
-    class BatchId {
-        <<Value Object>>
-        -UUID value
-        +BatchId(UUID value)
-        +value() UUID
     }
 
     class BranchId {
@@ -508,7 +569,6 @@ classDiagram
     class Money {
         <<Value Object>>
         -BigDecimal amount
-        -String currency
         +getAmount() BigDecimal
     }
 
@@ -521,7 +581,6 @@ classDiagram
         INSUFFICIENT_STOCK
     }
 
-    Product "1" *-- "1" ProductId : identity
     Product "1" *-- "1" BranchId : branch location
     Product "1" *-- "1" ProductName : catalog name
     Product "1" *-- "1" Sku : unique code
@@ -530,8 +589,7 @@ classDiagram
     Product "1" *-- "1" Money : selling price
     Product "1" *-- "0..*" ProductBatch : contains batches
 
-    ProductBatch "1" *-- "1" BatchId : identity
-    ProductBatch "1" *-- "1" InventoryQuantity : available quantity
+    ProductBatch "1" *-- "2" InventoryQuantity : quantities
     ProductBatch "1" *-- "1" Money : cost
 ```
 
@@ -544,6 +602,12 @@ erDiagram
     branches ||--o{ products : "manages inventory (branch_id FK)"
     branches ||--o{ product_batches : "stores batch (branch_id FK)"
     products ||--|{ product_batches : "consists of (product_id FK)"
+
+    branches {
+        uuid id PK "NOT NULL"
+        varchar code UK "NOT NULL"
+        varchar name "NOT NULL"
+    }
 
     products {
         uuid id PK "NOT NULL"
