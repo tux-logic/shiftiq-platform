@@ -605,6 +605,7 @@ classDiagram
         -UUID id
         -Instant createdAt
         -Instant updatedAt
+        -Long version
     }
 
     class UserPersistenceRepository {
@@ -651,10 +652,11 @@ classDiagram
 
 #### 📌 Class: `AuditableAbstractPersistenceEntity`
 * **Tipo:** `@MappedSuperclass` con listener `@EntityListeners(AuditingEntityListener.class)`.
-* **Propósito:** Provee los campos comunes de identidad y auditoría para las entidades relacionales de la plataforma:
+* **Propósito:** Provee los campos comunes de identidad, auditoría y control de concurrencia optimista para las entidades relacionales de la plataforma:
   * `@Id @GeneratedValue(strategy = GenerationType.UUID) @Column(columnDefinition = "uuid", updatable = false, nullable = false) private UUID id;`
   * `@CreatedDate @Column(name = "created_at", nullable = false, updatable = false) private Instant createdAt;`
   * `@LastModifiedDate @Column(name = "updated_at", nullable = false) private Instant updatedAt;`
+  * `@Version @Column(name = "version") private Long version;`
 
 #### 📌 Class: `UserPersistenceEntity`
 * **Tipo:** Entidad JPA (`@Entity`, `@Table(name = "users")`) que extiende de `AuditableAbstractPersistenceEntity`.
@@ -666,7 +668,6 @@ classDiagram
   * `@Enumerated(EnumType.STRING) @Column(name = "role", nullable = false, length = 30) private Roles role = Roles.ROLE_USER;`
   * `@ElementCollection(fetch = FetchType.EAGER) @CollectionTable(name = "user_branches", joinColumns = @JoinColumn(name = "user_id")) @Column(name = "branch_id") private Set<UUID> branchIds;`
   * `@Column(name = "deleted_at") private Instant deletedAt;`
-  * `@Version @Column(name = "version") private Long version;`
 
 #### 📌 Class: `PasswordRecoveryTokenPersistenceEntity`
 * **Tipo:** Entidad JPA (`@Entity`, `@Table(name = "password_recovery_tokens")`).
@@ -810,7 +811,6 @@ graph TB
     UserCmdService -->|"Valida tokens federados con GoogleIdTokenVerifier"| GoogleAuth
     UserCmdService -->|"Persiste y consulta estado de usuarios"| UserRepoAdapter
 
-    PassRecoveryService -->|"Hashea tokens temporales con SHA-256"| PassRecoveryService
     PassRecoveryService -->|"Persiste estado de tokens"| PassTokenRepoAdapter
     PassRecoveryService -->|"Despacha email de recuperación"| EmailServiceComp
     EmailServiceComp -->|"Envía correos vía TLS/SMTP (puerto 587)"| SmtpServer
