@@ -17,7 +17,7 @@ El Bounded Context de **Identity & Access Management (IAM)** constituye la piedr
 
 ## 1. Domain Layer (Capa de Dominio)
 
-La Capa de Dominio encierra la lógica de negocio pura, las invariantes operativas y las reglas del sistema de identidad, manteniéndose completamente agnóstica de frameworks web, motores de bases de datos o librerías de persistencia.
+La Capa de Dominio encierra la lógica de negocio pura, las invariantes operativas y las reglas del sistema de identidad, manteniéndose completamente agnóstica de frameworks web, motores de bases de datos o librerías de persistencia. En esta capa se definen Agregados, Entidades, Value Objects, Servicios de Dominio, Fábricas (Factories/Creation Constructors) e Interfaces de Repositorio.
 
 ```mermaid
 classDiagram

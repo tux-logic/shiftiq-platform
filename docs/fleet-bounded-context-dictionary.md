@@ -6,7 +6,7 @@ El **Bounded Context `Fleet`** administra las citas programadas de atención mec
 
 ## 1. Domain Layer (Capa de Dominio)
 
-La Capa de Dominio define las reglas de agendamiento de citas mecánicas, duraciones estimadas predeterminadas (1 hora), validaciones de solapamiento de horarios y la adscripción de clientes y empleados a las sedes activas del taller.
+La Capa de Dominio define las reglas de agendamiento de citas mecánicas, duraciones estimadas predeterminadas (1 hora), métodos **Factory** para instanciación de agregados, validaciones de solapamiento de horarios mediante `FleetDomainService` y la adscripción de clientes y empleados a las sedes activas del taller.
 
 ```mermaid
 classDiagram
@@ -467,7 +467,8 @@ classDiagram
     direction TB
 
     class Appointment {
-        -UUID id
+        <<Aggregate Root>>
+        -AppointmentId id
         -BranchId branchId
         -CustomerId customerId
         -VehicleId vehicleId
@@ -475,28 +476,157 @@ classDiagram
         -LocalDateTime scheduledEnd
         -AppointmentStatus status
         -AppointmentSummary notes
-        +update(...) void
+        -Instant createdAt
+        -Instant updatedAt
+        -Instant deletedAt
+        -Long version
+        +Appointment(BranchId branchId, CustomerId customerId, VehicleId vehicleId, LocalDateTime scheduledStart, LocalDateTime scheduledEnd, AppointmentSummary notes)
+        +update(BranchId branchId, CustomerId customerId, VehicleId vehicleId, LocalDateTime scheduledStart, AppointmentStatus status, AppointmentSummary notes) void
+        +cancel() void
+        +complete() void
+        +getId() AppointmentId
+        +getBranchId() BranchId
+        +getCustomerId() CustomerId
+        +getVehicleId() VehicleId
+        +getScheduledStart() LocalDateTime
+        +getScheduledEnd() LocalDateTime
+        +getStatus() AppointmentStatus
     }
 
     class CustomerRegistration {
-        -CustomerId id
-        -UUID customerId
+        <<Aggregate Root>>
+        -CustomerRegistrationId id
+        -CustomerId customerId
         -BranchId branchId
         -CustomerRegistrationStatus status
+        -Instant createdAt
+        -Instant updatedAt
+        -Instant deletedAt
+        -Long version
+        +CustomerRegistration(CustomerId customerId, BranchId branchId)
         +deactivate() void
+        +getId() CustomerRegistrationId
+        +getCustomerId() CustomerId
+        +getBranchId() BranchId
+        +getStatus() CustomerRegistrationStatus
     }
 
     class EmployeeRegistration {
-        -EmployeeId id
-        -UUID employeeId
+        <<Aggregate Root>>
+        -EmployeeRegistrationId id
+        -EmployeeId employeeId
         -BranchId branchId
         -String speciality
         -String specialityName
         -BigDecimal salary
         -EmployeeRegistrationStatus status
-        +update(String, String, BigDecimal) void
+        -Instant createdAt
+        -Instant updatedAt
+        -Instant deletedAt
+        -Long version
+        +EmployeeRegistration(EmployeeId employeeId, BranchId branchId, String speciality, String specialityName, BigDecimal salary)
+        +update(String speciality, String specialityName, BigDecimal salary) void
         +deactivate() void
+        +getId() EmployeeRegistrationId
+        +getEmployeeId() EmployeeId
+        +getBranchId() BranchId
+        +getStatus() EmployeeRegistrationStatus
     }
+
+    class AppointmentId {
+        <<Value Object>>
+        -UUID value
+        +AppointmentId(UUID value)
+        +value() UUID
+    }
+
+    class CustomerRegistrationId {
+        <<Value Object>>
+        -UUID value
+        +CustomerRegistrationId(UUID value)
+        +value() UUID
+    }
+
+    class EmployeeRegistrationId {
+        <<Value Object>>
+        -UUID value
+        +EmployeeRegistrationId(UUID value)
+        +value() UUID
+    }
+
+    class CustomerId {
+        <<Value Object>>
+        -UUID value
+        +CustomerId(UUID value)
+        +value() UUID
+    }
+
+    class EmployeeId {
+        <<Value Object>>
+        -UUID value
+        +EmployeeId(UUID value)
+        +value() UUID
+    }
+
+    class BranchId {
+        <<Value Object>>
+        -UUID value
+        +BranchId(UUID value)
+        +value() UUID
+    }
+
+    class VehicleId {
+        <<Value Object>>
+        -UUID value
+        +VehicleId(UUID value)
+        +value() UUID
+    }
+
+    class AppointmentSummary {
+        <<Value Object>>
+        -String value
+        +value() String
+    }
+
+    class CustomerRegistrationStatus {
+        <<Value Object>>
+        -String value
+        +ACTIVE$
+        +INACTIVE$
+        +value() String
+    }
+
+    class EmployeeRegistrationStatus {
+        <<Value Object>>
+        -String value
+        +ACTIVE$
+        +INACTIVE$
+        +value() String
+    }
+
+    class AppointmentStatus {
+        <<Enumeration>>
+        PENDING
+        COMPLETED
+        CANCELED
+    }
+
+    Appointment "1" *-- "1" AppointmentId : identity
+    Appointment "1" *-- "1" BranchId : location
+    Appointment "1" *-- "1" CustomerId : client
+    Appointment "1" *-- "1" VehicleId : car
+    Appointment "1" *-- "1" AppointmentStatus : state
+    Appointment "1" *-- "1" AppointmentSummary : notes
+
+    CustomerRegistration "1" *-- "1" CustomerRegistrationId : identity
+    CustomerRegistration "1" *-- "1" CustomerId : client reference
+    CustomerRegistration "1" *-- "1" BranchId : branch reference
+    CustomerRegistration "1" *-- "1" CustomerRegistrationStatus : state
+
+    EmployeeRegistration "1" *-- "1" EmployeeRegistrationId : identity
+    EmployeeRegistration "1" *-- "1" EmployeeId : employee reference
+    EmployeeRegistration "1" *-- "1" BranchId : branch reference
+    EmployeeRegistration "1" *-- "1" EmployeeRegistrationStatus : state
 ```
 
 ---
@@ -505,51 +635,77 @@ classDiagram
 
 ```mermaid
 erDiagram
-    branches ||--o{ appointments : "hosts appointment"
-    customers ||--o{ appointments : "books appointment"
-    vehicles ||--o{ appointments : "receives appointment"
-    branches ||--o{ customer_registrations : "registers customer"
-    branches ||--o{ employee_registrations : "assigns employee"
+    branches ||--o{ appointments : "hosts appointment (branch_id FK)"
+    customers ||--o{ appointments : "books appointment (customer_id FK)"
+    vehicles ||--o{ appointments : "receives appointment (vehicle_id FK)"
+    branches ||--o{ customer_registrations : "registers customer (branch_id FK)"
+    customers ||--o{ customer_registrations : "registered in (customer_id FK)"
+    branches ||--o{ employee_registrations : "assigns employee (branch_id FK)"
+    employees ||--o{ employee_registrations : "assigned to (employee_id FK)"
+
+    branches {
+        uuid id PK "NOT NULL"
+        varchar name "NOT NULL"
+        varchar code UK "NOT NULL"
+    }
+
+    customers {
+        uuid id PK "NOT NULL"
+        varchar first_name "NOT NULL"
+        varchar last_name "NOT NULL"
+    }
+
+    vehicles {
+        uuid id PK "NOT NULL"
+        varchar vin UK "NOT NULL"
+        varchar plate_number UK "NOT NULL"
+    }
+
+    employees {
+        uuid id PK "NOT NULL"
+        varchar first_name "NOT NULL"
+        varchar last_name "NOT NULL"
+    }
 
     appointments {
-        uuid id PK
-        uuid branch_id FK
-        uuid customer_id FK
-        uuid vehicle_id FK
-        varchar status
-        timestamp scheduled_start
-        timestamp scheduled_end
-        text notes
-        uuid created_by
-        uuid updated_by
-        timestamp created_at
-        timestamp updated_at
-        timestamp deleted_at
-        bigint version
+        uuid id PK "NOT NULL"
+        uuid branch_id FK "NOT NULL"
+        uuid customer_id FK "NOT NULL"
+        uuid vehicle_id FK "NOT NULL"
+        varchar status "NOT NULL (PENDING, COMPLETED, CANCELED)"
+        timestamp scheduled_start "NOT NULL"
+        timestamp scheduled_end "NOT NULL, CHECK (scheduled_end > scheduled_start)"
+        text notes "NULLABLE"
+        uuid created_by "NOT NULL"
+        uuid updated_by "NOT NULL"
+        timestamp created_at "NOT NULL"
+        timestamp updated_at "NOT NULL"
+        timestamp deleted_at "NULLABLE (Soft Delete)"
+        bigint version "NOT NULL"
     }
 
     customer_registrations {
-        uuid id PK
-        uuid customer_id FK
-        uuid branch_id FK
-        varchar status
-        timestamp created_at
-        timestamp updated_at
-        timestamp deleted_at
-        bigint version
+        uuid id PK "NOT NULL"
+        uuid customer_id FK "NOT NULL"
+        uuid branch_id FK "NOT NULL"
+        varchar status "NOT NULL (ACTIVE, INACTIVE)"
+        timestamp created_at "NOT NULL"
+        timestamp updated_at "NOT NULL"
+        timestamp deleted_at "NULLABLE (Soft Delete)"
+        bigint version "NOT NULL"
     }
 
     employee_registrations {
-        uuid id PK
-        uuid employee_id FK
-        uuid branch_id FK
-        varchar speciality
-        varchar speciality_name
-        numeric salary
-        varchar status
-        timestamp created_at
-        timestamp updated_at
-        timestamp deleted_at
-        bigint version
+        uuid id PK "NOT NULL"
+        uuid employee_id FK "NOT NULL"
+        uuid branch_id FK "NOT NULL"
+        varchar speciality "NOT NULL"
+        varchar speciality_name "NULLABLE"
+        numeric salary "NOT NULL, CHECK (salary >= 0)"
+        varchar status "NOT NULL (ACTIVE, INACTIVE)"
+        timestamp created_at "NOT NULL"
+        timestamp updated_at "NOT NULL"
+        timestamp deleted_at "NULLABLE (Soft Delete)"
+        bigint version "NOT NULL"
     }
 ```

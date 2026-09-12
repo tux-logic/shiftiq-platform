@@ -6,7 +6,7 @@ El **Bounded Context `IoT`** administra la identidad telemática de los vehícul
 
 ## 1. Domain Layer (Capa de Dominio)
 
-La Capa de Dominio rige las reglas de lectura e ingesta telemática, la vinculación inmutable de dispositivos OBD2 con vehículos, las alertas automáticas según la gravedad de los códigos DTC (LOW, MEDIUM, HIGH, CRITICAL) y la validación de vin/placa vehicular.
+La Capa de Dominio rige las reglas de lectura e ingesta telemática, métodos **Factory** para la instanciación garantizada de Agregados (`Vehicle.create`, `Obd2Device.create`, `TelemetrySnapshot.create`), servicios de dominio (`ActiveRegistrationContextServiceImpl`), la vinculación inmutable de dispositivos OBD2 con vehículos, las alertas automáticas según la gravedad de los códigos DTC (LOW, MEDIUM, HIGH, CRITICAL) y la validación de vin/placa vehicular.
 
 ```mermaid
 classDiagram

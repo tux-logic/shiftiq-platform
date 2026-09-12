@@ -6,7 +6,7 @@ El **Bounded Context `Inventory`** administra el catálogo de repuestos, autopar
 
 ## 1. Domain Layer (Capa de Dominio)
 
-La Capa de Dominio define las reglas inmutables del inventario, gestionando el stock disponible, la deducción FIFO en lotes, la activación de alertas de bajo stock y las validaciones de negocio sin dependencias tecnológicas.
+La Capa de Dominio define las reglas inmutables del inventario, gestionando el stock disponible, la deducción FIFO mediante métodos **Factory** (`ProductBatch.forStockAdjustment`), reglas de validación en `StockDomainService`, la activación de alertas de bajo stock y las validaciones de negocio sin dependencias tecnológicas.
 
 ```mermaid
 classDiagram
@@ -408,7 +408,8 @@ classDiagram
     direction TB
 
     class Product {
-        -UUID id
+        <<Aggregate Root>>
+        -ProductId id
         -BranchId branchId
         -ProductCategory category
         -ProductName name
@@ -418,24 +419,120 @@ classDiagram
         -String description
         -Integer minimumStock
         -boolean lowStockAlert
+        -Long version
         -List~ProductBatch~ batches
-        +addBatch(ProductBatch) void
-        +applyStockMovement(...) Optional~ProductBatch~
-        +reserveStock(InventoryQuantity) void
-        +releaseStock(InventoryQuantity) void
+        +Product(BranchId branchId, ProductCategory category, ProductName name, Sku sku, Money currentSellingPrice, String description, Integer minimumStock)
+        +addBatch(ProductBatch batch) void
+        +applyStockMovement(StockMovementQuantity quantity, Money price) Optional~ProductBatch~
+        +updateDetails(ProductName name, ProductCategory category, Sku sku, Money price, String description, Integer minimumStock) void
+        +refreshLowStockAlert() boolean
+        +reserveStock(InventoryQuantity quantity) void
+        +releaseStock(InventoryQuantity quantity) void
+        +getId() ProductId
+        +getBranchId() BranchId
+        +getCurrentStock() InventoryQuantity
+        +getSku() Sku
     }
 
     class ProductBatch {
-        -UUID batchId
+        <<Entity>>
+        -BatchId batchId
         -InventoryQuantity initialQuantity
         -InventoryQuantity availableQuantity
         -Money acquisitionCost
         -Instant receptionDate
-        +deductQuantity(InventoryQuantity) void
-        +addQuantity(InventoryQuantity) void
+        -Long version
+        +ProductBatch(InventoryQuantity initialQuantity, Money acquisitionCost)
+        +deductQuantity(InventoryQuantity quantity) void
+        +addQuantity(InventoryQuantity quantity) void
+        +forStockAdjustment(int quantity, Money cost, int adjustment)$ ProductBatch
+        +getBatchId() BatchId
+        +getAvailableQuantity() InventoryQuantity
+        +getAcquisitionCost() Money
     }
 
-    Product "1" --> "0..*" ProductBatch : contains
+    class ProductId {
+        <<Value Object>>
+        -UUID value
+        +ProductId(UUID value)
+        +value() UUID
+    }
+
+    class BatchId {
+        <<Value Object>>
+        -UUID value
+        +BatchId(UUID value)
+        +value() UUID
+    }
+
+    class BranchId {
+        <<Value Object>>
+        -UUID value
+        +BranchId(UUID value)
+        +value() UUID
+    }
+
+    class ProductName {
+        <<Value Object>>
+        -String name
+        +value() String
+    }
+
+    class Sku {
+        <<Value Object>>
+        -String value
+        +value() String
+    }
+
+    class ProductCategory {
+        <<Value Object>>
+        -String value
+        +value() String
+    }
+
+    class InventoryQuantity {
+        <<Value Object>>
+        -Integer value
+        +add(InventoryQuantity other) InventoryQuantity
+        +subtract(InventoryQuantity other) InventoryQuantity
+        +value() Integer
+    }
+
+    class StockMovementQuantity {
+        <<Value Object>>
+        -Integer value
+        +isPositive() boolean
+        +absoluteValue() InventoryQuantity
+    }
+
+    class Money {
+        <<Value Object>>
+        -BigDecimal amount
+        -String currency
+        +getAmount() BigDecimal
+    }
+
+    class ProductCommandFailure {
+        <<Enumeration>>
+        PRODUCT_NOT_FOUND
+        INVALID_PRODUCT_DATA
+        DUPLICATE_SKU
+        PRODUCT_IN_USE
+        INSUFFICIENT_STOCK
+    }
+
+    Product "1" *-- "1" ProductId : identity
+    Product "1" *-- "1" BranchId : branch location
+    Product "1" *-- "1" ProductName : catalog name
+    Product "1" *-- "1" Sku : unique code
+    Product "1" *-- "1" ProductCategory : classification
+    Product "1" *-- "1" InventoryQuantity : stock level
+    Product "1" *-- "1" Money : selling price
+    Product "1" *-- "0..*" ProductBatch : contains batches
+
+    ProductBatch "1" *-- "1" BatchId : identity
+    ProductBatch "1" *-- "1" InventoryQuantity : available quantity
+    ProductBatch "1" *-- "1" Money : cost
 ```
 
 ---
@@ -444,41 +541,41 @@ classDiagram
 
 ```mermaid
 erDiagram
-    branches ||--o{ products : "manages inventory"
-    branches ||--o{ product_batches : "stores batch"
-    products ||--e{ product_batches : "consists of"
+    branches ||--o{ products : "manages inventory (branch_id FK)"
+    branches ||--o{ product_batches : "stores batch (branch_id FK)"
+    products ||--|{ product_batches : "consists of (product_id FK)"
 
     products {
-        uuid id PK
-        uuid branch_id FK
-        varchar category
-        varchar name
-        varchar sku
-        text description
-        numeric current_selling_price
-        integer current_stock
-        integer minimum_stock
-        boolean low_stock_alert
-        uuid created_by
-        uuid updated_by
-        timestamp created_at
-        timestamp updated_at
-        timestamp deleted_at
-        bigint version
+        uuid id PK "NOT NULL"
+        uuid branch_id FK "NOT NULL"
+        varchar category "NOT NULL"
+        varchar name "NOT NULL"
+        varchar sku UK "NOT NULL"
+        text description "NULLABLE"
+        numeric current_selling_price "NOT NULL, CHECK (current_selling_price >= 0)"
+        integer current_stock "NOT NULL, CHECK (current_stock >= 0)"
+        integer minimum_stock "NOT NULL, CHECK (minimum_stock >= 0)"
+        boolean low_stock_alert "NOT NULL DEFAULT false"
+        uuid created_by "NOT NULL"
+        uuid updated_by "NOT NULL"
+        timestamp created_at "NOT NULL"
+        timestamp updated_at "NOT NULL"
+        timestamp deleted_at "NULLABLE (Soft Delete)"
+        bigint version "NOT NULL"
     }
 
     product_batches {
-        uuid id PK
-        uuid product_id FK
-        uuid branch_id FK
-        integer initial_quantity
-        integer available_quantity
-        numeric acquisition_cost
-        uuid created_by
-        uuid updated_by
-        timestamp created_at
-        timestamp updated_at
-        timestamp deleted_at
-        bigint version
+        uuid id PK "NOT NULL"
+        uuid product_id FK "NOT NULL"
+        uuid branch_id FK "NOT NULL"
+        integer initial_quantity "NOT NULL, CHECK (initial_quantity > 0)"
+        integer available_quantity "NOT NULL, CHECK (available_quantity >= 0)"
+        numeric acquisition_cost "NOT NULL, CHECK (acquisition_cost >= 0)"
+        uuid created_by "NOT NULL"
+        uuid updated_by "NOT NULL"
+        timestamp created_at "NOT NULL"
+        timestamp updated_at "NOT NULL"
+        timestamp deleted_at "NULLABLE (Soft Delete)"
+        bigint version "NOT NULL"
     }
 ```

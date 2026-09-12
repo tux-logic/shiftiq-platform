@@ -6,7 +6,7 @@ El **Bounded Context `Billing`** gestiona el ciclo de vida financiero posterior 
 
 ## 1. Domain Layer (Capa de Dominio)
 
-La Capa de Dominio encapsula el cálculo estricto de subtotales, descuentos porcentuales, montos totales, transiciones de estado inmutables, la validación del saldo deudor de comprobantes y la emisión de eventos de dominio financieros.
+La Capa de Dominio encapsula el cálculo estricto de subtotales, impuestos (IGV 18%), descuentos porcentuales, montos totales mediante métodos **Factory**, reglas financieras en `BillingDomainService`, transiciones de estado inmutables, la validación del saldo deudor de comprobantes y la emisión de eventos de dominio financieros.
 
 ```mermaid
 classDiagram
@@ -521,21 +521,29 @@ classDiagram
     direction TB
 
     class Quote {
-        -UUID id
+        <<Aggregate Root>>
+        -QuoteId id
         -UUID workOrderId
         -BranchId branchId
         -Money subtotalAmount
         -Double discountPercentage
         -Money totalAmount
         -QuoteStatus status
+        +Quote(UUID workOrderId, BranchId branchId, Money subtotalAmount, Double discountPercentage)
         +approve() void
         +cancel() void
-        +updateDiscount(Double) void
+        +updateDiscount(Double discountPercentage) void
+        +getId() QuoteId
+        +getWorkOrderId() UUID
+        +getBranchId() BranchId
+        +getTotalAmount() Money
+        +getStatus() QuoteStatus
     }
 
     class Voucher {
-        -UUID id
-        -UUID quoteId
+        <<Aggregate Root>>
+        -VoucherId id
+        -QuoteId quoteId
         -VoucherType type
         -String customerDocumentType
         -String customerDocumentNumber
@@ -545,21 +553,112 @@ classDiagram
         -UUID externalInvoiceId
         -String pdfUrl
         -List~Payment~ payments
-        +addPayment(Money, PaymentMethod, UUID) void
-        +removePayment(UUID) void
+        +Voucher(QuoteId quoteId, VoucherType type, String customerDocumentType, String customerDocumentNumber, String customerName, Money totalAmount, UUID externalInvoiceId, String pdfUrl)
+        +addPayment(Money amount, PaymentMethod method, BranchId branchId) void
+        +removePayment(PaymentId paymentId) void
         +cancel() void
         +getTotalPaidAmount() BigDecimal
+        +getRemainingBalance() BigDecimal
+        +getId() VoucherId
+        +getQuoteId() QuoteId
+        +getStatus() VoucherStatus
     }
 
     class Payment {
-        -UUID id
+        <<Entity>>
+        -PaymentId id
         -Money amount
         -PaymentMethod method
-        -UUID branchId
+        -BranchId branchId
         -LocalDateTime paidAt
+        +Payment(Money amount, PaymentMethod method, BranchId branchId)
+        +getId() PaymentId
+        +getAmount() Money
+        +getMethod() PaymentMethod
     }
 
-    Voucher "1" *-- "0..*" Payment : payments
+    class QuoteId {
+        <<Value Object>>
+        -UUID value
+        +QuoteId(UUID value)
+        +value() UUID
+    }
+
+    class VoucherId {
+        <<Value Object>>
+        -UUID value
+        +VoucherId(UUID value)
+        +value() UUID
+    }
+
+    class PaymentId {
+        <<Value Object>>
+        -UUID value
+        +PaymentId(UUID value)
+        +value() UUID
+    }
+
+    class BranchId {
+        <<Value Object>>
+        -UUID value
+        +BranchId(UUID value)
+        +value() UUID
+    }
+
+    class Money {
+        <<Value Object>>
+        -BigDecimal amount
+        -String currency
+        +getAmount() BigDecimal
+    }
+
+    class QuoteStatus {
+        <<Enumeration>>
+        DRAFT
+        APPROVED
+        CANCELED
+    }
+
+    class VoucherType {
+        <<Enumeration>>
+        RECEIPT
+        INVOICE
+    }
+
+    class VoucherStatus {
+        <<Enumeration>>
+        PENDING
+        PARTIALLY_PAID
+        PAID
+        CANCELED
+    }
+
+    class PaymentMethod {
+        <<Enumeration>>
+        CASH
+        CREDIT_CARD
+        DEBIT_CARD
+        BANK_TRANSFER
+    }
+
+    Quote "1" *-- "1" QuoteId : identity
+    Quote "1" *-- "1" BranchId : branch reference
+    Quote "1" *-- "1" Money : total price
+    Quote "1" *-- "1" QuoteStatus : state
+
+    Voucher "1" *-- "1" VoucherId : identity
+    Voucher "1" *-- "1" QuoteId : origin quote
+    Voucher "1" *-- "1" VoucherType : SUNAT CPE type
+    Voucher "1" *-- "1" Money : total price
+    Voucher "1" *-- "1" VoucherStatus : state
+    Voucher "1" *-- "0..*" Payment : contains payments
+
+    Payment "1" *-- "1" PaymentId : identity
+    Payment "1" *-- "1" Money : amortized amount
+    Payment "1" *-- "1" PaymentMethod : transaction channel
+    Payment "1" *-- "1" BranchId : branch location
+
+    Quote "1" --> "0..1" Voucher : originates
 ```
 
 ---
@@ -568,47 +667,52 @@ classDiagram
 
 ```mermaid
 erDiagram
-    quotes ||--o| vouchers : "generates voucher"
-    vouchers ||--e{ payments : "receives payments"
+    work_orders ||--o| quotes : "has quotation (work_order_id UK)"
+    branches ||--o{ quotes : "issues quote (branch_id FK)"
+    quotes ||--o| vouchers : "generates voucher (quote_id FK)"
+    vouchers ||--|{ payments : "receives payments (voucher_id FK)"
+    branches ||--o{ payments : "collects payment (branch_id FK)"
 
     quotes {
-        uuid id PK
-        uuid work_order_id UK
-        uuid branch_id
-        numeric subtotal_amount
-        double_precision discount_percentage
-        numeric total_amount
-        varchar status
-        uuid created_by
-        uuid updated_by
-        timestamp created_at
-        timestamp updated_at
-        bigint version
+        uuid id PK "NOT NULL"
+        uuid work_order_id UK "NOT NULL"
+        uuid branch_id FK "NOT NULL"
+        numeric subtotal_amount "NOT NULL, CHECK (subtotal_amount >= 0)"
+        double_precision discount_percentage "NOT NULL, CHECK (discount_percentage >= 0 AND discount_percentage <= 100)"
+        numeric total_amount "NOT NULL, CHECK (total_amount >= 0)"
+        varchar status "NOT NULL (DRAFT, APPROVED, CANCELED)"
+        uuid created_by "NOT NULL"
+        uuid updated_by "NOT NULL"
+        timestamp created_at "NOT NULL"
+        timestamp updated_at "NOT NULL"
+        timestamp deleted_at "NULLABLE (Soft Delete)"
+        bigint version "NOT NULL"
     }
 
     vouchers {
-        uuid id PK
-        uuid quote_id FK
-        varchar type
-        varchar customer_document_type
-        varchar customer_document_number
-        varchar customer_name
-        numeric total_amount
-        varchar status
-        uuid external_invoice_id
-        varchar pdf_url
-        timestamp created_at
-        timestamp updated_at
-        bigint version
+        uuid id PK "NOT NULL"
+        uuid quote_id FK "NOT NULL"
+        varchar type "NOT NULL (RECEIPT, INVOICE)"
+        varchar customer_document_type "NOT NULL"
+        varchar customer_document_number "NOT NULL"
+        varchar customer_name "NOT NULL"
+        numeric total_amount "NOT NULL, CHECK (total_amount >= 0)"
+        varchar status "NOT NULL (PENDING, PARTIALLY_PAID, PAID, CANCELED)"
+        uuid external_invoice_id "NOT NULL"
+        varchar pdf_url "NULLABLE"
+        timestamp created_at "NOT NULL"
+        timestamp updated_at "NOT NULL"
+        timestamp deleted_at "NULLABLE (Soft Delete)"
+        bigint version "NOT NULL"
     }
 
     payments {
-        uuid id PK
-        uuid voucher_id FK
-        numeric amount
-        varchar currency
-        varchar method
-        uuid branch_id
-        timestamp paid_at
+        uuid id PK "NOT NULL"
+        uuid voucher_id FK "NOT NULL"
+        numeric amount "NOT NULL, CHECK (amount > 0)"
+        varchar currency "NOT NULL DEFAULT 'PEN'"
+        varchar method "NOT NULL (CASH, CREDIT_CARD, DEBIT_CARD, BANK_TRANSFER)"
+        uuid branch_id FK "NOT NULL"
+        timestamp paid_at "NOT NULL"
     }
 ```

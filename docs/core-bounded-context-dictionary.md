@@ -6,7 +6,7 @@ El **Bounded Context `Core`** constituye el núcleo relacional y organizacional 
 
 ## 1. Domain Layer (Capa de Dominio)
 
-La Capa de Dominio define el modelo de negocio inmutable, encapsulando reglas de validación, agregados principales, objetos de valor (Value Objects), eventos de dominio e interfaces de repositorios agnósticas a la tecnología de persistencia.
+La Capa de Dominio define el modelo de negocio inmutable, encapsulando reglas de validación, agregados principales, objetos de valor (Value Objects), fábricas (Factories / Métodos de Creación), servicios de dominio (`CoreDomainValidationService`), eventos de dominio e interfaces de repositorios agnósticas a la tecnología de persistencia.
 
 ```mermaid
 classDiagram
@@ -807,6 +807,7 @@ classDiagram
     direction TB
 
     class Customer {
+        <<Aggregate Root>>
         -CustomerId id
         -UserId userId
         -boolean isCorporate
@@ -814,38 +815,69 @@ classDiagram
         -String businessName
         -Document document
         -Phone phone
-        +update(PersonName, String, Document, Phone) void
+        +Customer(UserId userId, boolean isCorporate, PersonName name, String businessName, Document document, Phone phone)
+        +update(PersonName name, String businessName, Document document, Phone phone) void
+        +getId() CustomerId
+        +getUserId() UserId
+        +isCorporate() boolean
+        +getName() PersonName
+        +getBusinessName() String
+        +getDocument() Document
+        +getPhone() Phone
     }
 
     class Employee {
+        <<Aggregate Root>>
         -EmployeeId id
         -UserId userId
         -PersonName name
         -Document document
         -Phone phone
-        +update(PersonName, Document, Phone) void
+        +Employee(UserId userId, PersonName name, Document document, Phone phone)
+        +update(PersonName name, Document document, Phone phone) void
+        +getId() EmployeeId
+        +getUserId() UserId
+        +getName() PersonName
+        +getDocument() Document
+        +getPhone() Phone
     }
 
     class Owner {
+        <<Aggregate Root>>
         -OwnerId id
         -UserId userId
         -PersonName name
         -Document document
         -Phone phone
-        +update(PersonName, Document, Phone) void
+        +Owner(UserId userId, PersonName name, Document document, Phone phone)
+        +update(PersonName name, Document document, Phone phone) void
+        +getId() OwnerId
+        +getUserId() UserId
+        +getName() PersonName
+        +getDocument() Document
+        +getPhone() Phone
     }
 
     class Workshop {
+        <<Aggregate Root>>
         -WorkshopId id
         -OwnerId ownerId
         -String businessName
         -String brandName
         -TaxId taxId
         -MileageIntervalConfig mileageIntervalConfig
-        +update(String, String, TaxId, MileageIntervalConfig) void
+        +Workshop(OwnerId ownerId, String businessName, String brandName, TaxId taxId, MileageIntervalConfig mileageIntervalConfig)
+        +update(String businessName, String brandName, TaxId taxId, MileageIntervalConfig mileageIntervalConfig) void
+        +getId() WorkshopId
+        +getOwnerId() OwnerId
+        +getBusinessName() String
+        +getBrandName() String
+        +getTaxId() TaxId
+        +getMileageIntervalConfig() MileageIntervalConfig
     }
 
     class Branch {
+        <<Entity>>
         -BranchId id
         -WorkshopId workshopId
         -String code
@@ -854,10 +886,18 @@ classDiagram
         -Phone phone
         -UUID createdBy
         -UUID updatedBy
-        +update(String, String, Address, Phone) void
+        +Branch(WorkshopId workshopId, String code, String name, Address address, Phone phone)
+        +update(String code, String name, Address address, Phone phone) void
+        +getId() BranchId
+        +getWorkshopId() WorkshopId
+        +getCode() String
+        +getName() String
+        +getAddress() Address
+        +getPhone() Phone
     }
 
     class BranchSubscription {
+        <<Entity>>
         -BranchSubscriptionId id
         -BranchId branchId
         -SubscriptionPlanId planId
@@ -866,9 +906,144 @@ classDiagram
         -Instant startDate
         -Instant endDate
         -Instant canceledAt
-        +cancel(Instant) void
+        +BranchSubscription(BranchId branchId, SubscriptionPlanId planId, BillingCycle billingCycle)
+        +cancel(Instant canceledAt) void
+        +getId() BranchSubscriptionId
+        +getBranchId() BranchId
+        +getPlanId() SubscriptionPlanId
+        +getStatus() SubscriptionStatus
+        +getBillingCycle() BillingCycle
     }
 
+    class SubscriptionPlan {
+        <<Entity>>
+        -SubscriptionPlanId id
+        -String name
+        -double monthlyPrice
+        -int maxObd2Devices
+        -int maxMonthlySnapshotsPerVehicle
+        -int maxCustomers
+        -int maxStaffAccounts
+        -boolean isActive
+        +getId() SubscriptionPlanId
+        +getName() String
+        +getMonthlyPrice() double
+    }
+
+    class CustomerId {
+        <<Value Object>>
+        -UUID value
+        +CustomerId(UUID value)
+        +value() UUID
+    }
+
+    class EmployeeId {
+        <<Value Object>>
+        -UUID value
+        +EmployeeId(UUID value)
+        +value() UUID
+    }
+
+    class OwnerId {
+        <<Value Object>>
+        -UUID value
+        +OwnerId(UUID value)
+        +value() UUID
+    }
+
+    class WorkshopId {
+        <<Value Object>>
+        -UUID value
+        +WorkshopId(UUID value)
+        +value() UUID
+    }
+
+    class BranchId {
+        <<Value Object>>
+        -UUID value
+        +BranchId(UUID value)
+        +value() UUID
+    }
+
+    class PersonName {
+        <<Value Object>>
+        -String firstName
+        -String lastName
+        +getFirstName() String
+        +getLastName() String
+    }
+
+    class Document {
+        <<Value Object>>
+        -DocumentType documentType
+        -String documentNumber
+        +getDocumentType() DocumentType
+        +getDocumentNumber() String
+    }
+
+    class Phone {
+        <<Value Object>>
+        -String number
+        +getNumber() String
+    }
+
+    class Address {
+        <<Value Object>>
+        -String street
+        -String city
+        -String state
+        -String country
+        -String zipCode
+    }
+
+    class DocumentType {
+        <<Enumeration>>
+        DNI
+        CE
+        RUC
+        PASSPORT
+    }
+
+    class SubscriptionStatus {
+        <<Enumeration>>
+        ACTIVE
+        CANCELED
+        EXPIRED
+    }
+
+    class BillingCycle {
+        <<Enumeration>>
+        MONTHLY
+        ANNUAL
+    }
+
+    Customer "1" *-- "1" CustomerId : identity
+    Customer "1" *-- "1" PersonName : name
+    Customer "1" *-- "1" Document : document
+    Customer "1" *-- "1" Phone : contact
+
+    Employee "1" *-- "1" EmployeeId : identity
+    Employee "1" *-- "1" PersonName : name
+    Employee "1" *-- "1" Document : document
+    Employee "1" *-- "1" Phone : contact
+
+    Owner "1" *-- "1" OwnerId : identity
+    Owner "1" *-- "1" PersonName : name
+    Owner "1" *-- "1" Document : document
+    Owner "1" *-- "1" Phone : contact
+
+    Workshop "1" *-- "1" WorkshopId : identity
+    Workshop "1" *-- "1" OwnerId : owner reference
+    Branch "1" *-- "1" BranchId : identity
+    Branch "1" *-- "1" WorkshopId : parent workshop
+    Branch "1" *-- "1" Address : location
+
+    BranchSubscription "1" *-- "1" BranchId : subscriber branch
+    BranchSubscription "1" *-- "1" SubscriptionPlanId : subscribed plan
+    BranchSubscription "1" *-- "1" SubscriptionStatus : state
+    BranchSubscription "1" *-- "1" BillingCycle : cycle
+
+    Document "1" *-- "1" DocumentType : classification
     Owner "1" --> "0..*" Workshop : owns
     Workshop "1" --> "1..*" Branch : operates
     Branch "1" --> "0..1" BranchSubscription : holds
@@ -880,104 +1055,122 @@ classDiagram
 
 ```mermaid
 erDiagram
-    users ||--o| customers : "has profile"
-    users ||--o| employees : "has profile"
-    users ||--o| owners : "has profile"
+    users ||--o| customers : "has profile (user_id FK, UK)"
+    users ||--o| employees : "has profile (user_id FK, UK)"
+    users ||--o| owners : "has profile (user_id FK, UK)"
 
-    owners ||--o{ workshops : "owns"
-    workshops ||--e{ branches : "operates"
-    branches ||--o| branch_subscriptions : "subscribes"
-    subscription_plans ||--o{ branch_subscriptions : "defines plan"
+    owners ||--o{ workshops : "owns (owner_id FK)"
+    workshops ||--|{ branches : "operates (workshop_id FK)"
+    branches ||--o| branch_subscriptions : "subscribes (branch_id FK)"
+    subscription_plans ||--o{ branch_subscriptions : "defines plan (plan_id FK)"
+
+    users {
+        uuid id PK "NOT NULL"
+        varchar email UK "NOT NULL"
+        varchar password_hash "NULLABLE"
+        varchar status "NOT NULL"
+        varchar role "NOT NULL"
+        timestamp created_at "NOT NULL"
+    }
 
     customers {
-        uuid id PK
-        uuid user_id FK, UK
-        boolean is_corporate
-        varchar first_name
-        varchar last_name
-        varchar business_name
-        varchar document_type
-        varchar document_number
-        varchar phone
-        timestamp created_at
-        timestamp updated_at
-        timestamp deleted_at
-        bigint version
+        uuid id PK "NOT NULL"
+        uuid user_id FK, UK "NOT NULL"
+        boolean is_corporate "NOT NULL"
+        varchar first_name "NOT NULL"
+        varchar last_name "NOT NULL"
+        varchar business_name "NULLABLE"
+        varchar document_type "NOT NULL"
+        varchar document_number "NOT NULL"
+        varchar phone "NOT NULL"
+        timestamp created_at "NOT NULL"
+        timestamp updated_at "NOT NULL"
+        timestamp deleted_at "NULLABLE (Soft Delete)"
+        bigint version "NOT NULL"
     }
 
     employees {
-        uuid id PK
-        uuid user_id FK, UK
-        varchar first_name
-        varchar last_name
-        varchar document_type
-        varchar document_number
-        varchar phone
-        timestamp created_at
-        timestamp updated_at
-        timestamp deleted_at
-        bigint version
+        uuid id PK "NOT NULL"
+        uuid user_id FK, UK "NOT NULL"
+        varchar first_name "NOT NULL"
+        varchar last_name "NOT NULL"
+        varchar document_type "NOT NULL"
+        varchar document_number "NOT NULL"
+        varchar phone "NOT NULL"
+        timestamp created_at "NOT NULL"
+        timestamp updated_at "NOT NULL"
+        timestamp deleted_at "NULLABLE (Soft Delete)"
+        bigint version "NOT NULL"
     }
 
     owners {
-        uuid id PK
-        uuid user_id FK, UK
-        varchar first_name
-        varchar last_name
-        varchar document_type
-        varchar document_number
-        varchar phone
-        timestamp created_at
-        timestamp updated_at
-        timestamp deleted_at
-        bigint version
+        uuid id PK "NOT NULL"
+        uuid user_id FK, UK "NOT NULL"
+        varchar first_name "NOT NULL"
+        varchar last_name "NOT NULL"
+        varchar document_type "NOT NULL"
+        varchar document_number "NOT NULL"
+        varchar phone "NOT NULL"
+        timestamp created_at "NOT NULL"
+        timestamp updated_at "NOT NULL"
+        timestamp deleted_at "NULLABLE (Soft Delete)"
+        bigint version "NOT NULL"
     }
 
     workshops {
-        uuid id PK
-        uuid owner_id FK
-        varchar business_name
-        varchar brand_name
-        varchar tax_id
-        integer mileage_interval_config
-        timestamp created_at
-        timestamp updated_at
-        timestamp deleted_at
-        bigint version
+        uuid id PK "NOT NULL"
+        uuid owner_id FK "NOT NULL"
+        varchar business_name "NOT NULL"
+        varchar brand_name "NOT NULL"
+        varchar tax_id "NOT NULL"
+        integer mileage_interval_config "NOT NULL"
+        timestamp created_at "NOT NULL"
+        timestamp updated_at "NOT NULL"
+        timestamp deleted_at "NULLABLE (Soft Delete)"
+        bigint version "NOT NULL"
     }
 
     branches {
-        uuid id PK
-        uuid workshop_id FK
-        varchar code UK
-        varchar name
-        varchar address
-        varchar phone
-        uuid created_by
-        uuid updated_by
-        timestamp created_at
-        timestamp updated_at
-        timestamp deleted_at
-        bigint version
+        uuid id PK "NOT NULL"
+        uuid workshop_id FK "NOT NULL"
+        varchar code UK "NOT NULL"
+        varchar name "NOT NULL"
+        varchar address "NOT NULL"
+        varchar phone "NOT NULL"
+        uuid created_by "NOT NULL"
+        uuid updated_by "NOT NULL"
+        timestamp created_at "NOT NULL"
+        timestamp updated_at "NOT NULL"
+        timestamp deleted_at "NULLABLE (Soft Delete)"
+        bigint version "NOT NULL"
     }
 
     branch_subscriptions {
-        uuid id PK
-        uuid branch_id FK
-        uuid plan_id FK
-        varchar status
-        varchar billing_cycle
-        timestamp start_date
-        timestamp end_date
-        timestamp canceled_at
-        timestamp deleted_at
-        bigint version
+        uuid id PK "NOT NULL"
+        uuid branch_id FK "NOT NULL"
+        uuid plan_id FK "NOT NULL"
+        varchar status "NOT NULL"
+        varchar billing_cycle "NOT NULL"
+        timestamp start_date "NOT NULL"
+        timestamp end_date "NOT NULL"
+        timestamp canceled_at "NULLABLE"
+        timestamp deleted_at "NULLABLE (Soft Delete)"
+        bigint version "NOT NULL"
     }
 
     subscription_plans {
-        uuid id PK
-        varchar name UK
-        double_precision monthly_price
+        uuid id PK "NOT NULL"
+        varchar name UK "NOT NULL"
+        double_precision monthly_price "NOT NULL"
+        integer max_obd2_devices "NOT NULL"
+        integer max_monthly_snapshots_per_vehicle "NOT NULL"
+        integer max_customers "NOT NULL"
+        integer max_staff_accounts "NOT NULL"
+        boolean is_active "NOT NULL"
+        timestamp deleted_at "NULLABLE (Soft Delete)"
+        bigint version "NOT NULL"
+    }
+```onthly_price
         integer max_obd2_devices
         integer max_monthly_snapshots_per_vehicle
         integer max_customers

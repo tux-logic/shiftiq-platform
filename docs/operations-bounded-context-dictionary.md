@@ -6,7 +6,7 @@ El **Bounded Context `Operations`** es el motor operativo principal de la plataf
 
 ## 1. Domain Layer (Capa de Dominio)
 
-La Capa de Dominio encapsula el modelo de negocio inmutable, asegurando transiciones estrictas de estado para las órdenes de trabajo y tareas, el cálculo dinámico de costos y la emisión de eventos de dominio.
+La Capa de Dominio encapsula el modelo de negocio inmutable, asegurando transiciones estrictas de estado para las órdenes de trabajo y tareas mediante métodos **Factory**, reglas de negocio encapsuladas en `WorkOrderDomainService`, el cálculo dinámico de costos y la emisión de eventos de dominio.
 
 ```mermaid
 classDiagram
@@ -595,6 +595,7 @@ classDiagram
     direction TB
 
     class WorkOrder {
+        <<Aggregate Root>>
         -WorkOrderId id
         -AppointmentId appointmentId
         -BranchId branchId
@@ -606,14 +607,27 @@ classDiagram
         -Mileage mileageIn
         -Money totalAmount
         -List~WorkOrderTask~ tasks
-        +addTask(...) void
-        +addProductToTask(...) void
-        +startTask(WorkOrderTaskId) void
-        +completeTask(WorkOrderTaskId) void
+        +WorkOrder(AppointmentId appointmentId, BranchId branchId, VehicleId vehicleId, CustomerId customerId, Integer internalNumber, DiagnosticSummary diagnosticSummary, Mileage mileageIn)
+        +addTask(ServiceId serviceId, MechanicId assignedMechanicId, TaskDescription description, Money price) void
+        +addProductToTask(WorkOrderTaskId taskId, ProductId productId, Quantity quantity, Money unitPrice) void
+        +removeProductFromTask(WorkOrderTaskId taskId, ProductId productId) void
+        +removeTask(WorkOrderTaskId taskId) void
+        +startTask(WorkOrderTaskId taskId) void
+        +completeTask(WorkOrderTaskId taskId) void
+        +reopenTask(WorkOrderTaskId taskId) void
+        +startWork() void
+        +completeWorkOrder() void
+        +assignMechanicToTask(WorkOrderTaskId taskId, MechanicId mechanicId) void
         +markAsPaid() void
+        +updateDetails(DiagnosticSummary diagnosticSummary, Mileage mileageIn) void
+        +calculateTotalAmount() Money
+        +getId() WorkOrderId
+        +getStatus() WorkOrderStatus
+        +getTotalAmount() Money
     }
 
     class WorkOrderTask {
+        <<Entity>>
         -WorkOrderTaskId id
         -ServiceId serviceId
         -BranchId branchId
@@ -621,32 +635,140 @@ classDiagram
         -WorkOrderTaskStatus status
         -TaskDescription description
         -Money price
+        -Instant startedAt
+        -Instant completedAt
         -List~WorkOrderTaskProduct~ products
+        +WorkOrderTask(ServiceId serviceId, BranchId branchId, MechanicId assignedMechanicId, TaskDescription description, Money price)
+        +addProduct(ProductId productId, Quantity quantity, Money unitPrice) void
+        +removeProduct(ProductId productId) void
         +start() void
         +complete() boolean
         +reopen() boolean
+        +getId() WorkOrderTaskId
+        +getStatus() WorkOrderTaskStatus
     }
 
     class WorkOrderTaskProduct {
+        <<Entity>>
         -WorkOrderTaskProductId id
         -ProductId productId
         -BranchId branchId
         -Quantity quantity
         -Money unitPrice
         -Money totalAmount
-        +updateQuantity(Quantity) void
+        +WorkOrderTaskProduct(ProductId productId, BranchId branchId, Quantity quantity, Money unitPrice)
+        +updateQuantity(Quantity quantity) void
+        +getId() WorkOrderTaskProductId
+        +getTotalAmount() Money
     }
 
     class Service {
+        <<Aggregate Root>>
         -ServiceId id
         -BranchId branchId
         -String name
         -Money price
-        +update(String, Money) void
+        +Service(BranchId branchId, String name, Money price)
+        +update(String name, Money price) void
+        +getId() ServiceId
+        +getName() String
+        +getPrice() Money
     }
 
-    WorkOrder "1" --> "0..*" WorkOrderTask : contains
-    WorkOrderTask "1" --> "0..*" WorkOrderTaskProduct : uses
+    class WorkOrderId {
+        <<Value Object>>
+        -UUID value
+        +WorkOrderId(UUID value)
+        +value() UUID
+    }
+
+    class WorkOrderTaskId {
+        <<Value Object>>
+        -UUID value
+        +WorkOrderTaskId(UUID value)
+        +value() UUID
+    }
+
+    class WorkOrderTaskProductId {
+        <<Value Object>>
+        -UUID value
+        +WorkOrderTaskProductId(UUID value)
+        +value() UUID
+    }
+
+    class ServiceId {
+        <<Value Object>>
+        -UUID value
+        +ServiceId(UUID value)
+        +value() UUID
+    }
+
+    class DiagnosticSummary {
+        <<Value Object>>
+        -String value
+        +value() String
+    }
+
+    class TaskDescription {
+        <<Value Object>>
+        -String value
+        +value() String
+    }
+
+    class Mileage {
+        <<Value Object>>
+        -Integer value
+        +value() Integer
+    }
+
+    class Money {
+        <<Value Object>>
+        -BigDecimal amount
+        -String currency
+        +getAmount() BigDecimal
+    }
+
+    class Quantity {
+        <<Value Object>>
+        -Integer value
+        +value() Integer
+    }
+
+    class WorkOrderStatus {
+        <<Enumeration>>
+        PENDING
+        IN_PROGRESS
+        COMPLETED
+        PAID
+    }
+
+    class WorkOrderTaskStatus {
+        <<Enumeration>>
+        PENDING
+        DOING
+        COMPLETED
+    }
+
+    WorkOrder "1" *-- "1" WorkOrderId : identity
+    WorkOrder "1" *-- "1" WorkOrderStatus : state
+    WorkOrder "1" *-- "1" DiagnosticSummary : diagnosis
+    WorkOrder "1" *-- "1" Mileage : odometer
+    WorkOrder "1" *-- "1" Money : total cost
+    WorkOrder "1" *-- "0..*" WorkOrderTask : contains
+
+    WorkOrderTask "1" *-- "1" WorkOrderTaskId : identity
+    WorkOrderTask "1" *-- "1" ServiceId : catalog type
+    WorkOrderTask "1" *-- "1" WorkOrderTaskStatus : state
+    WorkOrderTask "1" *-- "1" TaskDescription : detail
+    WorkOrderTask "1" *-- "1" Money : labor price
+    WorkOrderTask "1" *-- "0..*" WorkOrderTaskProduct : requires parts
+
+    WorkOrderTaskProduct "1" *-- "1" WorkOrderTaskProductId : identity
+    WorkOrderTaskProduct "1" *-- "1" Quantity : quantity
+    WorkOrderTaskProduct "1" *-- "1" Money : unit & total price
+
+    Service "1" *-- "1" ServiceId : identity
+    Service "1" *-- "1" Money : catalog price
 ```
 
 ---
@@ -655,81 +777,81 @@ classDiagram
 
 ```mermaid
 erDiagram
-    branches ||--o{ work_orders : "receives"
-    vehicles ||--o{ work_orders : "serviced in"
-    customers ||--o{ work_orders : "owns vehicle"
-    appointments ||--o| work_orders : "originates"
+    branches ||--o{ work_orders : "receives (branch_id FK)"
+    vehicles ||--o{ work_orders : "serviced in (vehicle_id FK)"
+    customers ||--o{ work_orders : "owns vehicle (customer_id FK)"
+    appointments ||--o| work_orders : "originates (appointment_id FK)"
 
-    branches ||--o{ services : "offers"
-    services ||--o{ work_order_tasks : "defines task type"
-    employees ||--o{ work_order_tasks : "assigned mechanic"
+    branches ||--o{ services : "offers (branch_id FK)"
+    services ||--o{ work_order_tasks : "defines task type (service_id FK)"
+    employees ||--o{ work_order_tasks : "assigned mechanic (assigned_mechanic_id FK)"
 
-    work_orders ||--e{ work_order_tasks : "contains"
-    work_order_tasks ||--o{ work_order_task_products : "requires products"
-    products ||--o{ work_order_task_products : "supplies part"
+    work_orders ||--|{ work_order_tasks : "contains (work_order_id FK)"
+    work_order_tasks ||--o{ work_order_task_products : "requires products (work_order_task_id FK)"
+    products ||--o{ work_order_task_products : "supplies part (product_id FK)"
 
     work_orders {
-        uuid id PK
-        uuid appointment_id FK
-        uuid branch_id FK
-        uuid vehicle_id FK
-        uuid customer_id FK
-        integer internal_number
-        varchar status
-        text diagnostic_summary
-        numeric mileage_in
-        numeric total_amount
-        uuid created_by
-        uuid updated_by
-        timestamp created_at
-        timestamp updated_at
-        timestamp deleted_at
-        bigint version
+        uuid id PK "NOT NULL"
+        uuid appointment_id FK "NULLABLE"
+        uuid branch_id FK "NOT NULL"
+        uuid vehicle_id FK "NOT NULL"
+        uuid customer_id FK "NOT NULL"
+        integer internal_number "NOT NULL, UK per branch"
+        varchar status "NOT NULL (PENDING, IN_PROGRESS, COMPLETED, PAID)"
+        text diagnostic_summary "NOT NULL"
+        numeric mileage_in "NOT NULL, CHECK (mileage_in >= 0)"
+        numeric total_amount "NOT NULL, CHECK (total_amount >= 0)"
+        uuid created_by "NOT NULL"
+        uuid updated_by "NOT NULL"
+        timestamp created_at "NOT NULL"
+        timestamp updated_at "NOT NULL"
+        timestamp deleted_at "NULLABLE (Soft Delete)"
+        bigint version "NOT NULL"
     }
 
     work_order_tasks {
-        uuid id PK
-        uuid work_order_id FK
-        uuid service_id FK
-        uuid branch_id FK
-        uuid assigned_mechanic_id FK
-        varchar status
-        text description
-        numeric price
-        timestamp started_at
-        timestamp completed_at
-        uuid created_by
-        uuid updated_by
-        timestamp created_at
-        timestamp updated_at
-        timestamp deleted_at
-        bigint version
+        uuid id PK "NOT NULL"
+        uuid work_order_id FK "NOT NULL"
+        uuid service_id FK "NOT NULL"
+        uuid branch_id FK "NOT NULL"
+        uuid assigned_mechanic_id FK "NOT NULL"
+        varchar status "NOT NULL (PENDING, DOING, COMPLETED)"
+        text description "NOT NULL"
+        numeric price "NOT NULL, CHECK (price >= 0)"
+        timestamp started_at "NULLABLE"
+        timestamp completed_at "NULLABLE"
+        uuid created_by "NOT NULL"
+        uuid updated_by "NOT NULL"
+        timestamp created_at "NOT NULL"
+        timestamp updated_at "NOT NULL"
+        timestamp deleted_at "NULLABLE (Soft Delete)"
+        bigint version "NOT NULL"
     }
 
     work_order_task_products {
-        uuid id PK
-        uuid work_order_task_id FK
-        uuid product_id FK
-        uuid branch_id FK
-        integer quantity
-        numeric unit_price
-        numeric total_amount
-        timestamp created_at
-        timestamp updated_at
-        timestamp deleted_at
-        bigint version
+        uuid id PK "NOT NULL"
+        uuid work_order_task_id FK "NOT NULL"
+        uuid product_id FK "NOT NULL"
+        uuid branch_id FK "NOT NULL"
+        integer quantity "NOT NULL, CHECK (quantity > 0)"
+        numeric unit_price "NOT NULL, CHECK (unit_price >= 0)"
+        numeric total_amount "NOT NULL, CHECK (total_amount >= 0)"
+        timestamp created_at "NOT NULL"
+        timestamp updated_at "NOT NULL"
+        timestamp deleted_at "NULLABLE (Soft Delete)"
+        bigint version "NOT NULL"
     }
 
     services {
-        uuid id PK
-        uuid branch_id FK
-        varchar name
-        numeric price
-        uuid created_by
-        uuid updated_by
-        timestamp created_at
-        timestamp updated_at
-        timestamp deleted_at
-        bigint version
+        uuid id PK "NOT NULL"
+        uuid branch_id FK "NOT NULL"
+        varchar name "NOT NULL"
+        numeric price "NOT NULL, CHECK (price >= 0)"
+        uuid created_by "NOT NULL"
+        uuid updated_by "NOT NULL"
+        timestamp created_at "NOT NULL"
+        timestamp updated_at "NOT NULL"
+        timestamp deleted_at "NULLABLE (Soft Delete)"
+        bigint version "NOT NULL"
     }
 ```
