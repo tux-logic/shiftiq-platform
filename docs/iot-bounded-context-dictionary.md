@@ -351,8 +351,8 @@ Los fallos de comandos en `IoT` se representan mediante **Sealed Interfaces** co
 
 * **`VehicleCommandFailure`**: `NotFound(String message)`, `InvalidState(String message)`, `Duplicate(String message)`
 * **`Obd2DeviceCommandFailure`**: `NotFound(String message)`, `InvalidState(String message)`, `Duplicate(String message)`
-* **`Obd2DeviceRegistrationCommandFailure`**: `NotFound(String message)`, `InvalidState(String message)`, `AlreadyExists(String message)`
-* **`TelemetryCommandFailure`**: `NotRegistered(String message)`, `NoActiveRegistration(String message)`, `InvalidData(String message)`
+* **`Obd2DeviceRegistrationCommandFailure`**: `NotFound(String message)`, `InvalidState(String message)`
+* **`TelemetryCommandFailure`**: `NotFound(String message)`, `InvalidState(String message)`
 
 ---
 
