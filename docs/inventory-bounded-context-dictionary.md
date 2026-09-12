@@ -140,6 +140,7 @@ classDiagram
 
 #### 📌 Entity: `ProductBatch`
 * **Propósito:** Entidad que representa un lote físico específico recibido con costo de adquisición y fecha de recepción.
+* **Atributos:** `batchId` (UUID), `initialQuantity` (InventoryQuantity), `availableQuantity` (InventoryQuantity), `acquisitionCost` (Money), `receptionDate` (Instant), `version` (Long).
 * **Comportamiento:** `deductQuantity` y `addQuantity` actualizan `availableQuantity`.
 
 ---
@@ -207,10 +208,10 @@ classDiagram
 ### 2.1. Commands & Queries (DTOs de Aplicación)
 
 #### Commands
-* 🟦 **`CreateProductCommand(BranchId branchId, ProductCategory category, ProductName name, Sku sku, Money currentSellingPrice, String description, Integer minimumStock)`**
-* 🟦 **`UpdateProductCommand(UUID productId, ProductName name, ProductCategory category, Sku sku, Money currentSellingPrice, String description, Integer minimumStock)`**
+* 🟦 **`CreateProductCommand(BranchId branchId, ProductCategory category, ProductName name, Sku sku, String description, Money salePrice, InventoryQuantity minimumStock)`**
+* 🟦 **`UpdateProductCommand(UUID productId, ProductName name, ProductCategory category, Sku sku, String description, Money salePrice, InventoryQuantity minimumStock)`**
 * 🟦 **`DeleteProductCommand(UUID productId)`**
-* 🟦 **`AddBatchToProductCommand(UUID productId, InventoryQuantity quantity, Money acquisitionCost)`**
+* 🟦 **`AddBatchToProductCommand(UUID productId, StockMovementQuantity quantity, Money acquisitionCost)`**
 
 #### Queries
 * 🟩 **`GetProductByIdQuery(UUID productId)`**
@@ -256,7 +257,7 @@ classDiagram
 * `GET /api/v1/inventory/products/branch/{branchId}`: Catálogo de productos por ruta de sucursal.
 * `GET /api/v1/inventory/products/{productId}`: Consulta detalles completos de un producto incluyendo sus lotes.
 * `PUT /api/v1/inventory/products/{productId}`: Actualiza información básica del producto.
-* `DELETE /api/v1/inventory/products/{productId}`: Eliminación física/lógica del producto y sus lotes.
+* `DELETE /api/v1/inventory/products/{productId}`: Eliminación lógica (soft-delete vía `deleted_at`) del producto y sus lotes.
 * `POST /api/v1/inventory/products/{productId}/batches`: Registra la entrada de un nuevo lote de stock o un ajuste manual de almacén.
 
 #### 📌 Event Listener: `InventoryStockListener`
@@ -328,6 +329,7 @@ classDiagram
 ### 4.1. Mapeo de Entidades Relacionales (JPA)
 
 * **`products`** (`ProductJpaEntity`):
+  * `id` (UUID, PK, heredado de `AuditableAbstractPersistenceEntity`)
   * `branch_id` (UUID, NOT NULL)
   * `category` (VARCHAR, NOT NULL)
   * `name` (VARCHAR, NOT NULL)
@@ -337,14 +339,17 @@ classDiagram
   * `current_stock` (INTEGER, NOT NULL)
   * `minimum_stock` (INTEGER, NOT NULL)
   * `low_stock_alert` (BOOLEAN, NOT NULL)
-  * `deleted_at`, `created_by`, `updated_by`.
+  * `deleted_at` (TIMESTAMP), `created_by` (UUID), `updated_by` (UUID)
+  * `created_at`, `updated_at`, `version` (heredados de `AuditableAbstractPersistenceEntity`)
 * **`product_batches`** (`ProductBatchJpaEntity`):
+  * `id` (UUID, PK, heredado de `AuditableAbstractPersistenceEntity`)
   * `product_id` (UUID, FK, NOT NULL)
   * `branch_id` (UUID, NOT NULL)
   * `initial_quantity` (INTEGER, NOT NULL)
   * `available_quantity` (INTEGER, NOT NULL)
   * `acquisition_cost` (DECIMAL, `MoneyAttributeConverter`)
-  * `deleted_at`, `created_by`, `updated_by`.
+  * `deleted_at` (TIMESTAMP), `created_by` (UUID), `updated_by` (UUID)
+  * `created_at`, `updated_at`, `version` (heredados de `AuditableAbstractPersistenceEntity`)
 
 ---
 
