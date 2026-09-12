@@ -6,7 +6,7 @@ El **Bounded Context `Operations`** es el motor operativo principal de la plataf
 
 ## 1. Domain Layer (Capa de Dominio)
 
-La Capa de Dominio encapsula el modelo de negocio inmutable, asegurando transiciones estrictas de estado para las órdenes de trabajo y tareas mediante métodos **Factory**, reglas de negocio encapsuladas en `WorkOrderDomainService`, el cálculo dinámico de costos y la emisión de eventos de dominio.
+La Capa de Dominio encapsula el modelo de negocio inmutable, asegurando transiciones estrictas de estado para las órdenes de trabajo y tareas mediante métodos **Factory**, reglas de negocio encapsuladas en el Agregado `WorkOrder`, el cálculo dinámico de costos y la emisión de eventos de dominio.
 
 ```mermaid
 classDiagram
@@ -102,6 +102,7 @@ classDiagram
         COMPLETED
         PAID
         +canTransitionTo(WorkOrderStatus) boolean
+        +transitionTo(WorkOrderStatus) WorkOrderStatus
     }
 
     class WorkOrderTaskStatus {
@@ -110,6 +111,7 @@ classDiagram
         DOING
         COMPLETED
         +canTransitionTo(WorkOrderTaskStatus) boolean
+        +transitionTo(WorkOrderTaskStatus) WorkOrderTaskStatus
     }
 
     WorkOrder "1" *-- "0..*" WorkOrderTask : contains >
@@ -123,7 +125,7 @@ classDiagram
 
 ---
 
-### 1.1. Value Objects & Enums
+### 1.1. Value Objects, Enums & Command Failures
 
 #### 📌 Record: `DiagnosticSummary(String value)`
 * **Propósito:** Resumen del diagnóstico técnico de recepción del vehículo.
@@ -144,7 +146,10 @@ classDiagram
 
 #### 📌 Enum: `WorkOrderStatus`
 * **Valores:** `PENDING`, `IN_PROGRESS`, `COMPLETED`, `PAID`.
-* **Reglas de Transición Inmutables (`canTransitionTo`):**
+* **Métodos:**
+  * `canTransitionTo(WorkOrderStatus next)`: Evalúa la validez del cambio de estado.
+  * `transitionTo(WorkOrderStatus next)`: Aplica la transición o lanza `IllegalStateException` si es inválida.
+* **Reglas de Transición Inmutables:**
   * `PENDING` ➔ `IN_PROGRESS`
   * `IN_PROGRESS` ➔ `COMPLETED`
   * `COMPLETED` ➔ `PAID` o `IN_PROGRESS` (si se reabre una tarea)
@@ -152,10 +157,26 @@ classDiagram
 
 #### 📌 Enum: `WorkOrderTaskStatus`
 * **Valores:** `PENDING`, `DOING`, `COMPLETED`.
-* **Reglas de Transición (`canTransitionTo`):**
+* **Métodos:**
+  * `canTransitionTo(WorkOrderTaskStatus next)`: Evalúa la validez del cambio de estado.
+  * `transitionTo(WorkOrderTaskStatus next)`: Aplica la transición o lanza `IllegalStateException` si es inválida.
+* **Reglas de Transición:**
   * `PENDING` ➔ `DOING`
   * `DOING` ➔ `COMPLETED`
   * `COMPLETED` ➔ `DOING` (reapertura)
+
+#### 📌 Sealed Failures ADT: `WorkOrderCommandFailure`
+* **Definición:** Sealed Interface (`permits NotFound, InvalidState, Duplicate`).
+* **Variantes:**
+  * `NotFound(String message)`
+  * `InvalidState(String message)`
+  * `Duplicate(String message)`
+
+#### 📌 Sealed Failures ADT: `ServiceCommandFailure`
+* **Definición:** Sealed Interface (`permits NotFound, InvalidData`).
+* **Variantes:**
+  * `NotFound(String message)`
+  * `InvalidData(String message)`
 
 #### 📌 Identificadores Fuertemente Tipados (Strongly Typed IDs)
 * **Propios de Operations:** `WorkOrderId`, `WorkOrderTaskId`, `WorkOrderTaskProductId`, `ServiceId`, `MechanicId`, `AppointmentId`, `ProductId`.
@@ -620,7 +641,7 @@ classDiagram
         +assignMechanicToTask(WorkOrderTaskId taskId, MechanicId mechanicId) void
         +markAsPaid() void
         +updateDetails(DiagnosticSummary diagnosticSummary, Mileage mileageIn) void
-        +calculateTotalAmount() Money
+        -recalculateTotalAmount() void
         +getId() WorkOrderId
         +getStatus() WorkOrderStatus
         +getTotalAmount() Money
@@ -724,8 +745,8 @@ classDiagram
     class Money {
         <<Value Object>>
         -BigDecimal amount
-        -String currency
-        +getAmount() BigDecimal
+        +Money(BigDecimal amount)
+        +amount() BigDecimal
     }
 
     class Quantity {
@@ -740,6 +761,8 @@ classDiagram
         IN_PROGRESS
         COMPLETED
         PAID
+        +canTransitionTo(WorkOrderStatus next) boolean
+        +transitionTo(WorkOrderStatus next) WorkOrderStatus
     }
 
     class WorkOrderTaskStatus {
@@ -747,6 +770,8 @@ classDiagram
         PENDING
         DOING
         COMPLETED
+        +canTransitionTo(WorkOrderTaskStatus next) boolean
+        +transitionTo(WorkOrderTaskStatus next) WorkOrderTaskStatus
     }
 
     WorkOrder "1" *-- "1" WorkOrderId : identity
