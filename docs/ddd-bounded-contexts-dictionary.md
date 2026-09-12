@@ -399,7 +399,7 @@ classDiagram
 * 🟦 **`SignInCommand(EmailAddress email, Password password)`**: Credenciales para autenticación local.
 * 🟦 **`GoogleSignInCommand(String idToken)`**: Token de identidad emitido por Google Identity Services.
 * 🟦 **`GeneratePasswordRecoveryTokenCommand(EmailAddress email)`**: Solicitud de token de recuperación.
-* 🟦 **`ResetPasswordCommand(String token, String newPassword)`**: Token plano recibido por email y nueva contraseña en texto plano.
+* 🟦 **`ResetPasswordCommand(String token, Password newPassword)`**: Token plano recibido por email y Value Object de la nueva contraseña.
 * 🟦 **`UpdateUserEmailCommand(UserId userId, EmailAddress newEmail)`**: Parámetros para actualizar el correo electrónico.
 * 🟦 **`UpdateUserPasswordCommand(UserId userId, Password currentPassword, Password newPassword)`**: Parámetros para cambiar la clave verificando la actual.
 * 🟩 **`GetUserByIdQuery(UserId userId)`**: Consulta inmutable de usuario por su identificador.
@@ -750,7 +750,7 @@ classDiagram
 
 #### 📌 Class: `SmtpEmailService`
 * **Propósito:** Implementación del puerto `EmailService` mediante `org.springframework.mail.javamail.JavaMailSender`.
-* **Lógica:** Implementa `sendPasswordRecoveryEmail(String to, String token)` creando un `SimpleMailMessage` con el remitente configurado en `spring.mail.username`, el asunto *"Restablecimiento de Contraseña - ShiftIQ"* y el cuerpo con el token de recuperación.
+* **Lógica:** Implementa `sendPasswordRecoveryEmail(String to, String token)` creando un `SimpleMailMessage` con el remitente configurado en `spring.mail.username`, el asunto localizado internacionalizado mediante `MessageSource` (`email.recovery.subject`, con fallback *"Recuperación de Contraseña - Atelier"*) y el cuerpo del mensaje internacionalizado (`email.recovery.body`) conteniendo la URL base del frontend (`app.frontend.url`) y el token de recuperación.
 
 ---
 
