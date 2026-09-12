@@ -997,8 +997,8 @@ classDiagram
 
     class Phone {
         <<Value Object>>
-        -String number
-        +getNumber() String
+        -String value
+        +value() String
     }
 
     class Address {
