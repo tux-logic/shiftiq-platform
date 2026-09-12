@@ -90,28 +90,28 @@ classDiagram
     }
 
     class UserId {
-        <<Value Object>>
+        <<Value Object (Record)>>
         -UUID value
         +UserId(UUID value)
         +value() UUID
     }
 
     class EmailAddress {
-        <<Value Object>>
+        <<Value Object (Record)>>
         -String value
         +EmailAddress(String value)
         +value() String
     }
 
     class Password {
-        <<Value Object>>
+        <<Value Object (Record)>>
         -String value
         +Password(String value)
         +value() String
     }
 
     class GoogleId {
-        <<Value Object>>
+        <<Value Object (Record)>>
         -String value
         +GoogleId(String value)
         +value() String
@@ -170,8 +170,8 @@ classDiagram
 
     AbstractDomainAggregateRoot <|-- User : extends
     User "1" *-- "1" UserId : identity
-    User "1" *-- "1" EmailAddress : credential
-    User "1" *-- "0..1" Password : password hash
+    User "1" *-- "1" EmailAddress : primary credential
+    User "1" *-- "0..1" Password : hash credential
     User "1" *-- "0..1" GoogleId : federated subject
     User "1" *-- "1" UserStatus : account state
     User "1" *-- "1" Roles : security authority
@@ -208,9 +208,9 @@ classDiagram
   * `+ assignRole(Roles role)`: `void` — Asigna o actualiza el rol del usuario. Lanza `IllegalArgumentException("iam.error.role.required")` si es nulo.
   * `+ assignBranch(UUID branchId)`: `void` — Vincula una sucursal al perfil del usuario. Lanza `IllegalArgumentException("iam.error.branchId.required")` si el UUID es nulo.
   * `+ removeBranch(UUID branchId)`: `void` — Remueve la asociación con la sucursal de forma idempotente.
-  * `+ deactivate()`: `void` — Muta el estado a `INACTIVE`, establece `deletedAt = Instant.now()` y registra `UserDeactivatedEvent(this, this.id.value())`.
-  * `+ changePassword(Password newPassword)`: `void` — Valida no-nulidad y comprueba que la nueva contraseña no coincida con el hash actual (`"iam.error.password.sameAsCurrent"`). Actualiza el hash y registra `UserPasswordChangedEvent(this, this.id.value())`.
-  * `+ changeEmail(EmailAddress newEmail)`: `void` — Valida consistencia, actualiza el correo y registra `UserEmailChangedEvent(this, this.id.value(), oldEmail, newEmail.value())`.
+  * `+ deactivate()`: `void` — Muta el estado a `INACTIVE`, establece `deletedAt = Instant.now()` y registra `#registerDomainEvent(new UserDeactivatedEvent(this, this.id.value()))`.
+  * `+ changePassword(Password newPassword)`: `void` — Valida no-nulidad y comprueba que la nueva contraseña no coincida con el hash actual (`"iam.error.password.sameAsCurrent"`). Actualiza el hash y registra `#registerDomainEvent(new UserPasswordChangedEvent(this, this.id.value()))`.
+  * `+ changeEmail(EmailAddress newEmail)`: `void` — Valida consistencia, actualiza el correo y registra `#registerDomainEvent(new UserEmailChangedEvent(this, this.id.value(), oldEmail, newEmail.value()))`.
   * `+ linkGoogleAccount(GoogleId googleId)`: `void` — Asocia la identidad federada de Google.
 * **Relaciones:**
   * Compone los Value Objects `UserId`, `EmailAddress`, `Password`, `GoogleId`, `UserStatus` y `Roles`.
@@ -246,9 +246,9 @@ classDiagram
 
 #### 📌 Class: `EmailAddress`
 * **Tipo:** Value Object (Java Record).
-* **Propósito:** Valida y encapsula una dirección de correo electrónico según la expresión regular `^[A-Za-z0-9+_.-]+@(.+)$`.
+* **Propósito:** Valida y encapsula una dirección de correo electrónico según la expresión regular `^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$`.
 * **Atributos:** `value: String`.
-* **Métodos:** Constructor con validación de patrón y no-nulidad (`"iam.error.email.invalid"`).
+* **Métodos:** Constructor con validación de patrón (`"iam.error.email.invalidFormat"`) y no-nulidad (`"iam.error.email.required"`).
 
 #### 📌 Class: `Password`
 * **Tipo:** Value Object (Java Record).
@@ -293,7 +293,7 @@ classDiagram
 #### 📌 Interface: `UserRepository`
 * **Propósito:** Define el contrato formal de persistencia del agregado `User`. En la base de código real, sus métodos de consulta utilizan tipos primitivos/estándar (`UUID`, `String`) y `save()` retorna `void`:
 * **Métodos:**
-  * `void save(User user)`: Persiste o actualiza el usuario en la base de datos y despacha sus eventos de dominio acumulados.
+  * `void save(User user)`: Persiste o actualiza el usuario en la base de datos y despacha sus eventos de dominio acumulados mediante `ApplicationEventPublisher`.
   * `Optional<User> findById(UUID id)`: Busca un usuario activo por su identificador único.
   * `Optional<User> findByEmail(String email)`: Busca un usuario activo por su dirección de correo electrónico.
   * `boolean existsByEmail(String email)`: Comprueba si existe un usuario activo con dicho correo.
@@ -432,7 +432,7 @@ classDiagram
   * `void handle(GeneratePasswordRecoveryTokenCommand command)`:
     * *Lógica:* Busca al usuario por email. Si no existe, registra un log de advertencia y termina la ejecución silenciosamente (prevención de enumeración de cuentas). Si existe, genera un token plano aleatorio `UUID.randomUUID().toString()`, calcula su hash digest SHA-256 mediante el método privado `hashToken(rawToken)`, crea la entidad `PasswordRecoveryToken(tokenHash, user.getId().value(), tokenExpirationMinutes)` y la persiste con `tokenRepository.save(token)`. Finalmente, despacha el correo mediante `emailService.sendPasswordRecoveryEmail(user.getEmail().value(), rawToken)`.
   * `void handle(ResetPasswordCommand command)`:
-    * *Lógica:* Calcula el hash digest SHA-256 del token plano recibido. Busca el token con `tokenRepository.findByTokenHash(tokenHash)`. Si no existe o `!tokenEntity.isValid()`, lanza `IllegalArgumentException("iam.error.token.invalidOrExpired")`. Localiza al usuario por `tokenEntity.getUserId()`, hashea la nueva contraseña con `hashingService.encode()`, actualiza con `user.changePassword()`, marca `tokenEntity.markAsUsed()` y persiste ambas entidades.
+    * *Lógica:* Calcula el hash digest SHA-256 del token plano recibido (`hashToken(command.token())`). Busca el token con `tokenRepository.findByTokenHash(tokenHash)`. Si no existe o `!tokenEntity.isValid()`, lanza `IllegalArgumentException("iam.error.token.invalidOrExpired")`. Localiza al usuario por `tokenEntity.getUserId()`, hashea la nueva contraseña con `hashingService.encode()`, actualiza con `user.changePassword()`, marca `tokenEntity.markAsUsed()` y persiste ambas entidades.
   * `- hashToken(String rawToken)`: `String` — Método utilitario privado que aplica el algoritmo criptográfico estándar `MessageDigest.getInstance("SHA-256")` codificado en hexadecimal sobre el token plano.
 
 ---
@@ -552,7 +552,7 @@ classDiagram
 * **`GoogleSignInResource(String idToken)`**: DTO de entrada con `@NotBlank String idToken`.
 * **`PasswordRecoveryResource(String email)`**: DTO de entrada con `@NotBlank @Email String email`.
 * **`ResetPasswordResource(String token, String newPassword)`**: DTO de entrada con `@NotBlank String token` y `@NotBlank @Size(min = 8) String newPassword`.
-* **`UpdateUserEmailResource(String newEmail)`**: DTO de entrada con `@NotBlank @Email String newEmail`.
+* **`UpdateUserEmailResource(String email)`**: DTO de entrada con `@NotBlank @Email String email`.
 * **`UpdateUserPasswordResource(String currentPassword, String newPassword)`**: DTO de entrada con `@NotBlank String currentPassword` y `@NotBlank @Size(min = 8) String newPassword`.
 * **Assemblers Estáticos:**
   * `SignUpCommandFromResourceAssembler.toCommandFromResource(resource)`
@@ -734,7 +734,7 @@ classDiagram
 * **`UserDetailsServiceImpl`**: Carga el usuario mediante `userRepository.findByEmail(username)` y construye el `UserDetailsImpl`.
 
 #### 📌 Class: `UnauthorizedRequestHandlerEntryPoint`
-* **Propósito:** Implementa `AuthenticationEntryPoint`. Retorna código HTTP `401 Unauthorized` ante intentos de acceso no autenticados a rutas protegidas.
+* **Propósito:** Implementa `AuthenticationEntryPoint`. Intercepta peticiones no autenticadas ejecutando `response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Unauthorized request detected")`.
 
 ---
 
@@ -746,11 +746,11 @@ classDiagram
 
 #### 📌 Interface: `BearerTokenService` / Class: `TokenServiceImpl`
 * **`BearerTokenService`**: Interfaz de infraestructura que extiende de `TokenService` y agrega los métodos `String getBearerTokenFrom(HttpServletRequest request)` y `String generateToken(Authentication authentication)`.
-* **`TokenServiceImpl`**: Implementación basada en la librería **JJWT** (`io.jsonwebtoken`). Firma tokens HMAC-SHA256 utilizando la clave secreta `authorization.jwt.secret` y la vigencia configurada en `authorization.jwt.expiration.days`.
+* **`TokenServiceImpl`**: Implementación basada en la librería **JJWT** (`io.jsonwebtoken`). Firma tokens HMAC-SHA256 (`subject(username)`, sin claims extra de `userId`/`role`/`status` en el JWT crudo) utilizando la clave secreta `authorization.jwt.secret` y la vigencia configurada en `authorization.jwt.expiration.days`.
 
 #### 📌 Class: `SmtpEmailService`
 * **Propósito:** Implementación del puerto `EmailService` mediante `org.springframework.mail.javamail.JavaMailSender`.
-* **Lógica:** Implementa `sendPasswordRecoveryEmail(String to, String token)` creando un `SimpleMailMessage` con el remitente configurado en `spring.mail.username`, el asunto *"Restablecimiento de Contraseña - ShiftIQ"* y el enlace al frontend conteniendo el token plano de recuperación.
+* **Lógica:** Implementa `sendPasswordRecoveryEmail(String to, String token)` creando un `SimpleMailMessage` con el remitente configurado en `spring.mail.username`, el asunto *"Restablecimiento de Contraseña - ShiftIQ"* y el cuerpo con el token de recuperación.
 
 ---
 
