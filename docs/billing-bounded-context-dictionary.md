@@ -6,7 +6,7 @@ El **Bounded Context `Billing`** gestiona el ciclo de vida financiero posterior 
 
 ## 1. Domain Layer (Capa de Dominio)
 
-La Capa de Dominio encapsula el cálculo estricto de subtotales, impuestos (IGV 18%), descuentos porcentuales, montos totales mediante métodos **Factory**, reglas financieras en `BillingDomainService`, transiciones de estado inmutables, la validación del saldo deudor de comprobantes y la emisión de eventos de dominio financieros.
+La Capa de Dominio encapsula el cálculo estricto de subtotales, impuestos (IGV 18%), descuentos porcentuales, montos totales mediante métodos **Factory**, reglas financieras encapsuladas en los Agregados `Quote` y `Voucher`, transiciones de estado inmutables, la validación del saldo deudor de comprobantes y la emisión de eventos de dominio financieros.
 
 ```mermaid
 classDiagram
@@ -282,9 +282,12 @@ classDiagram
 
 * `FactosGateway`:
   - `Optional<FactosInvoiceResult> issueVoucher(String issuerRuc, VoucherType documentType, String customerDocumentType, String customerDocumentNumber, String customerName, List<FactosItem> items)`
-* `StripeGateway`:
-  - `Optional<StripePaymentIntentResult> createPaymentIntent(BigDecimal amount, String currency, String description)`
-  - `Optional<StripePaymentIntentResult> getPaymentIntent(String paymentIntentId)`
+* `PaymentGateway`:
+  - `Optional<PaymentIntentResult> createPaymentIntent(BigDecimal amount, String currency, String description)`
+  - `Optional<PaymentIntentResult> getPaymentIntent(String paymentIntentId)`
+* `StripeGateway` (extends `PaymentGateway`):
+  - `Optional<StripePaymentIntentResult> createStripePaymentIntent(BigDecimal amount, String currency, String description)`
+  - `Optional<StripePaymentIntentResult> getStripePaymentIntent(String paymentIntentId)`
 
 ---
 
@@ -522,18 +525,18 @@ classDiagram
 
     class Quote {
         <<Aggregate Root>>
-        -QuoteId id
+        -UUID id
         -UUID workOrderId
         -BranchId branchId
         -Money subtotalAmount
         -Double discountPercentage
         -Money totalAmount
         -QuoteStatus status
-        +Quote(UUID workOrderId, BranchId branchId, Money subtotalAmount, Double discountPercentage)
+        +Quote(CreateQuoteCommand command, Money subtotalAmount)
         +approve() void
         +cancel() void
         +updateDiscount(Double discountPercentage) void
-        +getId() QuoteId
+        +getId() UUID
         +getWorkOrderId() UUID
         +getBranchId() BranchId
         +getTotalAmount() Money
@@ -542,8 +545,8 @@ classDiagram
 
     class Voucher {
         <<Aggregate Root>>
-        -VoucherId id
-        -QuoteId quoteId
+        -UUID id
+        -UUID quoteId
         -VoucherType type
         -String customerDocumentType
         -String customerDocumentNumber
@@ -553,49 +556,27 @@ classDiagram
         -UUID externalInvoiceId
         -String pdfUrl
         -List~Payment~ payments
-        +Voucher(QuoteId quoteId, VoucherType type, String customerDocumentType, String customerDocumentNumber, String customerName, Money totalAmount, UUID externalInvoiceId, String pdfUrl)
-        +addPayment(Money amount, PaymentMethod method, BranchId branchId) void
-        +removePayment(PaymentId paymentId) void
+        +Voucher(UUID quoteId, VoucherType type, String customerDocumentType, String customerDocumentNumber, String customerName, Money totalAmount, UUID externalInvoiceId, String pdfUrl)
+        +addPayment(Money amount, PaymentMethod method, UUID branchId) void
+        +removePayment(UUID paymentId) void
         +cancel() void
         +getTotalPaidAmount() BigDecimal
-        +getRemainingBalance() BigDecimal
-        +getId() VoucherId
-        +getQuoteId() QuoteId
+        +getId() UUID
+        +getQuoteId() UUID
         +getStatus() VoucherStatus
     }
 
     class Payment {
         <<Entity>>
-        -PaymentId id
+        -UUID id
         -Money amount
         -PaymentMethod method
-        -BranchId branchId
+        -UUID branchId
         -LocalDateTime paidAt
-        +Payment(Money amount, PaymentMethod method, BranchId branchId)
-        +getId() PaymentId
+        +Payment(Money amount, PaymentMethod method, UUID branchId)
+        +getId() UUID
         +getAmount() Money
         +getMethod() PaymentMethod
-    }
-
-    class QuoteId {
-        <<Value Object>>
-        -UUID value
-        +QuoteId(UUID value)
-        +value() UUID
-    }
-
-    class VoucherId {
-        <<Value Object>>
-        -UUID value
-        +VoucherId(UUID value)
-        +value() UUID
-    }
-
-    class PaymentId {
-        <<Value Object>>
-        -UUID value
-        +PaymentId(UUID value)
-        +value() UUID
     }
 
     class BranchId {
@@ -608,8 +589,8 @@ classDiagram
     class Money {
         <<Value Object>>
         -BigDecimal amount
-        -String currency
-        +getAmount() BigDecimal
+        +Money(BigDecimal amount)
+        +amount() BigDecimal
     }
 
     class QuoteStatus {
@@ -641,22 +622,17 @@ classDiagram
         BANK_TRANSFER
     }
 
-    Quote "1" *-- "1" QuoteId : identity
     Quote "1" *-- "1" BranchId : branch reference
     Quote "1" *-- "1" Money : total price
     Quote "1" *-- "1" QuoteStatus : state
 
-    Voucher "1" *-- "1" VoucherId : identity
-    Voucher "1" *-- "1" QuoteId : origin quote
     Voucher "1" *-- "1" VoucherType : SUNAT CPE type
     Voucher "1" *-- "1" Money : total price
     Voucher "1" *-- "1" VoucherStatus : state
     Voucher "1" *-- "0..*" Payment : contains payments
 
-    Payment "1" *-- "1" PaymentId : identity
     Payment "1" *-- "1" Money : amortized amount
     Payment "1" *-- "1" PaymentMethod : transaction channel
-    Payment "1" *-- "1" BranchId : branch location
 
     Quote "1" --> "0..1" Voucher : originates
 ```
