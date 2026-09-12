@@ -158,7 +158,8 @@ classDiagram
   * `COMPLETED` ➔ `DOING` (reapertura)
 
 #### 📌 Identificadores Fuertemente Tipados (Strongly Typed IDs)
-* `WorkOrderId`, `WorkOrderTaskId`, `WorkOrderTaskProductId`, `ServiceId`, `MechanicId`, `AppointmentId`, `ProductId`, `VehicleId`, `CustomerId`, `BranchId`.
+* **Propios de Operations:** `WorkOrderId`, `WorkOrderTaskId`, `WorkOrderTaskProductId`, `ServiceId`, `MechanicId`, `AppointmentId`, `ProductId`.
+* **Compartidos (`shared`):** `BranchId`, `VehicleId`, `CustomerId`, `Money`, `Mileage`.
 
 ---
 
@@ -191,13 +192,15 @@ classDiagram
 
 ### 1.3. Domain Events
 
-* `TaskStartedEvent`: Emitido al iniciar el trabajo físico de una tarea.
-* `TaskCompletedEvent`: Emitido cuando un mecánico completa una tarea.
-* `TaskReopenedEvent`: Emitido al reabrir una tarea completada.
-* `WorkOrderCompletedEvent`: Emitido cuando todas las tareas finalizan y la orden pasa a `COMPLETED`.
-* `WorkOrderPaidEvent`: Emitido al marcar la orden como `PAID`, notificando el despacho final de inventario.
-* `ProductReservedEvent`: Notifica a Inventario para reservar stock al agregar productos a una tarea.
-* `ProductReservationCanceledEvent`: Notifica a Inventario para liberar stock reservado al remover productos o tareas.
+* **Propios de Operations:**
+  * `TaskStartedEvent`: Emitido al iniciar el trabajo físico de una tarea.
+  * `TaskCompletedEvent`: Emitido cuando un mecánico completa una tarea.
+  * `TaskReopenedEvent`: Emitido al reabrir una tarea completada.
+  * `WorkOrderCompletedEvent`: Emitido cuando todas las tareas finalizan y la orden pasa a `COMPLETED`.
+  * `WorkOrderPaidEvent`: Emitido al marcar la orden como `PAID`, notificando el despacho final de inventario.
+* **Compartidos (`shared`) emitidos por Operations:**
+  * `ProductReservedEvent`: Notifica a Inventario para reservar stock al agregar productos a una tarea.
+  * `ProductReservationCanceledEvent`: Notifica a Inventario para liberar stock reservado al remover productos o tareas.
 
 ---
 
@@ -283,7 +286,7 @@ classDiagram
 
 #### Commands
 * 🟦 **`CreateWorkOrderCommand(AppointmentId appointmentId, BranchId branchId, VehicleId vehicleId, CustomerId customerId, DiagnosticSummary diagnosticSummary, Mileage mileageIn)`**
-* 🟦 **`AddTaskToWorkOrderCommand(WorkOrderId workOrderId, ServiceId serviceId, MechanicId mechanicId, TaskDescription description, Money laborPrice)`**
+* 🟦 **`AddTaskToWorkOrderCommand(WorkOrderId workOrderId, ServiceId serviceId, MechanicId mechanicId, TaskDescription description)`**
 * 🟦 **`AddProductToTaskCommand(WorkOrderId workOrderId, WorkOrderTaskId taskId, ProductId productId, Quantity quantity)`**
 * 🟦 **`RemoveProductFromTaskCommand(WorkOrderId workOrderId, WorkOrderTaskId taskId, ProductId productId)`**
 * 🟦 **`RemoveTaskFromWorkOrderCommand(WorkOrderId workOrderId, WorkOrderTaskId taskId)`**
@@ -292,7 +295,7 @@ classDiagram
 * 🟦 **`ReopenTaskCommand(WorkOrderId workOrderId, WorkOrderTaskId taskId)`**
 * 🟦 **`MarkWorkOrderAsPaidCommand(WorkOrderId workOrderId)`**
 * 🟦 **`UpdateWorkOrderDetailsCommand(WorkOrderId workOrderId, DiagnosticSummary diagnosticSummary, Mileage mileageIn)`**
-* 🟦 **`UpdateWorkOrderTaskDetailsCommand(WorkOrderId workOrderId, WorkOrderTaskId taskId, ServiceId serviceId, MechanicId mechanicId, TaskDescription description, Money laborPrice)`**
+* 🟦 **`UpdateWorkOrderTaskDetailsCommand(WorkOrderId workOrderId, WorkOrderTaskId taskId, ServiceId serviceId, MechanicId mechanicId, TaskDescription description)`**
 * 🟦 **`UpdateProductQuantityInTaskCommand(WorkOrderId workOrderId, WorkOrderTaskId taskId, ProductId productId, Quantity newQuantity)`**
 * 🟦 **`DeleteWorkOrderCommand(WorkOrderId workOrderId)`**
 * 🟦 **`CompleteWorkOrderCommand(WorkOrderId workOrderId)`**
