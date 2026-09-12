@@ -183,7 +183,7 @@ classDiagram
 
 ### 1.3. Domain Events
 
-* `VoucherPaidEvent(Object source, UUID voucherId, UUID quoteId)`: Evento emitido cuando un comprobante es cancelado totalmente (saldo deudor = 0).
+* `VoucherPaidEvent(Object source, UUID voucherId, UUID quoteId)`: Evento emitido cuando un comprobante es pagado totalmente (saldo deudor = 0).
 
 ---
 
