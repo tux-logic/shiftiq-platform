@@ -1,12 +1,12 @@
 # Bounded Context Software Architecture & Domain Dictionary — IoT (Telemetry, Vehicles & OBD-II Devices)
 
-El **Bounded Context `IoT`** administra la identidad de los vehículos (`Vehicle`), la vinculación con sus conductores/propietarios (`VehicleRegistration`), el inventario y estado operativo de escáneres telemáticos (`Obd2Device`), el emparejamiento activo entre escáneres y vehículos (`Obd2DeviceRegistration`), la ingesta masiva de capturas de telemetría vehicular en tiempo real (`TelemetrySnapshot`), y la detección e inmutabilidad de alertas de códigos de falla computarizados (`DtcAlert` / Diagnostic Trouble Codes).
+El **Bounded Context `IoT`** administra la identidad telemática de los vehículos (`Vehicle`), la vinculación con sus conductores/propietarios (`VehicleRegistration`), el inventario y estado operativo de escáneres telemáticos OBD2 (`Obd2Device`), el emparejamiento activo entre escáneres y vehículos (`Obd2DeviceRegistration`), la ingesta remota de ráfagas telemáticas (`TelemetrySnapshot`), y la gestión inmutable de alertas por códigos de error computarizados (`DtcAlert` / Diagnostic Trouble Codes).
 
 ---
 
 ## 1. Domain Layer (Capa de Dominio)
 
-La Capa de Dominio rige las reglas de lectura e ingesta telemática, la vinculación inmutable de dispositivos OBD2 con vehículos, las alertas automáticas según la gravedad de los códigos DTC (p. ej. P0300, P0420) y la validación de vin/placa vehicular.
+La Capa de Dominio rige las reglas de lectura e ingesta telemática, la vinculación inmutable de dispositivos OBD2 con vehículos, las alertas automáticas según la gravedad de los códigos DTC (LOW, MEDIUM, HIGH, CRITICAL) y la validación de vin/placa vehicular.
 
 ```mermaid
 classDiagram
@@ -196,36 +196,59 @@ classDiagram
 ### 1.4. Domain Repositories (Interfaces)
 
 * `VehicleRepository`:
-  * `Vehicle save(Vehicle vehicle)`
   * `Optional<Vehicle> findById(VehicleId id)`
+  * `Vehicle save(Vehicle vehicle)`
   * `Optional<Vehicle> findByVin(String vin)`
   * `Optional<Vehicle> findByPlateNumber(String plateNumber)`
-  * `List<Vehicle> findAll()`
+  * `void delete(VehicleId id)`
+  * `List<Vehicle> findAllByIds(List<VehicleId> ids)`
+
+* `VehicleRegistrationRepository`:
+  * `VehicleRegistration save(VehicleRegistration registration)`
+  * `Optional<VehicleRegistration> findActiveByVehicleId(VehicleId vehicleId)`
+  * `List<VehicleRegistration> findAllActiveByUserId(UUID userId)`
+  * `List<VehicleRegistration> findAllActiveByUserIds(List<UUID> userIds)`
 
 * `Obd2DeviceRepository`:
-  * `Obd2Device save(Obd2Device device)`
+  * `Obd2Device save(Obd2Device obd2Device)`
   * `Optional<Obd2Device> findById(Obd2DeviceId id)`
   * `Optional<Obd2Device> findByMacAddress(String macAddress)`
-  * `List<Obd2Device> findByBranchId(BranchId branchId)`
+  * `boolean existsByMacAddress(String macAddress)`
+  * `void delete(Obd2DeviceId id)`
+  * `List<Obd2Device> findAllByBranchId(BranchId branchId)`
+  * `List<Obd2Device> findAllByBranchIdAndStatus(BranchId branchId, Obd2DeviceStatus status)`
 
 * `Obd2DeviceRegistrationRepository`:
   * `Obd2DeviceRegistration save(Obd2DeviceRegistration registration)`
   * `Optional<Obd2DeviceRegistration> findById(Obd2DeviceRegistrationId id)`
-  * `Optional<Obd2DeviceRegistration> findByVehicleIdAndStatus(VehicleId vehicleId, Obd2RegistrationStatus status)`
+  * `Optional<Obd2DeviceRegistration> findActiveByObd2DeviceId(Obd2DeviceId obd2DeviceId)`
+  * `Optional<Obd2DeviceRegistration> findActiveByVehicleId(VehicleId vehicleId)`
+  * `List<Obd2DeviceRegistration> findAllByBranchIdAndStatus(BranchId branchId, Obd2RegistrationStatus status)`
+  * `Set<VehicleId> findVehicleIdsWithActiveRegistration(List<VehicleId> vehicleIds)`
 
 * `TelemetrySnapshotRepository`:
-  * `TelemetrySnapshot save(TelemetrySnapshot snapshot)`
+  * `TelemetrySnapshot save(TelemetrySnapshot telemetrySnapshot)`
+  * `List<TelemetrySnapshot> saveAll(List<TelemetrySnapshot> telemetrySnapshots)`
+  * `Optional<TelemetrySnapshot> findById(TelemetrySnapshotId id)`
   * `Optional<TelemetrySnapshot> findLatestByRegistrationId(Obd2DeviceRegistrationId registrationId)`
+  * `List<TelemetrySnapshot> findAllByRegistrationId(Obd2DeviceRegistrationId registrationId)`
+  * `List<TelemetrySnapshot> findAllByRegistrationId(Obd2DeviceRegistrationId registrationId, int page, int size)`
+  * `List<TelemetrySnapshot> findAllByRegistrationIdAndCreatedAtGreaterThanEqual(Obd2DeviceRegistrationId registrationId, Instant startTimestamp)`
+  * `List<TelemetrySnapshot> findAllByRegistrationIdAndCreatedAtGreaterThanEqual(Obd2DeviceRegistrationId registrationId, Instant startTimestamp, int page, int size)`
 
 * `DtcAlertRepository`:
-  * `DtcAlert save(DtcAlert alert)`
-  * `List<DtcAlert> findBySnapshotId(TelemetrySnapshotId snapshotId)`
+  * `DtcAlert save(DtcAlert dtcAlert)`
+  * `List<DtcAlert> saveAll(List<DtcAlert> dtcAlerts)`
+  * `List<DtcAlert> findAllByRegistrationId(Obd2DeviceRegistrationId registrationId)`
+  * `List<DtcAlert> findAllByRegistrationId(Obd2DeviceRegistrationId registrationId, int page, int size)`
+  * `List<DtcAlert> findAllByRegistrationIdAndCreatedAtGreaterThanEqual(Obd2DeviceRegistrationId registrationId, Instant startTimestamp)`
+  * `List<DtcAlert> findAllByRegistrationIdAndCreatedAtGreaterThanEqual(Obd2DeviceRegistrationId registrationId, Instant startTimestamp, int page, int size)`
 
 ---
 
 ## 2. Application Layer (Capa de Aplicación)
 
-La Capa de Aplicación expone la ingesta de telemetría y gestión de dispositivos telemáticos mediante servicios de comando y consulta.
+La Capa de Aplicación expone la ingesta de telemetría, emparejamiento de escáneres y consulta de alertas de motor.
 
 ```mermaid
 classDiagram
@@ -233,34 +256,60 @@ classDiagram
 
     class VehicleCommandService {
         <<Interface>>
-        +handle(RegisterVehicleCommand) Result~Vehicle, VehicleCommandFailure~
+        +handle(RegisterVehicleCommand) Result~VehicleRegistration, VehicleCommandFailure~
         +handle(UpdateVehicleCommand) Result~Vehicle, VehicleCommandFailure~
-        +handle(DeleteVehicleCommand) Result~VehicleId, VehicleCommandFailure~
+        +handle(DeleteVehicleCommand) Result~Void, VehicleCommandFailure~
     }
 
     class VehicleQueryService {
         <<Interface>>
+        +handle(GetVehiclesAvailableForLinkingQuery) Result~List~Vehicle~, VehicleQueryFailure~
+        +handle(GetActiveVehiclesByCustomerIdQuery) Result~List~Vehicle~, VehicleQueryFailure~
         +handle(GetVehicleByIdQuery) Result~Vehicle, VehicleQueryFailure~
-        +handle(GetVehicleByVinQuery) Result~Vehicle, VehicleQueryFailure~
-        +handle(GetVehicleByPlateNumberQuery) Result~Vehicle, VehicleQueryFailure~
     }
 
     class Obd2DeviceCommandService {
         <<Interface>>
         +handle(CreateObd2DeviceCommand) Result~Obd2Device, Obd2DeviceCommandFailure~
+        +handle(DeleteObd2DeviceCommand) Result~Void, Obd2DeviceCommandFailure~
         +handle(UpdateObd2DeviceCommand) Result~Obd2Device, Obd2DeviceCommandFailure~
-        +handle(PingObd2DeviceCommand) Result~Obd2Device, Obd2DeviceCommandFailure~
+    }
+
+    class Obd2DeviceQueryService {
+        <<Interface>>
+        +handle(GetObd2DeviceByIdQuery) Result~Obd2Device, Obd2DeviceQueryFailure~
+        +handle(GetObd2DevicesByBranchIdQuery) Result~List~Obd2Device~, Obd2DeviceQueryFailure~
+        +handle(GetAvailableObd2DevicesQuery) Result~List~Obd2Device~, Obd2DeviceQueryFailure~
+    }
+
+    class Obd2DeviceRegistrationCommandService {
+        <<Interface>>
+        +handle(LinkObd2DeviceToVehicleCommand) Result~Obd2DeviceRegistration, Obd2DeviceRegistrationCommandFailure~
+        +handle(DeactivateObd2DeviceRegistrationCommand) Result~Void, Obd2DeviceRegistrationCommandFailure~
+    }
+
+    class Obd2DeviceRegistrationQueryService {
+        <<Interface>>
+        +handle(GetObd2DeviceRegistrationsByBranchIdAndStatusQuery) Result~List~Obd2DeviceRegistration~, Obd2DeviceRegistrationQueryFailure~
     }
 
     class TelemetryCommandService {
         <<Interface>>
-        +handle(IngestTelemetryBatchCommand) Result~TelemetrySnapshot, TelemetryCommandFailure~
+        +handle(IngestTelemetryBatchCommand) Result~List~TelemetrySnapshot~, TelemetryCommandFailure~
     }
 
     class TelemetryQueryService {
         <<Interface>>
         +handle(GetLatestTelemetrySnapshotQuery) Result~TelemetrySnapshot, TelemetryQueryFailure~
-        +handle(GetDtcAlertsByVehicleQuery) Result~List~DtcAlert~, TelemetryQueryFailure~
+        +handle(GetTelemetrySnapshotHistoryQuery) Result~List~TelemetrySnapshot~, TelemetryQueryFailure~
+        +handle(GetTelemetrySnapshotsByRegistrationIdQuery) Result~List~TelemetrySnapshot~, TelemetryQueryFailure~
+        +handle(GetVehicleTelemetrySnapshotHistoryQuery) Result~List~TelemetrySnapshot~, TelemetryQueryFailure~
+    }
+
+    class DtcAlertQueryService {
+        <<Interface>>
+        +handle(GetDtcAlertsByRegistrationIdQuery) Result~List~DtcAlert~, DtcAlertQueryFailure~
+        +handle(GetVehicleDtcAlertHistoryQuery) Result~List~DtcAlert~, DtcAlertQueryFailure~
     }
 ```
 
@@ -269,97 +318,141 @@ classDiagram
 ### 2.1. Commands & Queries (DTOs de Aplicación)
 
 #### Commands
-* 🟦 **`RegisterVehicleCommand(String plateNumber, String brand, String model, Integer year, String vin)`**
-* 🟦 **`UpdateVehicleCommand(VehicleId vehicleId, String plateNumber, String brand, String model, Integer year, String vin)`**
+* 🟦 **`RegisterVehicleCommand(UUID customerId, String plateNumber, String brand, String model, Integer year, String vin)`**
+* 🟦 **`UpdateVehicleCommand(UUID id, String plateNumber, String brand, String model, Integer year, String vin)`**
 * 🟦 **`DeleteVehicleCommand(VehicleId vehicleId)`**
 * 🟦 **`CreateObd2DeviceCommand(BranchId branchId, String macAddress)`**
-* 🟦 **`UpdateObd2DeviceCommand(Obd2DeviceId obd2DeviceId, String macAddress)`**
-* 🟦 **`LinkObd2DeviceCommand(Obd2DeviceId obd2DeviceId, BranchId branchId, VehicleId vehicleId)`**
-* 🟦 **`UnlinkObd2DeviceCommand(Obd2DeviceRegistrationId registrationId)`**
-* 🟦 **`IngestTelemetryBatchCommand(String macAddress, Integer rpm, Integer temperature, Double speedKmh, Integer odometerKm, Double fuelLevelPercent, List<String> dtcCodes)`**
+* 🟦 **`UpdateObd2DeviceCommand(Obd2DeviceId id, String macAddress)`**
+* 🟦 **`DeleteObd2DeviceCommand(Obd2DeviceId obd2DeviceId)`**
+* 🟦 **`LinkObd2DeviceToVehicleCommand(Obd2DeviceId obd2DeviceId, BranchId branchId, VehicleId vehicleId)`**
+* 🟦 **`DeactivateObd2DeviceRegistrationCommand(Obd2DeviceRegistrationId registrationId)`**
+* 🟦 **`IngestTelemetryBatchCommand(Obd2DeviceId obd2DeviceId, List<TelemetrySnapshotData> snapshots)`**
 
 #### Queries
 * 🟩 **`GetVehicleByIdQuery(VehicleId vehicleId)`**
-* 🟩 **`GetVehicleByVinQuery(String vin)`**
-* 🟩 **`GetVehicleByPlateNumberQuery(String plateNumber)`**
+* 🟩 **`GetActiveVehiclesByCustomerIdQuery(UUID customerId)`**
+* 🟩 **`GetVehiclesAvailableForLinkingQuery(BranchId branchId, UUID customerId)`**
+* 🟩 **`GetObd2DeviceByIdQuery(Obd2DeviceId obd2DeviceId)`**
 * 🟩 **`GetObd2DevicesByBranchIdQuery(BranchId branchId)`**
-* 🟩 **`GetLatestTelemetrySnapshotQuery(VehicleId vehicleId)`**
-* 🟩 **`GetDtcAlertsByVehicleQuery(VehicleId vehicleId)`**
+* 🟩 **`GetAvailableObd2DevicesQuery(BranchId branchId)`**
+* 🟩 **`GetObd2DeviceRegistrationsByBranchIdAndStatusQuery(BranchId branchId, Obd2RegistrationStatus status)`**
+* 🟩 **`GetLatestTelemetrySnapshotQuery(Obd2DeviceId obd2DeviceId)`**
+* 🟩 **`GetTelemetrySnapshotHistoryQuery(Obd2DeviceRegistrationId registrationId)`**
+* 🟩 **`GetTelemetrySnapshotsByRegistrationIdQuery(Obd2DeviceRegistrationId registrationId, int page, int size)`**
+* 🟩 **`GetVehicleTelemetrySnapshotHistoryQuery(VehicleId vehicleId, int page, int size)`**
+* 🟩 **`GetDtcAlertsByRegistrationIdQuery(Obd2DeviceRegistrationId registrationId, int page, int size)`**
+* 🟩 **`GetVehicleDtcAlertHistoryQuery(VehicleId vehicleId, int page, int size)`**
+
+---
+
+### 2.2. Command Failure Enums (Sealed Error Unions)
+
+* `VehicleCommandFailure`: `VEHICLE_NOT_FOUND`, `INVALID_VEHICLE_DATA`, `DUPLICATE_VIN`, `DUPLICATE_PLATE_NUMBER`.
+* `Obd2DeviceCommandFailure`: `DEVICE_NOT_FOUND`, `MAC_ADDRESS_ALREADY_EXISTS`, `INVALID_MAC_ADDRESS`, `DEVICE_ALREADY_LINKED`.
+* `Obd2DeviceRegistrationCommandFailure`: `REGISTRATION_NOT_FOUND`, `DEVICE_NOT_AVAILABLE`, `VEHICLE_ALREADY_HAS_ACTIVE_REGISTRATION`.
+* `TelemetryCommandFailure`: `DEVICE_NOT_REGISTERED`, `NO_ACTIVE_REGISTRATION_FOR_DEVICE`, `INVALID_TELEMETRY_DATA`.
 
 ---
 
 ## 3. Interface Layer (Capa de Interfaz / REST)
 
-Exposición RESTful para ingesta telemática, alertas de motor y dispositivos OBD2.
+Exposición RESTful para ingesta telemática, alertas de motor y catálogo de vehículos.
 
 ```mermaid
 classDiagram
     direction TB
 
     class VehiclesController {
+        +getVehicles(UUID, UUID) ResponseEntity~?~
+        +getVehicleById(UUID) ResponseEntity~?~
         +registerVehicle(RegisterVehicleResource) ResponseEntity~?~
-        +getVehicle(UUID, String, String) ResponseEntity~?~
         +updateVehicle(UUID, UpdateVehicleResource) ResponseEntity~?~
         +deleteVehicle(UUID) ResponseEntity~?~
+        +getVehicleTelemetrySnapshots(UUID, int, int) ResponseEntity~?~
+        +getVehicleDtcAlerts(UUID, int, int) ResponseEntity~?~
     }
 
     class CustomerVehiclesController {
-        +registerCustomerVehicle(UUID, RegisterVehicleResource) ResponseEntity~?~
-        +getCustomerVehicles(UUID) ResponseEntity~?~
-        +unlinkCustomerVehicle(UUID, UUID) ResponseEntity~?~
+        +getActiveVehiclesByCustomerId(UUID) ResponseEntity~?~
     }
 
     class Obd2DevicesController {
-        +createDevice(CreateObd2DeviceResource) ResponseEntity~?~
-        +getDevicesByBranch(UUID) ResponseEntity~?~
-        +updateDevice(UUID, UpdateObd2DeviceResource) ResponseEntity~?~
-        +ping(UUID) ResponseEntity~?~
+        +createObd2Device(CreateObd2DeviceResource) ResponseEntity~?~
+        +getObd2DeviceById(UUID) ResponseEntity~?~
+        +deleteObd2Device(UUID) ResponseEntity~?~
+        +updateObd2Device(UUID, UpdateObd2DeviceResource) ResponseEntity~?~
+        +getObd2Devices(UUID, String) ResponseEntity~?~
+        +getLatestTelemetrySnapshot(UUID) ResponseEntity~?~
+        +getTelemetrySnapshotHistory(UUID) ResponseEntity~?~
+    }
+
+    class Obd2DeviceRegistrationsController {
+        +linkObd2DeviceToVehicle(LinkObd2DeviceResource) ResponseEntity~?~
+        +updateRegistrationStatus(UUID, UpdateObd2DeviceRegistrationStatusResource) ResponseEntity~?~
+        +getRegistrations(UUID, String) ResponseEntity~?~
+        +getTelemetrySnapshots(UUID, int, int) ResponseEntity~?~
+        +getDtcAlerts(UUID, int, int) ResponseEntity~?~
     }
 
     class TelemetryBatchesController {
-        +ingestBatch(IngestTelemetryBatchResource) ResponseEntity~?~
-        +getLatestSnapshot(UUID) ResponseEntity~?~
-        +getDtcAlerts(UUID) ResponseEntity~?~
+        +ingestTelemetryBatch(IngestTelemetryBatchResource) ResponseEntity~?~
     }
 
     VehiclesController --> VehicleCommandService
     VehiclesController --> VehicleQueryService
+    VehiclesController --> TelemetryQueryService
+    VehiclesController --> DtcAlertQueryService
+    CustomerVehiclesController --> VehicleQueryService
     Obd2DevicesController --> Obd2DeviceCommandService
+    Obd2DevicesController --> Obd2DeviceQueryService
+    Obd2DevicesController --> TelemetryQueryService
+    Obd2DeviceRegistrationsController --> Obd2DeviceRegistrationCommandService
+    Obd2DeviceRegistrationsController --> Obd2DeviceRegistrationQueryService
+    Obd2DeviceRegistrationsController --> TelemetryQueryService
+    Obd2DeviceRegistrationsController --> DtcAlertQueryService
     TelemetryBatchesController --> TelemetryCommandService
-    TelemetryBatchesController --> TelemetryQueryService
 ```
 
 ---
 
 ### 3.1. Endpoints & REST Controllers
 
-#### 📌 `VehiclesController` (`/api/v1/vehicles`)
-* `POST /api/v1/vehicles`: Registra un nuevo vehículo en el catálogo telemático.
-* `GET /api/v1/vehicles`: Consulta vehículos por ID, VIN o placa.
-* `PUT /api/v1/vehicles/{vehicleId}`: Actualiza especificaciones del vehículo.
-* `DELETE /api/v1/vehicles/{vehicleId}`: Eliminación lógica (soft-delete).
+#### 📌 `VehiclesController` (`/api/v1/iot/vehicles`)
+* `GET /api/v1/iot/vehicles`: Consulta catálogo de vehículos disponibles para vinculación (filtros opcionales `branchId`, `customerId`).
+* `GET /api/v1/iot/vehicles/{vehicleId}`: Obtiene el detalle de un vehículo por su ID.
+* `POST /api/v1/iot/vehicles`: Registra un nuevo vehículo en el sistema.
+* `PUT /api/v1/iot/vehicles/{vehicleId}`: Actualiza las especificaciones técnicas de un vehículo.
+* `DELETE /api/v1/iot/vehicles/{vehicleId}`: Eliminación lógica del vehículo.
+* `GET /api/v1/iot/vehicles/{vehicleId}/telemetry/snapshots`: Consulta historial de capturas telemáticas con paginación (`page`, `size`).
+* `GET /api/v1/iot/vehicles/{vehicleId}/telemetry/dtc-alerts`: Consulta historial de alertas DTC de motor con paginación (`page`, `size`).
 
-#### 📌 `CustomerVehiclesController` (`/api/v1/customers/{customerId}/vehicles`)
-* `POST /api/v1/customers/{customerId}/vehicles`: Registra y vincula un vehículo a un cliente.
-* `GET /api/v1/customers/{customerId}/vehicles`: Consulta los vehículos propiedad de un cliente.
-* `DELETE /api/v1/customers/{customerId}/vehicles/{vehicleId}`: Desvincula la propiedad del vehículo.
+#### 📌 `CustomerVehiclesController` (`/api/v1/iot/customers/{customerId}/vehicles`)
+* `GET /api/v1/iot/customers/{customerId}/vehicles`: Consulta los vehículos activos pertenecientes a un cliente.
 
-#### 📌 `Obd2DevicesController` (`/api/v1/obd2-devices`)
-* `POST /api/v1/obd2-devices`: Registra un nuevo escáner OBD2 en una sucursal.
-* `GET /api/v1/obd2-devices?branchId={branchId}`: Lista escáneres asignados a una sucursal.
-* `PUT /api/v1/obd2-devices/{obd2DeviceId}`: Actualiza la dirección MAC del escáner.
-* `POST /api/v1/obd2-devices/{obd2DeviceId}/ping`: Registra el pulso de conexión (*heartbeat*).
+#### 📌 `Obd2DevicesController` (`/api/v1/iot/obd2-devices`)
+* `POST /api/v1/iot/obd2-devices`: Registra un nuevo escáner OBD2 en una sucursal.
+* `GET /api/v1/iot/obd2-devices/{id}`: Obtiene detalle del escáner por su ID.
+* `DELETE /api/v1/iot/obd2-devices/{id}`: Elimina un escáner OBD2.
+* `PUT /api/v1/iot/obd2-devices/{id}`: Actualiza la dirección MAC del escáner.
+* `GET /api/v1/iot/obd2-devices?branchId={branchId}&status={status}`: Lista escáneres por sucursal y estado.
+* `GET /api/v1/iot/obd2-devices/{id}/telemetry/latest`: Obtiene la última captura telemática transmitida por el dispositivo.
+* `GET /api/v1/iot/obd2-devices/{id}/telemetry/history`: Obtiene el historial telemático transmitido por el dispositivo.
 
-#### 📌 `TelemetryBatchesController` (`/api/v1/telemetry-batches`)
-* `POST /api/v1/telemetry-batches`: Ingesta remota de lote telemático procedente del escáner OBD2 (RPM, velocidad, temperatura y fallas DTC).
-* `GET /api/v1/telemetry-batches/{vehicleId}/latest`: Obtiene la última instantánea telemática del vehículo.
-* `GET /api/v1/telemetry-batches/{vehicleId}/alerts`: Obtiene el historial de alertas DTC de falla del vehículo.
+#### 📌 `Obd2DeviceRegistrationsController` (`/api/v1/iot/obd2-device-registrations`)
+* `POST /api/v1/iot/obd2-device-registrations`: Vincula un escáner OBD2 a un vehículo en una sucursal.
+* `PUT /api/v1/iot/obd2-device-registrations/{id}/status`: Desactiva/desvincula la registración activa.
+* `GET /api/v1/iot/obd2-device-registrations?branchId={branchId}&status={status}`: Lista registraciones por sucursal.
+* `GET /api/v1/iot/obd2-device-registrations/{id}/telemetry/snapshots`: Obtiene capturas telemáticas de la registración con paginación.
+* `GET /api/v1/iot/obd2-device-registrations/{id}/telemetry/dtc-alerts`: Obtiene alertas DTC registradas para el vehículo.
+
+#### 📌 `TelemetryBatchesController` (`/api/v1/iot/telemetry-batches`)
+* `POST /api/v1/iot/telemetry-batches`: Endpoint de ingesta masiva telemática usado por los dispositivos hardware OBD2.
 
 ---
 
 ## 4. Infrastructure Layer (Capa de Infraestructura)
 
-Mapeo relacional JPA a PostgreSQL 16 con soporte de eliminación lógica.
+Mapeo relacional JPA a PostgreSQL 16 con adaptadores de repositorio, ensambladores de persistencia y listeners de eventos de dominio.
 
 ```mermaid
 classDiagram
@@ -474,6 +567,15 @@ classDiagram
 
 ---
 
+### 4.2. Adapters & Infrastructure Components
+
+* **Persistence Adapters:** `VehicleRepositoryImpl`, `VehicleRegistrationRepositoryImpl`, `Obd2DeviceRepositoryImpl`, `Obd2DeviceRegistrationRepositoryImpl`, `TelemetrySnapshotRepositoryImpl`, `DtcAlertRepositoryImpl`.
+* **Assemblers de Persistencia:** `VehiclePersistenceAssembler`, `VehicleRegistrationPersistenceAssembler`, `Obd2DevicePersistenceAssembler`, `Obd2DeviceRegistrationPersistenceAssembler`, `TelemetrySnapshotPersistenceAssembler`, `DtcAlertPersistenceAssembler`.
+* **Outbound Services / Ports:** `CustomerDirectoryPortImpl` (ACL para validación de clientes en `Core`), `ActiveRegistrationContextServiceImpl` (resolución de contexto activo de escáner a vehículo).
+* **Event Listeners:** `DtcAlertEventListener` (escucha `DtcAlertTriggeredEvent` para notificaciones o integración con Órdenes de Trabajo).
+
+---
+
 ## 5. Software Architecture Component Level Diagrams (C4 Model - Level 3)
 
 Descomposición del Container API en sus componentes principales para el Bounded Context **IoT**.
@@ -490,33 +592,42 @@ graph TB
     end
 
     subgraph IoT_Container ["Container: Spring Boot REST API — IoT Bounded Context"]
-        VehiclesCtrl["VehiclesController<br><b>[Spring REST Controller]</b><br>Gestión de catálogo de vehículos."]
+        VehiclesCtrl["VehiclesController<br><b>[Spring REST Controller]</b><br>Gestión de catálogo de vehículos e historial telemático."]
+        CustVehCtrl["CustomerVehiclesController<br><b>[Spring REST Controller]</b><br>Consulta de vehículos por cliente."]
         Obd2DevicesCtrl["Obd2DevicesController<br><b>[Spring REST Controller]</b><br>Gestión e inventario de escáneres OBD2."]
-        TelemetryCtrl["TelemetryBatchesController<br><b>[Spring REST Controller]</b><br>Ingesta de lotes telemáticos de motor y alertas DTC."]
+        Obd2RegCtrl["Obd2DeviceRegistrationsController<br><b>[Spring REST Controller]</b><br>Emparejamiento de escáneres con vehículos."]
+        TelemetryCtrl["TelemetryBatchesController<br><b>[Spring REST Controller]</b><br>Ingesta de ráfagas telemáticas de motor."]
 
         VehicleCmdService["VehicleCommandService<br><b>[Application Service]</b>"]
-        TelemetryCmdService["TelemetryCommandService<br><b>[Application Service]</b><br>Procesamiento de telemetría y detonación de eventos DTC."]
+        TelemetryCmdService["TelemetryCommandService<br><b>[Application Service]</b><br>Procesamiento de telemetría y alertas DTC."]
+        Obd2DeviceCmdService["Obd2DeviceCommandService<br><b>[Application Service]</b>"]
 
-        VehicleRepoAdapter["VehicleRepositoryAdapter<br><b>[Infrastructure Adapter]</b>"]
-        TelemetryRepoAdapter["TelemetrySnapshotRepositoryAdapter<br><b>[Infrastructure Adapter]</b>"]
-        DtcRepoAdapter["DtcAlertRepositoryAdapter<br><b>[Infrastructure Adapter]</b>"]
+        VehicleRepoAdapter["VehicleRepositoryImpl<br><b>[Infrastructure Adapter]</b>"]
+        TelemetryRepoAdapter["TelemetrySnapshotRepositoryImpl<br><b>[Infrastructure Adapter]</b>"]
+        DtcRepoAdapter["DtcAlertRepositoryImpl<br><b>[Infrastructure Adapter]</b>"]
+        Obd2RepoAdapter["Obd2DeviceRepositoryImpl<br><b>[Infrastructure Adapter]</b>"]
     end
 
     Obd2Hardware -->|"HTTP REST / JSON"| TelemetryCtrl
     ClientApp -->|"HTTPS / REST"| VehiclesCtrl
+    ClientApp -->|"HTTPS / REST"| CustVehCtrl
     ClientApp -->|"HTTPS / REST"| Obd2DevicesCtrl
+    ClientApp -->|"HTTPS / REST"| Obd2RegCtrl
     ClientApp -->|"HTTPS / REST"| TelemetryCtrl
 
     VehiclesCtrl --> VehicleCmdService
+    Obd2DevicesCtrl --> Obd2DeviceCmdService
     TelemetryCtrl --> TelemetryCmdService
 
     VehicleCmdService --> VehicleRepoAdapter
+    Obd2DeviceCmdService --> Obd2RepoAdapter
     TelemetryCmdService --> TelemetryRepoAdapter
     TelemetryCmdService --> DtcRepoAdapter
 
     VehicleRepoAdapter --> PostgreSql
     TelemetryRepoAdapter --> PostgreSql
     DtcRepoAdapter --> PostgreSql
+    Obd2RepoAdapter --> PostgreSql
 ```
 
 ---
