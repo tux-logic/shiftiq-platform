@@ -237,10 +237,10 @@ classDiagram
 * 🟦 **`CreateAppointmentCommand(BranchId branchId, CustomerId customerId, VehicleId vehicleId, LocalDateTime scheduledStart, AppointmentSummary notes)`**
 * 🟦 **`UpdateAppointmentCommand(UUID appointmentId, BranchId branchId, CustomerId customerId, VehicleId vehicleId, LocalDateTime scheduledStart, AppointmentStatus status, AppointmentSummary notes)`**
 * 🟦 **`DeleteAppointmentCommand(UUID appointmentId)`**
-* 🟦 **`CreateCustomerRegistrationCommand(UUID customerId, BranchId branchId)`**
+* 🟦 **`CreateCustomerRegistrationCommand(CustomerId customerId, BranchId branchId)`**
 * 🟦 **`UpdateCustomerRegistrationCommand(UUID registrationId, CustomerRegistrationStatus status)`**
 * 🟦 **`DeleteCustomerRegistrationCommand(UUID registrationId)`**
-* 🟦 **`CreateEmployeeRegistrationCommand(UUID employeeId, BranchId branchId, String speciality, String specialityName, BigDecimal salary)`**
+* 🟦 **`CreateEmployeeRegistrationCommand(EmployeeId employeeId, BranchId branchId, String speciality, String specialityName, BigDecimal salary)`**
 * 🟦 **`UpdateEmployeeRegistrationCommand(EmployeeId registrationId, String speciality, String specialityName, BigDecimal salary)`**
 * 🟦 **`DeleteEmployeeRegistrationCommand(EmployeeId registrationId)`**
 
