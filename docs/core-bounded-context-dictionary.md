@@ -20,10 +20,6 @@ classDiagram
         -String businessName
         -Document document
         -Phone phone
-        -Instant createdAt
-        -Instant updatedAt
-        -Instant deletedAt
-        -Long version
         +Customer(UserId, boolean, PersonName, String, Document, Phone)
         +update(PersonName, String, Document, Phone) void
     }
@@ -34,10 +30,6 @@ classDiagram
         -PersonName name
         -Document document
         -Phone phone
-        -Instant createdAt
-        -Instant updatedAt
-        -Instant deletedAt
-        -Long version
         +Employee(UserId, PersonName, Document, Phone)
         +update(PersonName, Document, Phone) void
     }
@@ -48,10 +40,6 @@ classDiagram
         -PersonName name
         -Document document
         -Phone phone
-        -Instant createdAt
-        -Instant updatedAt
-        -Instant deletedAt
-        -Long version
         +Owner(UserId, PersonName, Document, Phone)
         +update(PersonName, Document, Phone) void
     }
@@ -63,10 +51,6 @@ classDiagram
         -String brandName
         -TaxId taxId
         -MileageIntervalConfig mileageIntervalConfig
-        -Instant createdAt
-        -Instant updatedAt
-        -Instant deletedAt
-        -Long version
         +Workshop(OwnerId, String, String, TaxId, MileageIntervalConfig)
         +update(String, String, TaxId, MileageIntervalConfig) void
     }
@@ -78,12 +62,8 @@ classDiagram
         -String name
         -Address address
         -Phone phone
-        -Instant createdAt
-        -Instant updatedAt
-        -Instant deletedAt
         -UUID createdBy
         -UUID updatedBy
-        -Long version
         +Branch(WorkshopId, String, String, Address, Phone)
         +update(String, String, Address, Phone) void
     }
@@ -155,7 +135,6 @@ classDiagram
         ACTIVE
         CANCELED
         EXPIRED
-        SUSPENDED
     }
 
     class BillingCycle {
@@ -209,7 +188,7 @@ classDiagram
 * **Validaciones:** Debe ser exacto de 11 dígitos numéricos (`core.error.taxId.invalid`).
 
 #### 📌 Record: `CreditCard(String cardNumber, String cardHolderName, String expirationDate, String cvv)`
-* **Propósito:** Tarjeta de crédito/débito para el cobro de suscripciones.
+* **Propósito:** Tarjeta de crédito/débito para el cobro simulado de suscripciones.
 * **Validaciones:**
   * `cardNumber`: 16 dígitos numéricos (`core.error.cardNumber.invalid`).
   * `cardHolderName`: no en blanco (`core.error.cardHolderName.required`).
@@ -227,7 +206,7 @@ classDiagram
 * Valores: `DNI`, `RUC`, `CE`, `PASSPORT`.
 
 #### 📌 Enum: `SubscriptionStatus`
-* Valores: `ACTIVE`, `CANCELED`, `EXPIRED`, `SUSPENDED`.
+* Valores: `ACTIVE`, `CANCELED`, `EXPIRED`.
 
 #### 📌 Enum: `BillingCycle`
 * Valores: `MONTHLY`, `ANNUAL`.
@@ -237,7 +216,7 @@ classDiagram
 ### 1.2. Aggregates (Raíces de Agregado)
 
 #### 📌 Aggregate: `Customer`
-* **Hereda de:** `AbstractDomainAggregateRoot<Customer>`
+* **Hereda de:** `AbstractDomainAggregateRoot<Customer>` (obtiene `createdAt`, `updatedAt`, `deletedAt`, `version`).
 * **Propósito:** Agregado para clientes del sistema. Puede ser persona natural (`isCorporate = false`) o persona jurídica (`isCorporate = true`).
 * **Reglas de Negocio:**
   * Si es corporativo (`isCorporate = true`), `businessName` es obligatorio (`core.error.businessName.required`).
@@ -281,38 +260,48 @@ classDiagram
 ### 1.3. Domain Repositories (Interfaces)
 
 * `CustomerRepository`:
-  * `void save(Customer customer)`
+  * `Customer save(Customer customer)`
   * `Optional<Customer> findById(CustomerId id)`
   * `Optional<Customer> findByUserId(UserId userId)`
-  * `Optional<Customer> findByDocument(Document document)`
-  * `boolean existsByDocument(Document document)`
-  * `void delete(CustomerId id)`
+  * `boolean existsByUserId(UserId userId)`
+  * `Optional<Customer> findByDocumentNumber(String documentNumber)`
+  * `List<String> findProfileRolesByUserId(UserId userId)`
+  * `void delete(Customer customer)`
 * `EmployeeRepository`:
-  * `void save(Employee employee)`
+  * `Employee save(Employee employee)`
   * `Optional<Employee> findById(EmployeeId id)`
   * `Optional<Employee> findByUserId(UserId userId)`
-  * `Optional<Employee> findByDocument(Document document)`
-  * `void delete(EmployeeId id)`
+  * `boolean existsByUserId(UserId userId)`
+  * `Optional<Employee> findByDocumentNumber(String documentNumber)`
+  * `void delete(Employee employee)`
 * `OwnerRepository`:
-  * `void save(Owner owner)`
+  * `Owner save(Owner owner)`
   * `Optional<Owner> findById(OwnerId id)`
   * `Optional<Owner> findByUserId(UserId userId)`
-  * `Optional<Owner> findByDocument(Document document)`
-  * `void delete(OwnerId id)`
+  * `boolean existsById(OwnerId id)`
+  * `boolean existsByUserId(UserId userId)`
+  * `Optional<Owner> findByDocumentNumber(String documentNumber)`
+  * `void delete(Owner owner)`
 * `WorkshopRepository`:
-  * `void save(Workshop workshop)`
+  * `Workshop save(Workshop workshop)`
   * `Optional<Workshop> findById(WorkshopId id)`
   * `List<Workshop> findAllByOwnerId(OwnerId ownerId)`
+  * `boolean existsById(WorkshopId id)`
 * `BranchRepository`:
-  * `void save(Branch branch)`
+  * `Branch save(Branch branch)`
   * `Optional<Branch> findById(BranchId id)`
   * `List<Branch> findAllByWorkshopId(WorkshopId workshopId)`
-  * `void delete(BranchId id)`
+  * `boolean existsById(BranchId id)`
+  * `boolean existsByCode(String code)`
 * `BranchSubscriptionRepository`:
-  * `void save(BranchSubscription subscription)`
-  * `Optional<BranchSubscription> findByBranchId(BranchId branchId)`
+  * `BranchSubscription save(BranchSubscription branchSubscription)`
+  * `Optional<BranchSubscription> findById(BranchSubscriptionId id)`
+  * `List<BranchSubscription> findAllByBranchId(BranchId branchId)`
+  * `Optional<BranchSubscription> findActiveByBranchId(BranchId branchId)`
 * `SubscriptionPlanRepository`:
+  * `SubscriptionPlan save(SubscriptionPlan subscriptionPlan)`
   * `Optional<SubscriptionPlan> findById(SubscriptionPlanId id)`
+  * `Optional<SubscriptionPlan> findByName(String name)`
   * `List<SubscriptionPlan> findAll()`
 
 ---
@@ -338,11 +327,31 @@ classDiagram
         +handle(GetCustomerByUserIdQuery) Optional~Customer~
     }
 
+    class EmployeeCommandService {
+        <<Interface>>
+        +handle(CreateEmployeeCommand) Optional~Employee~
+        +handle(UpdateEmployeeCommand) Optional~Employee~
+        +handle(DeleteEmployeeCommand) void
+    }
+
+    class EmployeeQueryService {
+        <<Interface>>
+        +handle(GetEmployeeByIdQuery) Optional~Employee~
+        +handle(GetEmployeeByUserIdQuery) Optional~Employee~
+        +handle(GetEmployeeByDocumentNumberQuery) Optional~Employee~
+    }
+
     class OwnerCommandService {
         <<Interface>>
         +handle(CreateOwnerCommand) Optional~Owner~
         +handle(UpdateOwnerCommand) Optional~Owner~
         +handle(DeleteOwnerCommand) void
+    }
+
+    class OwnerQueryService {
+        <<Interface>>
+        +handle(GetOwnerByIdQuery) Optional~Owner~
+        +handle(GetOwnerByUserIdQuery) Optional~Owner~
     }
 
     class WorkshopCommandService {
@@ -355,13 +364,12 @@ classDiagram
         <<Interface>>
         +handle(CreateBranchCommand) Optional~Branch~
         +handle(UpdateBranchCommand) Optional~Branch~
-        +handle(DeleteBranchCommand) void
     }
 
     class SubscriptionCommandService {
         <<Interface>>
         +handle(AssignSubscriptionCommand) Optional~BranchSubscription~
-        +handle(CancelSubscriptionCommand) void
+        +handle(CancelSubscriptionCommand) Optional~BranchSubscription~
     }
 
     class ProfileQueryService {
@@ -372,7 +380,10 @@ classDiagram
 
     CustomerCommandServiceImpl ..|> CustomerCommandService
     CustomerQueryServiceImpl ..|> CustomerQueryService
+    EmployeeCommandServiceImpl ..|> EmployeeCommandService
+    EmployeeQueryServiceImpl ..|> EmployeeQueryService
     OwnerCommandServiceImpl ..|> OwnerCommandService
+    OwnerQueryServiceImpl ..|> OwnerQueryService
     WorkshopCommandServiceImpl ..|> WorkshopCommandService
     BranchCommandServiceImpl ..|> BranchCommandService
     SubscriptionCommandServiceImpl ..|> SubscriptionCommandService
@@ -400,7 +411,7 @@ classDiagram
 * 🟦 **`AssignSubscriptionCommand(BranchId branchId, SubscriptionPlanId planId, BillingCycle billingCycle, CreditCard creditCard)`**
 * 🟦 **`CancelSubscriptionCommand(BranchId branchId)`**
 
-#### Queries
+#### Queries & Responses
 * 🟩 **`GetCustomerByIdQuery(CustomerId customerId)`**
 * 🟩 **`GetCustomerByUserIdQuery(UserId userId)`**
 * 🟩 **`GetEmployeeByIdQuery(EmployeeId employeeId)`**
@@ -414,7 +425,7 @@ classDiagram
 * 🟩 **`GetAllBranchesByWorkshopIdQuery(WorkshopId workshopId)`**
 * 🟩 **`GetProfileRolesByUserIdQuery(UserId userId)`**
 * 🟩 **`GetProfileByDocumentNumberQuery(String documentNumber)`**
-* 🟩 **`ProfileSummary(UUID userId, String fullName, String documentNumber, String role)`**
+* 🟩 **`ProfileSummary(UUID profileId, UUID userId, String firstName, String lastName, String documentType, String documentNumber, String profileType)`**
 
 ---
 
@@ -467,13 +478,18 @@ classDiagram
         +updateBranch(UUID branchId, UpdateBranchResource) ResponseEntity~BranchResource~
         +getBranchById(UUID branchId) ResponseEntity~BranchResource~
         +getBranchesByWorkshopId(UUID workshopId) ResponseEntity~List~BranchResource~~
-        +deleteBranch(UUID branchId) ResponseEntity~?~
         +assignSubscription(UUID branchId, AssignSubscriptionResource) ResponseEntity~BranchSubscriptionResource~
-        +cancelSubscription(UUID branchId) ResponseEntity~?~
+        +cancelSubscription(UUID branchId) ResponseEntity~Void~
+    }
+
+    class OwnerQueryService {
+        <<Interface>>
     }
 
     CustomersController --> CustomerCommandService
     CustomersController --> CustomerQueryService
+    EmployeesController --> EmployeeCommandService
+    EmployeesController --> EmployeeQueryService
     OwnersController --> OwnerCommandService
     OwnersController --> OwnerQueryService
     WorkshopsController --> WorkshopCommandService
@@ -522,7 +538,6 @@ classDiagram
 * `GET /api/v1/branches?workshopId={workshopId}`: Lista las sucursales de un taller.
 * `GET /api/v1/branches/{branchId}`: Consulta una sucursal específica.
 * `PUT /api/v1/branches/{branchId}`: Actualiza datos de la sucursal.
-* `DELETE /api/v1/branches/{branchId}`: Eliminación lógica de la sucursal.
 * `POST /api/v1/branches/{branchId}/subscriptions`: Asigna/paga un plan de suscripción para la sucursal.
 * `DELETE /api/v1/branches/{branchId}/subscription`: Cancela la suscripción activa de la sucursal.
 
@@ -544,6 +559,21 @@ classDiagram
         -String firstName
         -String lastName
         -String businessName
+        -String documentType
+        -String documentNumber
+        -String phone
+        -Instant createdAt
+        -Instant updatedAt
+        -Instant deletedAt
+        -Long version
+    }
+
+    class EmployeePersistenceEntity {
+        <<JPA Entity>>
+        -UUID id
+        -UUID userId
+        -String firstName
+        -String lastName
         -String documentType
         -String documentNumber
         -String phone
@@ -635,6 +665,7 @@ classDiagram
     }
 
     AuditableAbstractPersistenceEntity <|-- CustomerPersistenceEntity
+    AuditableAbstractPersistenceEntity <|-- EmployeePersistenceEntity
     AuditableAbstractPersistenceEntity <|-- OwnerPersistenceEntity
     AuditableAbstractPersistenceEntity <|-- WorkshopPersistenceEntity
     AuditableAbstractPersistenceEntity <|-- BranchPersistenceEntity
@@ -689,25 +720,30 @@ graph TB
     subgraph Core_Container ["Container: Spring Boot REST API — Core Bounded Context"]
         ProfilesCtrl["ProfilesController<br><b>[Spring REST Controller]</b><br>Búsqueda rápida por DNI/RUC y resolución de roles operacionales."]
         CustomersCtrl["CustomersController<br><b>[Spring REST Controller]</b><br>Gestión CRUD de clientes (natural / corporativo)."]
+        EmployeesCtrl["EmployeesController<br><b>[Spring REST Controller]</b><br>Gestión CRUD de empleados."]
         OwnersCtrl["OwnersController<br><b>[Spring REST Controller]</b><br>Gestión CRUD de propietarios."]
         WorkshopsCtrl["WorkshopsController<br><b>[Spring REST Controller]</b><br>Gestión de talleres automotrices."]
         BranchesCtrl["BranchesController<br><b>[Spring REST Controller]</b><br>Gestión de sucursales y suscripciones de pago."]
 
-        UserSecService["MultiTenancySecurityService<br><b>[Security Component]</b><br>Verifica autorización multi-tenant e identidad del token JWT."]
+        MultiTenancySecService["MultiTenancySecurityService<br><b>[Security Component]</b><br>Verifica autorización multi-tenant e identidad del token JWT."]
 
         CustCmdService["CustomerCommandService<br><b>[Application Service]</b><br>Orquesta registro y mutación de clientes."]
+        EmpCmdService["EmployeeCommandService<br><b>[Application Service]</b><br>Orquesta registro y mutación de empleados."]
         OwnerCmdService["OwnerCommandService<br><b>[Application Service]</b><br>Orquesta registro y mutación de propietarios."]
         WorkCmdService["WorkshopCommandService<br><b>[Application Service]</b><br>Orquesta creación y mantenimiento de talleres."]
+        WorkQueryService["WorkshopQueryService<br><b>[Application Service]</b><br>Consultas de talleres por dueño o ID."]
         BranchCmdService["BranchCommandService<br><b>[Application Service]</b><br>Orquesta sucursales del taller."]
         SubCmdService["SubscriptionCommandService<br><b>[Application Service]</b><br>Orquesta la asignación y cobro simulado de planes."]
 
         CustRepoAdapter["CustomerRepositoryImpl<br><b>[Infrastructure Adapter]</b><br>Persistencia JPA y emisión de eventos de clientes."]
+        EmpRepoAdapter["EmployeeRepositoryImpl<br><b>[Infrastructure Adapter]</b><br>Persistencia JPA de empleados."]
         OwnerRepoAdapter["OwnerRepositoryImpl<br><b>[Infrastructure Adapter]</b><br>Persistencia JPA de propietarios."]
         WorkRepoAdapter["WorkshopRepositoryImpl<br><b>[Infrastructure Adapter]</b><br>Persistencia JPA de talleres."]
         BranchRepoAdapter["BranchRepositoryImpl<br><b>[Infrastructure Adapter]</b><br>Persistencia JPA de sucursales."]
         SubRepoAdapter["BranchSubscriptionRepositoryImpl<br><b>[Infrastructure Adapter]</b><br>Persistencia JPA de suscripciones."]
 
         CustJpaRepo["CustomerPersistenceRepository<br><b>[Spring Data JPA]</b>"]
+        EmpJpaRepo["EmployeePersistenceRepository<br><b>[Spring Data JPA]</b>"]
         OwnerJpaRepo["OwnerPersistenceRepository<br><b>[Spring Data JPA]</b>"]
         WorkJpaRepo["WorkshopPersistenceRepository<br><b>[Spring Data JPA]</b>"]
         BranchJpaRepo["BranchPersistenceRepository<br><b>[Spring Data JPA]</b>"]
@@ -716,35 +752,42 @@ graph TB
 
     ClientApp -->|"HTTPS / REST"| ProfilesCtrl
     ClientApp -->|"HTTPS / REST"| CustomersCtrl
+    ClientApp -->|"HTTPS / REST"| EmployeesCtrl
     ClientApp -->|"HTTPS / REST"| OwnersCtrl
     ClientApp -->|"HTTPS / REST"| WorkshopsCtrl
     ClientApp -->|"HTTPS / REST"| BranchesCtrl
 
-    CustomersCtrl --> UserSecService
-    OwnersCtrl --> UserSecService
-    WorkshopsCtrl --> UserSecService
-    BranchesCtrl --> UserSecService
+    CustomersCtrl --> MultiTenancySecService
+    EmployeesCtrl --> MultiTenancySecService
+    OwnersCtrl --> MultiTenancySecService
+    WorkshopsCtrl --> MultiTenancySecService
+    BranchesCtrl --> MultiTenancySecService
 
     CustomersCtrl --> CustCmdService
+    EmployeesCtrl --> EmpCmdService
     OwnersCtrl --> OwnerCmdService
     WorkshopsCtrl --> WorkCmdService
-    WorkshopsCtrl --> WorkRepoAdapter
+    WorkshopsCtrl --> WorkQueryService
     BranchesCtrl --> BranchCmdService
     BranchesCtrl --> SubCmdService
 
     CustCmdService --> CustRepoAdapter
+    EmpCmdService --> EmpRepoAdapter
     OwnerCmdService --> OwnerRepoAdapter
     WorkCmdService --> WorkRepoAdapter
+    WorkQueryService --> WorkRepoAdapter
     BranchCmdService --> BranchRepoAdapter
     SubCmdService --> SubRepoAdapter
 
     CustRepoAdapter --> CustJpaRepo
+    EmpRepoAdapter --> EmpJpaRepo
     OwnerRepoAdapter --> OwnerJpaRepo
     WorkRepoAdapter --> WorkJpaRepo
     BranchRepoAdapter --> BranchJpaRepo
     SubRepoAdapter --> SubJpaRepo
 
     CustJpaRepo --> PostgreSql
+    EmpJpaRepo --> PostgreSql
     OwnerJpaRepo --> PostgreSql
     WorkJpaRepo --> PostgreSql
     BranchJpaRepo --> PostgreSql
@@ -769,11 +812,16 @@ classDiagram
         -String businessName
         -Document document
         -Phone phone
-        -Instant createdAt
-        -Instant updatedAt
-        -Instant deletedAt
-        -Long version
         +update(PersonName, String, Document, Phone) void
+    }
+
+    class Employee {
+        -EmployeeId id
+        -UserId userId
+        -PersonName name
+        -Document document
+        -Phone phone
+        +update(PersonName, Document, Phone) void
     }
 
     class Owner {
@@ -782,10 +830,6 @@ classDiagram
         -PersonName name
         -Document document
         -Phone phone
-        -Instant createdAt
-        -Instant updatedAt
-        -Instant deletedAt
-        -Long version
         +update(PersonName, Document, Phone) void
     }
 
@@ -796,10 +840,6 @@ classDiagram
         -String brandName
         -TaxId taxId
         -MileageIntervalConfig mileageIntervalConfig
-        -Instant createdAt
-        -Instant updatedAt
-        -Instant deletedAt
-        -Long version
         +update(String, String, TaxId, MileageIntervalConfig) void
     }
 
@@ -810,12 +850,8 @@ classDiagram
         -String name
         -Address address
         -Phone phone
-        -Instant createdAt
-        -Instant updatedAt
-        -Instant deletedAt
         -UUID createdBy
         -UUID updatedBy
-        -Long version
         +update(String, String, Address, Phone) void
     }
 
