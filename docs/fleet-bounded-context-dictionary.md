@@ -150,6 +150,8 @@ classDiagram
   * `Optional<Appointment> findById(UUID appointmentId)`
   * `boolean existsById(UUID appointmentId)`
   * `void deleteById(UUID appointmentId)`
+  * `boolean existsByScheduledStartLessThanAndScheduledEndGreaterThan(LocalDateTime scheduledEnd, LocalDateTime scheduledStart)`
+  * `boolean existsByIdNotAndScheduledStartLessThanAndScheduledEndGreaterThan(UUID appointmentId, LocalDateTime scheduledEnd, LocalDateTime scheduledStart)`
   * `List<Appointment> findByBranchId(BranchId branchId)`
   * `List<Appointment> findByCustomerId(CustomerId customerId)`
   * `List<Appointment> findByVehicleId(VehicleId vehicleId)`
@@ -190,11 +192,11 @@ classDiagram
 
     class AppointmentQueryService {
         <<Interface>>
-        +handle(UUID) Result~Appointment, AppointmentQueryFailure~
-        +handle(BranchId) Result~List~Appointment~, AppointmentQueryFailure~
-        +handle(BranchId, AppointmentStatus) Result~List~Appointment~, AppointmentQueryFailure~
-        +handle(CustomerId) Result~List~Appointment~, AppointmentQueryFailure~
-        +handle(VehicleId) Result~List~Appointment~, AppointmentQueryFailure~
+        +handle(UUID appointmentId) Result~Appointment, AppointmentQueryFailure~
+        +handle(BranchId branchId) Result~List~Appointment~, AppointmentQueryFailure~
+        +handle(BranchId branchId, AppointmentStatus status) Result~List~Appointment~, AppointmentQueryFailure~
+        +handle(CustomerId customerId) Result~List~Appointment~, AppointmentQueryFailure~
+        +handle(VehicleId vehicleId) Result~List~Appointment~, AppointmentQueryFailure~
     }
 
     class CustomerRegistrationCommandService {
@@ -215,7 +217,7 @@ classDiagram
         <<Interface>>
         +handle(CreateEmployeeRegistrationCommand) Result~EmployeeRegistration, EmployeeRegistrationCommandFailure~
         +handle(UpdateEmployeeRegistrationCommand) Result~EmployeeRegistration, EmployeeRegistrationCommandFailure~
-        +handle(DeleteEmployeeRegistrationCommand) Result~EmployeeId, EmployeeRegistrationCommandFailure~
+        +handle(DeleteEmployeeRegistrationCommand) Result~EmployeeRegistration, EmployeeRegistrationCommandFailure~
     }
 
     class EmployeeRegistrationQueryService {
@@ -243,9 +245,7 @@ classDiagram
 * 🟦 **`DeleteEmployeeRegistrationCommand(EmployeeId registrationId)`**
 
 #### Queries
-* 🟩 **`GetAppointmentByIdQuery(UUID appointmentId)`**
-* 🟩 **`GetAppointmentsByBranchIdQuery(BranchId branchId)`**
-* 🟩 **`GetAppointmentsByBranchIdAndStatusQuery(BranchId branchId, AppointmentStatus status)`**
+* 🟩 *(AppointmentQueryService opera directamente con parámetros sobrecargados `UUID appointmentId`, `BranchId branchId`, `CustomerId customerId`, `VehicleId vehicleId` y `AppointmentStatus status`)*
 * 🟩 **`GetCustomerRegistrationByIdQuery(UUID registrationId)`**
 * 🟩 **`GetCustomerRegistrationByCustomerIdQuery(UUID customerId)`**
 * 🟩 **`GetCustomerRegistrationsByBranchIdAndStatusQuery(BranchId branchId, CustomerRegistrationStatus status)`**
