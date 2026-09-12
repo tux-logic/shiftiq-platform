@@ -216,7 +216,7 @@ classDiagram
 ### 1.2. Aggregates (Raíces de Agregado)
 
 #### 📌 Aggregate: `Customer`
-* **Hereda de:** `AbstractDomainAggregateRoot<Customer>` (obtiene `createdAt`, `updatedAt`, `deletedAt`, `version`).
+* **Hereda de:** `AbstractDomainAggregateRoot<Customer>` (provee soporte para registro y publicación de eventos de dominio).
 * **Propósito:** Agregado para clientes del sistema. Puede ser persona natural (`isCorporate = false`) o persona jurídica (`isCorporate = true`).
 * **Reglas de Negocio:**
   * Si es corporativo (`isCorporate = true`), `businessName` es obligatorio (`core.error.businessName.required`).
@@ -455,6 +455,7 @@ classDiagram
         +updateEmployee(UUID employeeId, UpdateEmployeeResource) ResponseEntity~EmployeeResource~
         +getEmployeeById(UUID employeeId) ResponseEntity~EmployeeResource~
         +getEmployeeByUserId(UUID userId) ResponseEntity~EmployeeResource~
+        +getEmployeeByDocumentNumber(String documentNumber) ResponseEntity~EmployeeResource~
         +deleteEmployee(UUID employeeId) ResponseEntity~?~
     }
 
@@ -516,6 +517,7 @@ classDiagram
 #### 📌 `EmployeesController` (`/api/v1/employees`)
 * `POST /api/v1/employees`: Registra perfil de empleado.
 * `GET /api/v1/employees?userId={userId}`: Obtiene el perfil por `userId`.
+* `GET /api/v1/employees?documentNumber={documentNumber}`: Obtiene el perfil del empleado por número de documento (DNI/RUC).
 * `GET /api/v1/employees/{employeeId}`: Consulta detalles del empleado.
 * `PUT /api/v1/employees/{employeeId}`: Actualiza datos del empleado.
 * `DELETE /api/v1/employees/{employeeId}`: Eliminación lógica del empleado.
