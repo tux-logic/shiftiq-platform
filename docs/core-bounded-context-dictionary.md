@@ -6,7 +6,7 @@ El **Bounded Context `Core`** constituye el núcleo relacional y organizacional 
 
 ## 1. Domain Layer (Capa de Dominio)
 
-La Capa de Dominio define el modelo de negocio inmutable, encapsulando reglas de validación, agregados principales, objetos de valor (Value Objects), fábricas (Factories / Métodos de Creación), servicios de dominio (`CoreDomainValidationService`), eventos de dominio e interfaces de repositorios agnósticas a la tecnología de persistencia.
+La Capa de Dominio define el modelo de negocio inmutable, encapsulando reglas de validación, agregados principales, objetos de valor (Value Objects), métodos de creación (fábricas / constructores), eventos de dominio e interfaces de repositorios agnósticas a la tecnología de persistencia.
 
 ```mermaid
 classDiagram
@@ -360,10 +360,22 @@ classDiagram
         +handle(UpdateWorkshopCommand) Optional~Workshop~
     }
 
+    class WorkshopQueryService {
+        <<Interface>>
+        +handle(GetWorkshopByIdQuery) Optional~Workshop~
+        +handle(GetAllWorkshopsByOwnerIdQuery) List~Workshop~
+    }
+
     class BranchCommandService {
         <<Interface>>
         +handle(CreateBranchCommand) Optional~Branch~
         +handle(UpdateBranchCommand) Optional~Branch~
+    }
+
+    class BranchQueryService {
+        <<Interface>>
+        +handle(GetBranchByIdQuery) Optional~Branch~
+        +handle(GetAllBranchesByWorkshopIdQuery) List~Branch~
     }
 
     class SubscriptionCommandService {
@@ -385,7 +397,9 @@ classDiagram
     OwnerCommandServiceImpl ..|> OwnerCommandService
     OwnerQueryServiceImpl ..|> OwnerQueryService
     WorkshopCommandServiceImpl ..|> WorkshopCommandService
+    WorkshopQueryServiceImpl ..|> WorkshopQueryService
     BranchCommandServiceImpl ..|> BranchCommandService
+    BranchQueryServiceImpl ..|> BranchQueryService
     SubscriptionCommandServiceImpl ..|> SubscriptionCommandService
     ProfileQueryServiceImpl ..|> ProfileQueryService
 ```
@@ -877,7 +891,7 @@ classDiagram
     }
 
     class Branch {
-        <<Entity>>
+        <<Aggregate Root>>
         -BranchId id
         -WorkshopId workshopId
         -String code
@@ -897,7 +911,7 @@ classDiagram
     }
 
     class BranchSubscription {
-        <<Entity>>
+        <<Aggregate Root>>
         -BranchSubscriptionId id
         -BranchId branchId
         -SubscriptionPlanId planId
@@ -916,7 +930,7 @@ classDiagram
     }
 
     class SubscriptionPlan {
-        <<Entity>>
+        <<Aggregate Root>>
         -SubscriptionPlanId id
         -String name
         -double monthlyPrice
@@ -989,11 +1003,8 @@ classDiagram
 
     class Address {
         <<Value Object>>
-        -String street
-        -String city
-        -String state
-        -String country
-        -String zipCode
+        -String value
+        +value() String
     }
 
     class DocumentType {
@@ -1169,14 +1180,5 @@ erDiagram
         boolean is_active "NOT NULL"
         timestamp deleted_at "NULLABLE (Soft Delete)"
         bigint version "NOT NULL"
-    }
-```onthly_price
-        integer max_obd2_devices
-        integer max_monthly_snapshots_per_vehicle
-        integer max_customers
-        integer max_staff_accounts
-        boolean is_active
-        timestamp deleted_at
-        bigint version
     }
 ```
