@@ -6,7 +6,7 @@ El **Bounded Context `Fleet`** administra las citas programadas de atención mec
 
 ## 1. Domain Layer (Capa de Dominio)
 
-La Capa de Dominio define las reglas de agendamiento de citas mecánicas, duraciones estimadas predeterminadas (1 hora), métodos **Factory** para instanciación de agregados, validaciones de solapamiento de horarios mediante `FleetDomainService` y la adscripción de clientes y empleados a las sedes activas del taller.
+La Capa de Dominio define las reglas de agendamiento de citas mecánicas, duraciones estimadas predeterminadas (1 hora), métodos **Factory** para instanciación de agregados, validaciones de solapamiento de horarios en la capa de aplicación y la adscripción de clientes y empleados a las sedes activas del taller.
 
 ```mermaid
 classDiagram
@@ -208,9 +208,10 @@ classDiagram
 
     class CustomerRegistrationQueryService {
         <<Interface>>
-        +handle(GetCustomerRegistrationByIdQuery) Result~CustomerRegistration, CustomerRegistrationQueryFailure~
+        +handle(BranchId) Result~List~CustomerRegistration~, CustomerRegistrationQueryFailure~
+        +handle(BranchId, CustomerRegistrationStatus) Result~List~CustomerRegistration~, CustomerRegistrationQueryFailure~
+        +handle(UUID registrationId) Result~CustomerRegistration, CustomerRegistrationQueryFailure~
         +handle(GetCustomerRegistrationByCustomerIdQuery) Result~CustomerRegistration, CustomerRegistrationQueryFailure~
-        +handle(GetCustomerRegistrationsByBranchIdAndStatusQuery) Result~List~CustomerRegistration~, CustomerRegistrationQueryFailure~
     }
 
     class EmployeeRegistrationCommandService {
@@ -246,9 +247,8 @@ classDiagram
 
 #### Queries
 * 🟩 *(AppointmentQueryService opera directamente con parámetros sobrecargados `UUID appointmentId`, `BranchId branchId`, `CustomerId customerId`, `VehicleId vehicleId` y `AppointmentStatus status`)*
-* 🟩 **`GetCustomerRegistrationByIdQuery(UUID registrationId)`**
+* 🟩 *(CustomerRegistrationQueryService opera con parámetros sobrecargados `BranchId branchId`, `CustomerRegistrationStatus status`, `UUID registrationId` y la query `GetCustomerRegistrationByCustomerIdQuery`)*
 * 🟩 **`GetCustomerRegistrationByCustomerIdQuery(UUID customerId)`**
-* 🟩 **`GetCustomerRegistrationsByBranchIdAndStatusQuery(BranchId branchId, CustomerRegistrationStatus status)`**
 * 🟩 **`GetEmployeeRegistrationByIdQuery(EmployeeId registrationId)`**
 * 🟩 **`GetEmployeeRegistrationByEmployeeIdQuery(UUID employeeId)`**
 * 🟩 **`GetEmployeeRegistrationsByBranchIdQuery(BranchId branchId)`**
@@ -317,7 +317,7 @@ classDiagram
 
 #### 📌 `CustomerRegistrationsController` (`/api/v1/customer-registrations`)
 * `POST /api/v1/customer-registrations`: Vincula a un cliente con una sucursal.
-* `GET /api/v1/customer-registrations/customer/{customerId}`: Obtiene el registro de un cliente.
+* `GET /api/v1/customer-registrations?customerId={customerId}`: Obtiene el registro de un cliente por su ID.
 * `GET /api/v1/customer-registrations?branchId={branchId}&status={status}`: Obtiene registros por sucursal y estado.
 * `PUT /api/v1/customer-registrations/{id}`: Actualiza el estado del registro.
 * `DELETE /api/v1/customer-registrations/{id}`: Desactiva el registro de un cliente.
@@ -326,7 +326,7 @@ classDiagram
 * `POST /api/v1/employee-registrations`: Adscribe a un empleado técnico a una sucursal.
 * `GET /api/v1/employee-registrations?branchId={branchId}&status={status}`: Consulta lista de empleados técnicos adscritos.
 * `GET /api/v1/employee-registrations/{id}`: Obtiene registro por ID.
-* `GET /api/v1/employee-registrations/employee/{employeeId}`: Obtiene registro por ID de empleado.
+* `GET /api/v1/employee-registrations?employeeId={employeeId}`: Obtiene registro por ID de empleado.
 * `PUT /api/v1/employee-registrations/{id}`: Actualiza especialidad o salario del empleado.
 * `DELETE /api/v1/employee-registrations/{id}`: Desactiva la adscripción del empleado técnico.
 
@@ -453,7 +453,7 @@ graph TB
 
     ApptRepoAdapter --> PostgreSql
     CustRegRepoAdapter --> PostgreSql
-    EmpRepoAdapter --> PostgreSql
+    EmpRegRepoAdapter --> PostgreSql
 ```
 
 ---
@@ -468,7 +468,7 @@ classDiagram
 
     class Appointment {
         <<Aggregate Root>>
-        -AppointmentId id
+        -UUID id
         -BranchId branchId
         -CustomerId customerId
         -VehicleId vehicleId
@@ -480,11 +480,9 @@ classDiagram
         -Instant updatedAt
         -Instant deletedAt
         -Long version
-        +Appointment(BranchId branchId, CustomerId customerId, VehicleId vehicleId, LocalDateTime scheduledStart, LocalDateTime scheduledEnd, AppointmentSummary notes)
+        +Appointment(BranchId branchId, CustomerId customerId, VehicleId vehicleId, LocalDateTime scheduledStart, AppointmentSummary notes)
         +update(BranchId branchId, CustomerId customerId, VehicleId vehicleId, LocalDateTime scheduledStart, AppointmentStatus status, AppointmentSummary notes) void
-        +cancel() void
-        +complete() void
-        +getId() AppointmentId
+        +getId() UUID
         +getBranchId() BranchId
         +getCustomerId() CustomerId
         +getVehicleId() VehicleId
@@ -495,26 +493,26 @@ classDiagram
 
     class CustomerRegistration {
         <<Aggregate Root>>
-        -CustomerRegistrationId id
-        -CustomerId customerId
+        -CustomerId id
+        -UUID customerId
         -BranchId branchId
         -CustomerRegistrationStatus status
         -Instant createdAt
         -Instant updatedAt
         -Instant deletedAt
         -Long version
-        +CustomerRegistration(CustomerId customerId, BranchId branchId)
+        +CustomerRegistration(UUID customerId, BranchId branchId)
         +deactivate() void
-        +getId() CustomerRegistrationId
-        +getCustomerId() CustomerId
+        +getId() CustomerId
+        +getCustomerId() UUID
         +getBranchId() BranchId
         +getStatus() CustomerRegistrationStatus
     }
 
     class EmployeeRegistration {
         <<Aggregate Root>>
-        -EmployeeRegistrationId id
-        -EmployeeId employeeId
+        -EmployeeId id
+        -UUID employeeId
         -BranchId branchId
         -String speciality
         -String specialityName
@@ -524,34 +522,13 @@ classDiagram
         -Instant updatedAt
         -Instant deletedAt
         -Long version
-        +EmployeeRegistration(EmployeeId employeeId, BranchId branchId, String speciality, String specialityName, BigDecimal salary)
+        +EmployeeRegistration(UUID employeeId, BranchId branchId, String speciality, String specialityName, BigDecimal salary)
         +update(String speciality, String specialityName, BigDecimal salary) void
         +deactivate() void
-        +getId() EmployeeRegistrationId
-        +getEmployeeId() EmployeeId
+        +getId() EmployeeId
+        +getEmployeeId() UUID
         +getBranchId() BranchId
         +getStatus() EmployeeRegistrationStatus
-    }
-
-    class AppointmentId {
-        <<Value Object>>
-        -UUID value
-        +AppointmentId(UUID value)
-        +value() UUID
-    }
-
-    class CustomerRegistrationId {
-        <<Value Object>>
-        -UUID value
-        +CustomerRegistrationId(UUID value)
-        +value() UUID
-    }
-
-    class EmployeeRegistrationId {
-        <<Value Object>>
-        -UUID value
-        +EmployeeRegistrationId(UUID value)
-        +value() UUID
     }
 
     class CustomerId {
@@ -611,20 +588,17 @@ classDiagram
         CANCELED
     }
 
-    Appointment "1" *-- "1" AppointmentId : identity
     Appointment "1" *-- "1" BranchId : location
     Appointment "1" *-- "1" CustomerId : client
     Appointment "1" *-- "1" VehicleId : car
     Appointment "1" *-- "1" AppointmentStatus : state
     Appointment "1" *-- "1" AppointmentSummary : notes
 
-    CustomerRegistration "1" *-- "1" CustomerRegistrationId : identity
-    CustomerRegistration "1" *-- "1" CustomerId : client reference
+    CustomerRegistration "1" *-- "1" CustomerId : identity
     CustomerRegistration "1" *-- "1" BranchId : branch reference
     CustomerRegistration "1" *-- "1" CustomerRegistrationStatus : state
 
-    EmployeeRegistration "1" *-- "1" EmployeeRegistrationId : identity
-    EmployeeRegistration "1" *-- "1" EmployeeId : employee reference
+    EmployeeRegistration "1" *-- "1" EmployeeId : identity
     EmployeeRegistration "1" *-- "1" BranchId : branch reference
     EmployeeRegistration "1" *-- "1" EmployeeRegistrationStatus : state
 ```
