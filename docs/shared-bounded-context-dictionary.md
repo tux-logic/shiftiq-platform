@@ -71,28 +71,23 @@ classDiagram
 
     class ProductReservedEvent {
         <<Domain Event>>
+        -Object source
+        -BranchId branchId
         -UUID productId
-        -UUID branchId
         -Integer quantity
-        -UUID workOrderId
-        -UUID taskId
     }
 
     class ProductReservationCanceledEvent {
         <<Domain Event>>
+        -Object source
+        -BranchId branchId
         -UUID productId
-        -UUID branchId
         -Integer quantity
-        -UUID workOrderId
-        -UUID taskId
     }
 
     class PaymentProcessedEvent {
         <<Domain Event>>
-        -UUID paymentId
-        -UUID voucherId
-        -UUID branchId
-        -Money amount
+        -UUID workOrderId
     }
 
     AbstractDomainAggregateRoot ..> ProductReservedEvent : emits
@@ -149,9 +144,9 @@ classDiagram
 
 ### 1.3. Cross-Context Domain Events
 
-* **`ProductReservedEvent`**: Notifica la reserva temporal de repuestos emitida desde `Operations` hacia `Inventory`.
-* **`ProductReservationCanceledEvent`**: Notifica la liberación de reservas de stock al modificar o cancelar tareas de ordenes de trabajo.
-* **`PaymentProcessedEvent`**: Notifica la amortización de pagos emitida desde `Billing`.
+* **`ProductReservedEvent(Object source, BranchId branchId, UUID productId, Integer quantity)`**: Notifica la reserva temporal de repuestos emitida desde `Operations` hacia `Inventory`.
+* **`ProductReservationCanceledEvent(Object source, BranchId branchId, UUID productId, Integer quantity)`**: Notifica la liberación de reservas de stock al modificar o cancelar tareas de ordenes de trabajo.
+* **`PaymentProcessedEvent(UUID workOrderId)`**: Notifica el procesamiento exitoso de pago de una orden de trabajo desde `Billing`.
 
 ---
 
@@ -238,12 +233,12 @@ classDiagram
     }
 
     class ErrorResponseAssembler {
-        +toErrorResponseFromApplicationError(ApplicationError)$ ResponseEntity~ErrorResource~
-        +toErrorResponseFromApplicationError(ApplicationError, HttpStatus)$ ResponseEntity~ErrorResource~
+        +toErrorResponseFromApplicationError(ApplicationError error)$ ResponseEntity~ErrorResource~
+        +toStatusFromErrorCode(String errorCode)$ HttpStatusCode
     }
 
     class ResponseEntityAssembler {
-        +toResponseEntity(Result~T, E~)$ ResponseEntity~?~
+        +toResponseEntityFromResult(Result~T, ApplicationError~ result, Function~T, R~ successResourceAssembler, HttpStatusCode successStatus)$ ResponseEntity~?~
     }
 
     class ErrorResource {
@@ -251,7 +246,6 @@ classDiagram
         -String code
         -String message
         -String details
-        -Instant timestamp
     }
 
     class MessageResource {
@@ -499,6 +493,43 @@ classDiagram
         +validateUserAccess(UUID userId) void
         +isAuthorizedForWorkshop(UUID workshopId) boolean
         +validateWorkshopAccess(UUID workshopId) void
+    }
+
+    class ErrorResponseAssembler {
+        +toErrorResponseFromApplicationError(ApplicationError error)$ ResponseEntity~ErrorResource~
+        +toStatusFromErrorCode(String errorCode)$ HttpStatusCode
+    }
+
+    class ResponseEntityAssembler {
+        +toResponseEntityFromResult(Result~T, ApplicationError~ result, Function~T, R~ successResourceAssembler, HttpStatusCode successStatus)$ ResponseEntity~?~
+    }
+
+    class ErrorResource {
+        <<Record>>
+        -String code
+        -String message
+        -String details
+    }
+
+    class ProductReservedEvent {
+        <<Domain Event>>
+        -Object source
+        -BranchId branchId
+        -UUID productId
+        -Integer quantity
+    }
+
+    class ProductReservationCanceledEvent {
+        <<Domain Event>>
+        -Object source
+        -BranchId branchId
+        -UUID productId
+        -Integer quantity
+    }
+
+    class PaymentProcessedEvent {
+        <<Domain Event>>
+        -UUID workOrderId
     }
 
     class GlobalExceptionHandler {
