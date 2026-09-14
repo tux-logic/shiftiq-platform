@@ -402,7 +402,7 @@ classDiagram
   * `employee_id` (UUID, NOT NULL)
   * `branch_id` (UUID, NOT NULL)
   * `speciality` (VARCHAR(50), NOT NULL)
-  * `specialityName` (VARCHAR(50))
+  * `speciality_name` (VARCHAR(50))
   * `salary` (DECIMAL(10,2), NOT NULL)
   * `status` (VARCHAR(20), NOT NULL)
   * `deleted_at` (TIMESTAMP)
