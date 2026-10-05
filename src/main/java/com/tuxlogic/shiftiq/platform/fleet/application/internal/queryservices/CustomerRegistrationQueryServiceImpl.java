@@ -10,12 +10,14 @@ import com.tuxlogic.shiftiq.platform.fleet.domain.model.queries.GetCustomerRegis
 import com.tuxlogic.shiftiq.platform.shared.domain.model.valueobjects.BranchId;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.UUID;
 
 @Slf4j
 @Service
+@Transactional(readOnly = true)
 public class CustomerRegistrationQueryServiceImpl implements CustomerRegistrationQueryService {
 
     private final CustomerRegistrationRepository repository;

@@ -6,10 +6,12 @@ import com.tuxlogic.shiftiq.platform.core.domain.model.queries.GetCustomerByIdQu
 import com.tuxlogic.shiftiq.platform.core.domain.model.queries.GetCustomerByUserIdQuery;
 import com.tuxlogic.shiftiq.platform.core.domain.repositories.CustomerRepository;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Optional;
 
 @Service
+@Transactional(readOnly = true)
 public class CustomerQueryServiceImpl implements CustomerQueryService {
     private final CustomerRepository customerRepository;
 

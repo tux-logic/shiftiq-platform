@@ -6,10 +6,12 @@ import com.tuxlogic.shiftiq.platform.core.domain.model.queries.GetOwnerByIdQuery
 import com.tuxlogic.shiftiq.platform.core.domain.model.queries.GetOwnerByUserIdQuery;
 import com.tuxlogic.shiftiq.platform.core.domain.repositories.OwnerRepository;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Optional;
 
 @Service
+@Transactional(readOnly = true)
 public class OwnerQueryServiceImpl implements OwnerQueryService {
     private final OwnerRepository ownerRepository;
 
