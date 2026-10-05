@@ -1,6 +1,5 @@
 package com.tuxlogic.shiftiq.platform.shared.infrastructure.security;
 
-import com.tuxlogic.shiftiq.platform.iam.infrastructure.authorization.sfs.model.UserDetailsImpl;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -23,12 +22,11 @@ public class MultiTenancySecurityService {
             return false;
         }
         Object principal = authentication.getPrincipal();
-        if (principal instanceof UserDetailsImpl userDetails) {
-            if (userDetails.getAuthorities().stream()
-                    .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN") || a.getAuthority().equals("ROLE_OWNER"))) {
+        if (principal instanceof AuthenticatedPrincipal authenticatedPrincipal) {
+            if (authenticatedPrincipal.hasRole("ROLE_ADMIN") || authenticatedPrincipal.hasRole("ROLE_OWNER")) {
                 return true;
             }
-            return userDetails.getBranchIds() != null && userDetails.getBranchIds().contains(branchId);
+            return authenticatedPrincipal.hasBranch(branchId);
         }
         return false;
     }
@@ -48,12 +46,11 @@ public class MultiTenancySecurityService {
             return false;
         }
         Object principal = authentication.getPrincipal();
-        if (principal instanceof UserDetailsImpl userDetails) {
-            if (userDetails.getId().equals(userId)) {
+        if (principal instanceof AuthenticatedPrincipal authenticatedPrincipal) {
+            if (authenticatedPrincipal.getId().equals(userId)) {
                 return true;
             }
-            return userDetails.getAuthorities().stream()
-                    .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN") || a.getAuthority().equals("ROLE_OWNER"));
+            return authenticatedPrincipal.hasRole("ROLE_ADMIN") || authenticatedPrincipal.hasRole("ROLE_OWNER");
         }
         return false;
     }
@@ -73,9 +70,8 @@ public class MultiTenancySecurityService {
             return false;
         }
         Object principal = authentication.getPrincipal();
-        if (principal instanceof UserDetailsImpl userDetails) {
-            return userDetails.getAuthorities().stream()
-                    .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN") || a.getAuthority().equals("ROLE_OWNER"));
+        if (principal instanceof AuthenticatedPrincipal authenticatedPrincipal) {
+            return authenticatedPrincipal.hasRole("ROLE_ADMIN") || authenticatedPrincipal.hasRole("ROLE_OWNER");
         }
         return false;
     }
