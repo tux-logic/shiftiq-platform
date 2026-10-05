@@ -21,14 +21,15 @@ El objetivo principal de IAM es manejar la seguridad, generar credenciales y pro
 
 ## 🔑 2. Flujo de Inicio de Sesión (Sign-In)
 
-**Endpoint:** `POST /api/v1/authentication/sign-in`
+**Endpoint:** `POST /api/v1/authentication/sessions`
 
 ### ¿Cómo lo usa el Frontend?
 1. El usuario (que ya tiene una cuenta) navega a la página de login.
 2. Ingresa su correo electrónico y su contraseña.
-3. El frontend envía la petición al endpoint de `sign-in`.
-4. **Respuesta Exitosamente:** El API devuelve el JWT Token y los datos de la sesión, incluyendo el **`userId`**. El frontend guarda el Token en `localStorage/cookies` para autorizar futuras peticiones.
-5. **Paso Siguiente (Redirección Inteligente):**
+3. El frontend envía la petición al endpoint de `sessions`.
+4. **Respuesta Exitosamente:** El API devuelve los datos de la sesión (`id`, `email`, `role`), un **access token de 15 minutos** (`token`) y un **refresh token de 7 días** (`refreshToken`), además de `accessTokenExpiresInSeconds`. El frontend guarda el `token` en memoria para las peticiones y el `refreshToken` en un almacenamiento persistente.
+5. **Sesión viva:** cuando el access token caduca, el frontend llama a `POST /api/v1/authentication/sessions/refresh` con el `refreshToken` y reemplaza ambos tokens. Cada refresh token es de **un solo uso**: si la respuesta es 401, la sesión terminó y hay que volver a pedir credenciales. Para cerrar sesión se llama a `DELETE /api/v1/authentication/sessions` con el `refreshToken`, que lo revoca en el servidor.
+6. **Paso Siguiente (Redirección Inteligente):**
    *   El frontend invoca el endpoint `GET /api/v1/profiles/roles?userId={userId}` (del módulo `core`).
    *   Si el usuario tiene múltiples roles (ej. es Customer y también Owner), se le muestra una pantalla intermedia consultando: *"¿Cómo deseas ingresar hoy?"*.
    *   Si tiene solo un rol, el frontend lo redirige automáticamente a su Dashboard respectivo (Dashboard Customer, Employee o Owner).
