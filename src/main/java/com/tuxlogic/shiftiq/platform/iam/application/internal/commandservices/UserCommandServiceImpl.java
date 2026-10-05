@@ -151,5 +151,15 @@ public class UserCommandServiceImpl implements UserCommandService {
         LOGGER.info("Password updated successfully for User ID {}", command.userId().value());
         return Optional.of(user);
     }
+
+    @Override
+    public Optional<User> handle(com.tuxlogic.shiftiq.platform.iam.domain.model.commands.AssignBranchToUserCommand command) {
+        var user = userRepository.findById(command.userId().value())
+                .orElseThrow(() -> new IllegalArgumentException("iam.error.user.notFound"));
+        user.assignBranch(command.branchId().value());
+        userRepository.save(user);
+        LOGGER.info("Assigned branch {} to user ID {}", command.branchId().value(), command.userId().value());
+        return Optional.of(user);
+    }
 }
 
