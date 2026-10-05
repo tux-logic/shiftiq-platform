@@ -1,11 +1,14 @@
 -- =================================================================================================
--- ATELIER DATABASE - SCHEMA (PostgreSQL)
+-- SHIFTIQ PLATFORM - BASELINE SCHEMA (PostgreSQL)
 -- =================================================================================================
 --
--- DEPRECATED / REFERENCE ONLY.
--- The schema is now owned by Flyway: see src/main/resources/db/migration/V1__baseline.sql.
--- Do not apply this file manually and do not modify it; new schema changes must be Flyway
--- migrations (V2__, V3__, ...).
+-- This migration is the single source of truth for the database schema.
+-- It reproduces the schema that was previously created by hand from
+-- docs/atelier-schema.sql, so that:
+--   * on an existing database Flyway baselines at version 1 and skips this file;
+--   * on an empty database Flyway creates the whole schema from scratch.
+--
+-- From now on, every schema change must be added as V2__, V3__, ... Never edit this file.
 -- =================================================================================================
 
 -- -------------------------------------------------------------------------------------------------
