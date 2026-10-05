@@ -71,7 +71,7 @@ public class CustomerRegistrationsController {
             return handleQueryFailure(queryResult.failure().get());
         }
         var existingReg = queryResult.success().get();
-        if (existingReg.getBranchId() != null && !multiTenancySecurityService.isAuthorizedForBranch(existingReg.getBranchId().value())) {
+        if (!multiTenancySecurityService.isAuthorizedForBranch(existingReg.getBranchId())) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
         }
 
@@ -91,7 +91,7 @@ public class CustomerRegistrationsController {
             return handleQueryFailure(queryResult.failure().get());
         }
         var existingReg = queryResult.success().get();
-        if (existingReg.getBranchId() != null && !multiTenancySecurityService.isAuthorizedForBranch(existingReg.getBranchId().value())) {
+        if (!multiTenancySecurityService.isAuthorizedForBranch(existingReg.getBranchId())) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
         }
 
@@ -114,7 +114,7 @@ public class CustomerRegistrationsController {
             var result = queryService.handle(new GetCustomerRegistrationByCustomerIdQuery(customerId));
             return result.fold(
                     reg -> {
-                        if (reg.getBranchId() != null && !multiTenancySecurityService.isAuthorizedForBranch(reg.getBranchId().value())) {
+                        if (!multiTenancySecurityService.isAuthorizedForBranch(reg.getBranchId())) {
                             return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
                         }
                         return ResponseEntity.ok(CustomerRegistrationResourceFromAggregateAssembler.toResourceFromAggregate(reg));
@@ -152,7 +152,7 @@ public class CustomerRegistrationsController {
         var result = queryService.handle(registrationId);
         return result.fold(
                 reg -> {
-                    if (reg.getBranchId() != null && !multiTenancySecurityService.isAuthorizedForBranch(reg.getBranchId().value())) {
+                    if (!multiTenancySecurityService.isAuthorizedForBranch(reg.getBranchId())) {
                         return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
                     }
                     return ResponseEntity.ok(CustomerRegistrationResourceFromAggregateAssembler.toResourceFromAggregate(reg));

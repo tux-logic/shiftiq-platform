@@ -73,7 +73,7 @@ public class AppointmentsController {
                         return handleQueryFailure(queryResult.failure().get());
                 }
                 var existingApp = queryResult.success().get();
-                if (existingApp.getBranchId() != null && !multiTenancySecurityService.isAuthorizedForBranch(existingApp.getBranchId().value())) {
+                if (!multiTenancySecurityService.isAuthorizedForBranch(existingApp.getBranchId())) {
                         return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
                 }
 
@@ -95,7 +95,7 @@ public class AppointmentsController {
                         return handleQueryFailure(queryResult.failure().get());
                 }
                 var existingApp = queryResult.success().get();
-                if (existingApp.getBranchId() != null && !multiTenancySecurityService.isAuthorizedForBranch(existingApp.getBranchId().value())) {
+                if (!multiTenancySecurityService.isAuthorizedForBranch(existingApp.getBranchId())) {
                         return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
                 }
 
@@ -141,7 +141,7 @@ public class AppointmentsController {
                         return result.fold(
                                         appointments -> ResponseEntity.ok(
                                                         appointments.stream()
-                                                                        .filter(a -> a.getBranchId() == null || multiTenancySecurityService.isAuthorizedForBranch(a.getBranchId().value()))
+                                                                        .filter(a -> multiTenancySecurityService.isAuthorizedForBranch(a.getBranchId()))
                                                                         .map(AppointmentResourceFromAggregateAssembler::toResourceFromAggregate)
                                                                         .toList()),
                                         this::handleQueryFailure);
@@ -150,7 +150,7 @@ public class AppointmentsController {
                         return result.fold(
                                         appointments -> ResponseEntity.ok(
                                                         appointments.stream()
-                                                                        .filter(a -> a.getBranchId() == null || multiTenancySecurityService.isAuthorizedForBranch(a.getBranchId().value()))
+                                                                        .filter(a -> multiTenancySecurityService.isAuthorizedForBranch(a.getBranchId()))
                                                                         .map(AppointmentResourceFromAggregateAssembler::toResourceFromAggregate)
                                                                         .toList()),
                                         this::handleQueryFailure);
@@ -165,7 +165,7 @@ public class AppointmentsController {
                 var result = queryService.handle(appointmentId);
                 return result.fold(
                                 appointment -> {
-                                        if (appointment.getBranchId() != null && !multiTenancySecurityService.isAuthorizedForBranch(appointment.getBranchId().value())) {
+                                        if (!multiTenancySecurityService.isAuthorizedForBranch(appointment.getBranchId())) {
                                                 return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
                                         }
                                         return ResponseEntity.ok(
