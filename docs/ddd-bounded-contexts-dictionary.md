@@ -747,7 +747,7 @@ classDiagram
 
 #### 📌 Interface: `BearerTokenService` / Class: `TokenServiceImpl`
 * **`BearerTokenService`**: Interfaz de infraestructura que extiende de `TokenService` y agrega los métodos `String getBearerTokenFrom(HttpServletRequest request)` y `String generateToken(Authentication authentication)`.
-* **`TokenServiceImpl`**: Implementación basada en la librería **JJWT** (`io.jsonwebtoken`). Firma tokens HMAC-SHA256 (`subject(username)`, sin claims extra de `userId`/`role`/`status` en el JWT crudo) utilizando la clave secreta `authorization.jwt.secret` y la vigencia configurada en `authorization.jwt.expiration.days`.
+* **`TokenServiceImpl`**: Implementación basada en la librería **JJWT** (`io.jsonwebtoken`). Firma tokens HMAC-SHA256 (`subject(username)`, sin claims extra de `userId`/`role`/`status` en el JWT crudo) utilizando la clave secreta `authorization.jwt.secret`, que debe ser Base64 y decodificar a al menos 32 bytes (se valida al arrancar). Emite dos tipos de token diferenciados por audiencia: access tokens de vida corta (`authorization.jwt.access-token.expiration.minutes`, 15 por defecto, audiencia `shiftiq-users`) y refresh tokens de vida larga (`authorization.jwt.refresh-token.expiration.days`, 7 por defecto, audiencia `shiftiq-refresh`). `validateToken` solo acepta access tokens, de modo que un refresh token no puede usarse como Bearer.
 
 #### 📌 Class: `SmtpEmailService`
 * **Propósito:** Implementación del puerto `EmailService` mediante `org.springframework.mail.javamail.JavaMailSender`.

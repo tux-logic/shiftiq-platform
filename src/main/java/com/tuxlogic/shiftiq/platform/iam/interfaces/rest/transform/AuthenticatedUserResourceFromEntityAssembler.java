@@ -9,7 +9,9 @@ public class AuthenticatedUserResourceFromEntityAssembler {
                 entity.user().getId().value(),
                 entity.user().getEmail().value(),
                 entity.user().getRole().name(),
-                entity.token()
+                entity.token(),
+                entity.refreshToken(),
+                entity.accessTokenExpiresInSeconds()
         );
     }
 }
