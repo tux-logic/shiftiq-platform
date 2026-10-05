@@ -143,7 +143,7 @@ classDiagram
 * `AppointmentCreatedEvent`: Emitido cuando se agenda una nueva cita.
 * `CustomerRegistrationCreatedEvent`: Emitido al registrar a un cliente en una sucursal.
 * `EmployeeRegistrationCreatedEvent`: Emitido al adscribir un empleado técnico a una sucursal.
-* `EmployeeRegistrationApprovedEvent`: Emitido al aprobar la solicitud de incorporación de un empleado a una sucursal (consumido por IAM).
+* `EmployeeRegistrationApprovedEvent`: Emitido al aprobar la solicitud de incorporación de un empleado a una sucursal. Se define en `shared/domain/model/events` (evento de integración entre contextos) y es consumido por IAM.
 
 ---
 

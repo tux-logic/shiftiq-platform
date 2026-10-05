@@ -100,13 +100,12 @@ Se añaden los métodos de dominio para transición de estado:
 * `approve(UUID managerUserId)` ➔ `ACTIVE` (registra `EmployeeRegistrationApprovedEvent`).
 * `reject(UUID managerUserId, String reason)` ➔ `REJECTED`.
 
-#### 📌 Evento de Dominio: `EmployeeRegistrationApprovedEvent` (`Fleet`)
+#### 📌 Evento de Integración: `EmployeeRegistrationApprovedEvent` (`Shared`, publicado por `Fleet`)
 ```java
 public record EmployeeRegistrationApprovedEvent(
     Object source,
-    UUID employeeRegistrationId,
+    UUID registrationId,
     UUID employeeId,
-    UUID userId,
     BranchId branchId
 ) {}
 ```
@@ -122,7 +121,7 @@ public record EmployeeRegistrationApprovedEvent(
 #### Event Listener (`IAM` Handler):
 Al capturar `EmployeeRegistrationApprovedEvent`:
 ```java
-userCommandService.handle(new AssignBranchToUserCommand(event.userId(), event.branchId().value()));
+userCommandService.handle(new AssignBranchToUserCommand(new UserId(event.employeeId()), event.branchId()));
 ```
 
 ---

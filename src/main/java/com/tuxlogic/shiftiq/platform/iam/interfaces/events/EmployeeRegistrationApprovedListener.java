@@ -1,6 +1,6 @@
 package com.tuxlogic.shiftiq.platform.iam.interfaces.events;
 
-import com.tuxlogic.shiftiq.platform.fleet.domain.model.events.EmployeeRegistrationApprovedEvent;
+import com.tuxlogic.shiftiq.platform.shared.domain.model.events.EmployeeRegistrationApprovedEvent;
 import com.tuxlogic.shiftiq.platform.iam.application.commandservices.UserCommandService;
 import com.tuxlogic.shiftiq.platform.iam.domain.model.commands.AssignBranchToUserCommand;
 import com.tuxlogic.shiftiq.platform.iam.domain.model.valueobjects.UserId;
@@ -24,13 +24,13 @@ public class EmployeeRegistrationApprovedListener {
     public void on(EmployeeRegistrationApprovedEvent event) {
         try {
             log.info("Handling EmployeeRegistrationApprovedEvent for employeeId: {} and branchId: {}",
-                    event.employeeId().value(), event.branchId().value());
-            var userId = new UserId(event.employeeId().value());
+                    event.employeeId(), event.branchId().value());
+            var userId = new UserId(event.employeeId());
             var command = new AssignBranchToUserCommand(userId, event.branchId());
             userCommandService.handle(command);
         } catch (Exception e) {
             log.error("Error processing EmployeeRegistrationApprovedEvent for employeeId: {}",
-                    event.employeeId().value(), e);
+                    event.employeeId(), e);
         }
     }
 }

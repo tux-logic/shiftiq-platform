@@ -86,8 +86,8 @@ public class EmployeeRegistration extends AbstractDomainAggregateRoot<EmployeeRe
         }
         this.status = EmployeeRegistrationStatus.ACTIVE;
         this.updatedAt = Instant.now();
-        this.registerEvent(new com.tuxlogic.shiftiq.platform.fleet.domain.model.events.EmployeeRegistrationApprovedEvent(
-                this, this.id.value(), new EmployeeId(this.employeeId), this.branchId
+        this.registerEvent(new com.tuxlogic.shiftiq.platform.shared.domain.model.events.EmployeeRegistrationApprovedEvent(
+                this, this.id.value(), this.employeeId, this.branchId
         ));
     }
 
