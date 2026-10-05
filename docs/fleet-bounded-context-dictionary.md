@@ -100,7 +100,7 @@ classDiagram
 * **Validación:** El estado no puede ser nulo ni estar en blanco.
 
 #### 📌 Record Value Object: `EmployeeRegistrationStatus(String value)`
-* **Constantes Estáticas:** `ACTIVE` ("ACTIVE"), `INACTIVE` ("INACTIVE").
+* **Constantes Estáticas:** `ACTIVE` ("ACTIVE"), `INACTIVE` ("INACTIVE"), `PENDING_APPROVAL` ("PENDING_APPROVAL"), `REJECTED` ("REJECTED").
 * **Validación:** El estado no puede ser nulo ni estar en blanco.
 
 #### 📌 Record Value Object: `AppointmentSummary(String value)`
@@ -130,6 +130,9 @@ classDiagram
 * **Hereda de:** `AbstractDomainAggregateRoot<EmployeeRegistration>`
 * **Propósito:** Registro de adscripción de un empleado (`EmployeeId`) a una sucursal con especialidad técnica y salario asignado.
 * **Reglas de Negocio:**
+  - Permite creación directa (`ACTIVE`) o mediante solicitud de incorporación (`PENDING_APPROVAL`).
+  - `approve()`: Cambia el estado de `PENDING_APPROVAL` a `ACTIVE` y emite `EmployeeRegistrationApprovedEvent`.
+  - `reject(reason)`: Cambia el estado de `PENDING_APPROVAL` a `REJECTED` y setea `deletedAt`.
   - Permite actualizar especialidad, código de especialidad y salario.
   - `deactivate()`: Cambia el estado a `INACTIVE` y setea `deletedAt`.
 
@@ -140,6 +143,7 @@ classDiagram
 * `AppointmentCreatedEvent`: Emitido cuando se agenda una nueva cita.
 * `CustomerRegistrationCreatedEvent`: Emitido al registrar a un cliente en una sucursal.
 * `EmployeeRegistrationCreatedEvent`: Emitido al adscribir un empleado técnico a una sucursal.
+* `EmployeeRegistrationApprovedEvent`: Emitido al aprobar la solicitud de incorporación de un empleado a una sucursal (consumido por IAM).
 
 ---
 
@@ -219,6 +223,9 @@ classDiagram
         +handle(CreateEmployeeRegistrationCommand) Result~EmployeeRegistration, EmployeeRegistrationCommandFailure~
         +handle(UpdateEmployeeRegistrationCommand) Result~EmployeeRegistration, EmployeeRegistrationCommandFailure~
         +handle(DeleteEmployeeRegistrationCommand) Result~EmployeeRegistration, EmployeeRegistrationCommandFailure~
+        +handle(RequestEmployeeJoinCommand) Result~EmployeeRegistration, EmployeeRegistrationCommandFailure~
+        +handle(ApproveEmployeeRegistrationCommand) Result~EmployeeRegistration, EmployeeRegistrationCommandFailure~
+        +handle(RejectEmployeeRegistrationCommand) Result~EmployeeRegistration, EmployeeRegistrationCommandFailure~
     }
 
     class EmployeeRegistrationQueryService {
@@ -244,6 +251,9 @@ classDiagram
 * 🟦 **`CreateEmployeeRegistrationCommand(EmployeeId employeeId, BranchId branchId, String speciality, String specialityName, BigDecimal salary)`**
 * 🟦 **`UpdateEmployeeRegistrationCommand(EmployeeId registrationId, String speciality, String specialityName, BigDecimal salary)`**
 * 🟦 **`DeleteEmployeeRegistrationCommand(EmployeeId registrationId)`**
+* 🟦 **`RequestEmployeeJoinCommand(EmployeeId employeeId, BranchId branchId, String speciality, String specialityName, BigDecimal salary)`**
+* 🟦 **`ApproveEmployeeRegistrationCommand(EmployeeId registrationId)`**
+* 🟦 **`RejectEmployeeRegistrationCommand(EmployeeId registrationId, String reason)`**
 
 #### Queries
 * 🟩 *(AppointmentQueryService opera directamente con parámetros sobrecargados `UUID appointmentId`, `BranchId branchId`, `CustomerId customerId`, `VehicleId vehicleId` y `AppointmentStatus status`)*
@@ -323,8 +333,11 @@ classDiagram
 * `DELETE /api/v1/customer-registrations/{id}`: Desactiva el registro de un cliente.
 
 #### 📌 `EmployeeRegistrationsController` (`/api/v1/employee-registrations`)
-* `POST /api/v1/employee-registrations`: Adscribe a un empleado técnico a una sucursal.
-* `GET /api/v1/employee-registrations?branchId={branchId}&status={status}`: Consulta lista de empleados técnicos adscritos.
+* `POST /api/v1/employee-registrations`: Adscribe directamente a un empleado técnico a una sucursal (estado `ACTIVE`).
+* `POST /api/v1/employee-registrations/request-join`: Solicitud de incorporación enviada por un empleado a una sucursal (estado `PENDING_APPROVAL`).
+* `POST /api/v1/employee-registrations/{id}/approve`: Aprobación de adscripción pendiente por Gerente/Dueño (cambia a `ACTIVE` y vincula en IAM).
+* `POST /api/v1/employee-registrations/{id}/reject`: Rechazo de adscripción pendiente por Gerente/Dueño.
+* `GET /api/v1/employee-registrations?branchId={branchId}&status={status}`: Consulta empleados adscritos (ej. `PENDING_APPROVAL`, `ACTIVE`).
 * `GET /api/v1/employee-registrations/{id}`: Obtiene registro por ID.
 * `GET /api/v1/employee-registrations?employeeId={employeeId}`: Obtiene registro por ID de empleado.
 * `PUT /api/v1/employee-registrations/{id}`: Actualiza especialidad o salario del empleado.
