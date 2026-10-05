@@ -1,6 +1,7 @@
 package com.tuxlogic.shiftiq.platform.iam.interfaces.rest;
 
 import com.tuxlogic.shiftiq.platform.iam.application.commandservices.PasswordRecoveryCommandService;
+import com.tuxlogic.shiftiq.platform.iam.application.commandservices.SessionCommandService;
 import com.tuxlogic.shiftiq.platform.iam.application.commandservices.UserCommandService;
 import com.tuxlogic.shiftiq.platform.iam.interfaces.rest.resources.*;
 import com.tuxlogic.shiftiq.platform.iam.interfaces.rest.transform.*;
@@ -19,14 +20,18 @@ public class AuthenticationController {
 
     private final UserCommandService userCommandService;
     private final PasswordRecoveryCommandService passwordRecoveryCommandService;
+    private final SessionCommandService sessionCommandService;
 
-    public AuthenticationController(UserCommandService userCommandService, PasswordRecoveryCommandService passwordRecoveryCommandService) {
+    public AuthenticationController(UserCommandService userCommandService,
+                                    PasswordRecoveryCommandService passwordRecoveryCommandService,
+                                    SessionCommandService sessionCommandService) {
         this.userCommandService = userCommandService;
         this.passwordRecoveryCommandService = passwordRecoveryCommandService;
+        this.sessionCommandService = sessionCommandService;
     }
 
     @PostMapping("/sessions")
-    @Operation(summary = "Sign in", description = "Authenticate a user and return a token")
+    @Operation(summary = "Sign in", description = "Authenticate a user and return an access token plus a refresh token")
     public ResponseEntity<AuthenticatedUserResource> signIn(@Valid @RequestBody SignInResource signInResource) {
         var signInCommand = SignInCommandFromResourceAssembler.toCommandFromResource(signInResource);
         var authenticatedUser = userCommandService.handle(signInCommand);
@@ -47,6 +52,28 @@ public class AuthenticationController {
         }
         var authenticatedUserResource = AuthenticatedUserResourceFromEntityAssembler.toResourceFromEntity(authenticatedUser.get());
         return ResponseEntity.ok(authenticatedUserResource);
+    }
+
+    @PostMapping("/sessions/refresh")
+    @Operation(summary = "Refresh session", description = "Exchanges a refresh token for a new access token and a new refresh token")
+    public ResponseEntity<AuthenticatedUserResource> refreshSession(@Valid @RequestBody RefreshSessionResource resource) {
+        var command = RefreshSessionCommandFromResourceAssembler.toCommandFromResource(resource);
+        var authenticatedUser = sessionCommandService.handle(command);
+        if (authenticatedUser.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+        var authenticatedUserResource = AuthenticatedUserResourceFromEntityAssembler.toResourceFromEntity(authenticatedUser.get());
+        return ResponseEntity.ok(authenticatedUserResource);
+    }
+
+    @DeleteMapping("/sessions")
+    @Operation(summary = "Sign out", description = "Revokes the session identified by the given refresh token")
+    public ResponseEntity<Void> revokeSession(@Valid @RequestBody RevokeSessionResource resource) {
+        var command = RevokeSessionCommandFromResourceAssembler.toCommandFromResource(resource);
+        if (!sessionCommandService.handle(command)) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+        return ResponseEntity.noContent().build();
     }
 
     @PostMapping("/password-recoveries")
