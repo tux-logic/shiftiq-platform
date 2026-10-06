@@ -205,7 +205,7 @@ classDiagram
 
 ## 2. Application Layer (Capa de Aplicación)
 
-La Capa de Aplicación expone la ejecución de casos de uso mediante servicios de comando (`QuoteCommandService`, `VoucherCommandService`, `StripePaymentCommandService`) y servicios de consulta (`QuoteQueryService`, `VoucherQueryService`).
+La Capa de Aplicación expone la ejecución de casos de uso mediante servicios de comando (`QuoteCommandService`, `VoucherCommandService`, `MercadoPagoPaymentCommandService`) y servicios de consulta (`QuoteQueryService`, `VoucherQueryService`).
 
 ```mermaid
 classDiagram
@@ -269,13 +269,14 @@ classDiagram
 * 🟦 **`AddPaymentCommand(UUID voucherId, Money amount, PaymentMethod method)`**
 * 🟦 **`RemovePaymentCommand(UUID voucherId, UUID paymentId)`**
 * 🟦 **`ProcessCheckoutCommand(UUID quoteId, VoucherType type, String customerDocumentType, String customerDocumentNumber, String customerName, PaymentMethod method)`**
-* 🟦 **`ProcessStripeCheckoutCommand(UUID quoteId, VoucherType type, String customerDocumentType, String customerDocumentNumber, String customerName, String paymentIntentId)`**
+* 🟦 **`ProcessMercadoPagoCheckoutCommand(UUID quoteId, VoucherType type, String customerDocumentType, String customerDocumentNumber, String customerName, String paymentId)`**
 
 #### Queries
 * 🟩 **`GetQuoteByIdQuery(UUID quoteId)`**
 * 🟩 **`GetQuotesByBranchIdQuery(BranchId branchId)`**
 * 🟩 **`GetVoucherByIdQuery(UUID voucherId)`**
 * 🟩 **`GetVouchersByBranchIdQuery(BranchId branchId)`**
+* 🟩 **`GetVoucherByQuoteIdQuery(UUID quoteId)`**
 
 ---
 
@@ -286,9 +287,9 @@ classDiagram
 * `PaymentGateway`:
   - `Optional<PaymentIntentResult> createPaymentIntent(BigDecimal amount, String currency, String description)`
   - `Optional<PaymentIntentResult> getPaymentIntent(String paymentIntentId)`
-* `StripeGateway` (extends `PaymentGateway`):
-  - `Optional<StripePaymentIntentResult> createStripePaymentIntent(BigDecimal amount, String currency, String description)`
-  - `Optional<StripePaymentIntentResult> getStripePaymentIntent(String paymentIntentId)`
+* `MercadoPagoGateway`:
+  - `Optional<MercadoPagoPreferenceResult> createPreference(BigDecimal amount, String currency, String title, String externalReference)`
+  - `Optional<MercadoPagoPaymentResult> getPaymentStatus(Long paymentId)`
 
 ---
 
@@ -319,11 +320,12 @@ classDiagram
 
     class CheckoutsController {
         +checkout(ProcessCheckoutResource) ResponseEntity~?~
-        +stripeCheckout(ProcessStripeCheckoutResource) ResponseEntity~?~
+        +mercadopagoCheckout(ProcessMercadoPagoCheckoutResource) ResponseEntity~?~
     }
 
-    class StripePaymentsController {
-        +createPaymentIntent(CreatePaymentIntentResource) ResponseEntity~PaymentIntentResource~
+    class MercadoPagoPaymentsController {
+        +createPreference(CreateMercadoPagoPreferenceResource) ResponseEntity~?~
+        +handleWebhook(String, String, MercadoPagoWebhookResource, String, String, String, String) ResponseEntity~Void~
     }
 
     class VoucherPaidListener {
@@ -335,7 +337,8 @@ classDiagram
     VouchersController --> VoucherCommandService
     VouchersController --> VoucherQueryService
     CheckoutsController --> VoucherCommandService
-    StripePaymentsController --> StripePaymentCommandService
+    MercadoPagoPaymentsController --> MercadoPagoPaymentCommandService
+    MercadoPagoPaymentsController --> VoucherQueryService
 ```
 
 ---

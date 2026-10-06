@@ -198,6 +198,34 @@ class ProcessMercadoPagoCheckoutTest {
     }
 
     @Test
+    @DisplayName("ProcessMercadoPagoCheckout fails with INVALID_VOUCHER_DATA when payment currency is null (Fail-Closed)")
+    void processCheckoutFailsWhenCurrencyIsNull() {
+        UUID quoteId = UUID.randomUUID();
+        Quote quote = new Quote(quoteId, UUID.randomUUID(), new BranchId(UUID.randomUUID()), new Money(new BigDecimal("100.00")), 0.0, new Money(new BigDecimal("100.00")), QuoteStatus.APPROVED);
+
+        when(quoteRepository.findById(eq(quoteId))).thenReturn(Optional.of(quote));
+        when(voucherRepository.findByQuoteId(eq(quoteId))).thenReturn(Optional.empty());
+        when(voucherRepository.existsByExternalPaymentId(any())).thenReturn(false);
+
+        PaymentIntentResult mockPayment = new PaymentIntentResult("11223344", quoteId.toString(), new BigDecimal("100.00"), null, "approved");
+        when(paymentGateway.getPaymentIntent(eq("11223344"))).thenReturn(Optional.of(mockPayment));
+
+        ProcessMercadoPagoCheckoutCommand command = new ProcessMercadoPagoCheckoutCommand(
+                quoteId,
+                VoucherType.RECEIPT,
+                "DNI",
+                "12345678",
+                "Juan Perez",
+                "11223344"
+        );
+
+        Result<Voucher, VoucherCommandFailure> result = service.handle(command);
+
+        assertThat(result.isFailure()).isTrue();
+        assertThat(result.failure().get()).isEqualTo(VoucherCommandFailure.INVALID_VOUCHER_DATA);
+    }
+
+    @Test
     @DisplayName("ProcessMercadoPagoCheckout fails with INVALID_VOUCHER_DATA when payment status is not approved")
     void processCheckoutFailsWhenPaymentStatusRejected() {
         UUID quoteId = UUID.randomUUID();

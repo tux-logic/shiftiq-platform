@@ -4,6 +4,7 @@ import com.tuxlogic.shiftiq.platform.billing.domain.model.aggregates.Voucher;
 import com.tuxlogic.shiftiq.platform.billing.domain.model.queries.GetVoucherByIdQuery;
 
 import com.tuxlogic.shiftiq.platform.billing.domain.model.queries.GetVouchersByBranchIdQuery;
+import com.tuxlogic.shiftiq.platform.billing.domain.model.queries.GetVoucherByQuoteIdQuery;
 
 import java.util.Optional;
 import java.util.List;
@@ -27,4 +28,12 @@ public interface VoucherQueryService {
      * @return a List of Vouchers
      */
     List<Voucher> handle(GetVouchersByBranchIdQuery query);
+
+    /**
+     * Retrieves a Voucher by its associated Quote ID.
+     *
+     * @param query the query containing the quote ID
+     * @return an Optional containing the Voucher if found, or empty otherwise
+     */
+    Optional<Voucher> handle(GetVoucherByQuoteIdQuery query);
 }

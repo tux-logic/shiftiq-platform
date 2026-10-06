@@ -3,14 +3,16 @@ package com.tuxlogic.shiftiq.platform.billing.interfaces.rest;
 import com.tuxlogic.shiftiq.platform.billing.application.commandservices.MercadoPagoPaymentCommandService;
 import com.tuxlogic.shiftiq.platform.billing.application.outboundservices.MercadoPagoPreferenceResult;
 import com.tuxlogic.shiftiq.platform.billing.application.queryservices.QuoteQueryService;
+import com.tuxlogic.shiftiq.platform.billing.application.queryservices.VoucherQueryService;
 import com.tuxlogic.shiftiq.platform.billing.domain.model.aggregates.Quote;
 import com.tuxlogic.shiftiq.platform.billing.domain.model.aggregates.Voucher;
 import com.tuxlogic.shiftiq.platform.billing.domain.model.queries.GetQuoteByIdQuery;
+import com.tuxlogic.shiftiq.platform.billing.domain.model.queries.GetVoucherByQuoteIdQuery;
 import com.tuxlogic.shiftiq.platform.billing.domain.model.valueobjects.QuoteStatus;
 import com.tuxlogic.shiftiq.platform.billing.domain.model.valueobjects.VoucherType;
-import com.tuxlogic.shiftiq.platform.billing.domain.repositories.VoucherRepository;
 import com.tuxlogic.shiftiq.platform.billing.interfaces.rest.resources.CreateMercadoPagoPreferenceResource;
 import com.tuxlogic.shiftiq.platform.billing.interfaces.rest.resources.MercadoPagoPreferenceResource;
+import com.tuxlogic.shiftiq.platform.billing.interfaces.rest.resources.MercadoPagoWebhookResource;
 import com.tuxlogic.shiftiq.platform.shared.domain.model.valueobjects.BranchId;
 import com.tuxlogic.shiftiq.platform.shared.domain.model.valueobjects.Money;
 import com.tuxlogic.shiftiq.platform.shared.infrastructure.security.MultiTenancySecurityService;
@@ -43,7 +45,7 @@ class MercadoPagoPaymentsControllerTest {
     private QuoteQueryService quoteQueryService;
 
     @Mock
-    private VoucherRepository voucherRepository;
+    private VoucherQueryService voucherQueryService;
 
     @Mock
     private MultiTenancySecurityService multiTenancySecurityService;
@@ -55,7 +57,14 @@ class MercadoPagoPaymentsControllerTest {
 
     @BeforeEach
     void setUp() {
-        controller = new MercadoPagoPaymentsController(paymentCommandService, quoteQueryService, voucherRepository, multiTenancySecurityService, messageSource);
+        controller = new MercadoPagoPaymentsController(
+                paymentCommandService,
+                quoteQueryService,
+                voucherQueryService,
+                multiTenancySecurityService,
+                messageSource,
+                ""
+        );
     }
 
     @Test
@@ -67,7 +76,7 @@ class MercadoPagoPaymentsControllerTest {
         Quote quote = new Quote(quoteId, UUID.randomUUID(), new BranchId(branchId), new Money(amount), 0.0, new Money(amount), QuoteStatus.APPROVED);
 
         when(quoteQueryService.handle(any(GetQuoteByIdQuery.class))).thenReturn(Optional.of(quote));
-        when(voucherRepository.findByQuoteId(eq(quoteId))).thenReturn(Optional.empty());
+        when(voucherQueryService.handle(any(GetVoucherByQuoteIdQuery.class))).thenReturn(Optional.empty());
 
         MercadoPagoPreferenceResult mockResponse = new MercadoPagoPreferenceResult(
                 "pref_123456",
@@ -103,7 +112,7 @@ class MercadoPagoPaymentsControllerTest {
         Voucher existingVoucher = new Voucher(quoteId, VoucherType.RECEIPT, "DNI", "12345678", "Juan Perez", quote.getTotalAmount(), UUID.randomUUID(), "http://pdf");
 
         when(quoteQueryService.handle(any(GetQuoteByIdQuery.class))).thenReturn(Optional.of(quote));
-        when(voucherRepository.findByQuoteId(eq(quoteId))).thenReturn(Optional.of(existingVoucher));
+        when(voucherQueryService.handle(any(GetVoucherByQuoteIdQuery.class))).thenReturn(Optional.of(existingVoucher));
         when(messageSource.getMessage(anyString(), any(), any())).thenReturn("Quote already invoiced");
 
         CreateMercadoPagoPreferenceResource resource = new CreateMercadoPagoPreferenceResource(quoteId);
@@ -144,9 +153,75 @@ class MercadoPagoPaymentsControllerTest {
     }
 
     @Test
-    void handleWebhook_WhenValidPaymentEvent_ShouldReturnOk() {
-        ResponseEntity<Void> response = controller.handleWebhook("payment", null, null, "123456789");
+    void createPreference_WhenExternalGatewayFails_ShouldReturnUnexpectedError() {
+        UUID quoteId = UUID.randomUUID();
+        UUID branchId = UUID.randomUUID();
+        BigDecimal amount = new BigDecimal("150.00");
+
+        Quote quote = new Quote(quoteId, UUID.randomUUID(), new BranchId(branchId), new Money(amount), 0.0, new Money(amount), QuoteStatus.APPROVED);
+
+        when(quoteQueryService.handle(any(GetQuoteByIdQuery.class))).thenReturn(Optional.of(quote));
+        when(voucherQueryService.handle(any(GetVoucherByQuoteIdQuery.class))).thenReturn(Optional.empty());
+        when(paymentCommandService.createPreference(any(), any(), any(), any())).thenReturn(Optional.empty());
+        when(messageSource.getMessage(eq("error.unexpected.message"), any(), any())).thenReturn("An unexpected error occurred");
+
+        CreateMercadoPagoPreferenceResource resource = new CreateMercadoPagoPreferenceResource(quoteId);
+
+        ResponseEntity<?> response = controller.createPreference(resource);
+
+        assertEquals(HttpStatus.INTERNAL_SERVER_ERROR, response.getStatusCode());
+    }
+
+    @Test
+    void handleWebhook_WhenValidBodyEvent_ShouldReturnOk() {
+        MercadoPagoWebhookResource body = new MercadoPagoWebhookResource(
+                "payment.created",
+                "payment",
+                new MercadoPagoWebhookResource.MercadoPagoWebhookData("123456789"),
+                null
+        );
+
+        ResponseEntity<Void> response = controller.handleWebhook(null, null, body, null, null, null, null);
         assertEquals(HttpStatus.OK, response.getStatusCode());
         verify(paymentCommandService).getPaymentStatus(123456789L);
+    }
+
+    @Test
+    void handleWebhook_WhenValidQueryParams_ShouldReturnOk() {
+        ResponseEntity<Void> response = controller.handleWebhook(null, null, null, "payment", null, null, "987654321");
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        verify(paymentCommandService).getPaymentStatus(987654321L);
+    }
+
+    @Test
+    void handleWebhook_WhenInvalidSignatureWithSecretConfigured_ShouldReturnUnauthorized() {
+        MercadoPagoPaymentsController controllerWithSecret = new MercadoPagoPaymentsController(
+                paymentCommandService,
+                quoteQueryService,
+                voucherQueryService,
+                multiTenancySecurityService,
+                messageSource,
+                "my_secret_token"
+        );
+
+        MercadoPagoWebhookResource body = new MercadoPagoWebhookResource(
+                "payment.created",
+                "payment",
+                new MercadoPagoWebhookResource.MercadoPagoWebhookData("123456789"),
+                null
+        );
+
+        ResponseEntity<Void> response = controllerWithSecret.handleWebhook(
+                "ts=123456,v1=invalid_hash",
+                "req-1",
+                body,
+                null,
+                null,
+                null,
+                null
+        );
+
+        assertEquals(HttpStatus.UNAUTHORIZED, response.getStatusCode());
+        verify(paymentCommandService, never()).getPaymentStatus(any());
     }
 }

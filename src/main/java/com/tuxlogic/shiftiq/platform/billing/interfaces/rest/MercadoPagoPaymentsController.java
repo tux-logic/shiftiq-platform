@@ -2,11 +2,13 @@ package com.tuxlogic.shiftiq.platform.billing.interfaces.rest;
 
 import com.tuxlogic.shiftiq.platform.billing.application.commandservices.MercadoPagoPaymentCommandService;
 import com.tuxlogic.shiftiq.platform.billing.application.queryservices.QuoteQueryService;
+import com.tuxlogic.shiftiq.platform.billing.application.queryservices.VoucherQueryService;
 import com.tuxlogic.shiftiq.platform.billing.domain.model.queries.GetQuoteByIdQuery;
+import com.tuxlogic.shiftiq.platform.billing.domain.model.queries.GetVoucherByQuoteIdQuery;
 import com.tuxlogic.shiftiq.platform.billing.domain.model.valueobjects.QuoteStatus;
-import com.tuxlogic.shiftiq.platform.billing.domain.repositories.VoucherRepository;
 import com.tuxlogic.shiftiq.platform.billing.interfaces.rest.resources.CreateMercadoPagoPreferenceResource;
 import com.tuxlogic.shiftiq.platform.billing.interfaces.rest.resources.MercadoPagoPreferenceResource;
+import com.tuxlogic.shiftiq.platform.billing.interfaces.rest.resources.MercadoPagoWebhookResource;
 import com.tuxlogic.shiftiq.platform.shared.application.result.ApplicationError;
 import com.tuxlogic.shiftiq.platform.shared.infrastructure.security.MultiTenancySecurityService;
 import com.tuxlogic.shiftiq.platform.shared.interfaces.rest.transform.ErrorResponseAssembler;
@@ -15,12 +17,15 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.MessageSource;
 import org.springframework.context.i18n.LocaleContextHolder;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+
+import java.nio.charset.StandardCharsets;
 
 /**
  * REST Controller for processing payments via Mercado Pago.
@@ -36,21 +41,24 @@ public class MercadoPagoPaymentsController {
 
     private final MercadoPagoPaymentCommandService paymentCommandService;
     private final QuoteQueryService quoteQueryService;
-    private final VoucherRepository voucherRepository;
+    private final VoucherQueryService voucherQueryService;
     private final MultiTenancySecurityService multiTenancySecurityService;
     private final MessageSource messageSource;
+    private final String webhookSecret;
 
     public MercadoPagoPaymentsController(
             MercadoPagoPaymentCommandService paymentCommandService,
             QuoteQueryService quoteQueryService,
-            VoucherRepository voucherRepository,
+            VoucherQueryService voucherQueryService,
             MultiTenancySecurityService multiTenancySecurityService,
-            MessageSource messageSource) {
+            MessageSource messageSource,
+            @Value("${mercadopago.webhook.secret:}") String webhookSecret) {
         this.paymentCommandService = paymentCommandService;
         this.quoteQueryService = quoteQueryService;
-        this.voucherRepository = voucherRepository;
+        this.voucherQueryService = voucherQueryService;
         this.multiTenancySecurityService = multiTenancySecurityService;
         this.messageSource = messageSource;
+        this.webhookSecret = webhookSecret;
     }
 
     @PostMapping("/preferences")
@@ -71,7 +79,7 @@ public class MercadoPagoPaymentsController {
             return ErrorResponseAssembler.toErrorResponseFromApplicationError(ApplicationError.conflict("preference", message));
         }
 
-        if (voucherRepository.findByQuoteId(quote.getId()).isPresent()) {
+        if (voucherQueryService.handle(new GetVoucherByQuoteIdQuery(quote.getId())).isPresent()) {
             String message = messageSource.getMessage("billing.error.quote.alreadyInvoiced", null, LocaleContextHolder.getLocale());
             return ErrorResponseAssembler.toErrorResponseFromApplicationError(ApplicationError.conflict("preference", message));
         }
@@ -84,7 +92,7 @@ public class MercadoPagoPaymentsController {
         );
 
         if (resultOpt.isEmpty()) {
-            String message = messageSource.getMessage("billing.error.voucher.invalidData", null, LocaleContextHolder.getLocale());
+            String message = messageSource.getMessage("error.unexpected.message", null, LocaleContextHolder.getLocale());
             return ErrorResponseAssembler.toErrorResponseFromApplicationError(
                     ApplicationError.unexpected("preference", message));
         }
@@ -105,24 +113,87 @@ public class MercadoPagoPaymentsController {
     @PostMapping("/webhooks")
     @Operation(summary = "Handle Mercado Pago Webhook / IPN notifications", description = "Receives asynchronous payment status updates from Mercado Pago")
     public ResponseEntity<Void> handleWebhook(
+            @RequestHeader(value = "x-signature", required = false) String xSignature,
+            @RequestHeader(value = "x-request-id", required = false) String xRequestId,
+            @RequestBody(required = false) MercadoPagoWebhookResource body,
             @RequestParam(name = "type", required = false) String type,
             @RequestParam(name = "topic", required = false) String topic,
             @RequestParam(name = "id", required = false) String id,
             @RequestParam(name = "data.id", required = false) String dataId) {
-        String notificationType = type != null ? type : topic;
-        String paymentIdStr = dataId != null ? dataId : id;
 
-        if ("payment".equalsIgnoreCase(notificationType) && paymentIdStr != null) {
+        String paymentIdStr = null;
+        String notificationType = null;
+
+        if (body != null) {
+            if (body.data() != null && body.data().id() != null) {
+                paymentIdStr = body.data().id();
+            } else if (body.id() != null) {
+                paymentIdStr = body.id().toString();
+            }
+            notificationType = body.type() != null ? body.type() : body.action();
+        }
+
+        if (paymentIdStr == null) {
+            paymentIdStr = dataId != null ? dataId : id;
+        }
+        if (notificationType == null) {
+            notificationType = type != null ? type : topic;
+        }
+
+        if (webhookSecret != null && !webhookSecret.isBlank() && !isValidSignature(xSignature, xRequestId, paymentIdStr)) {
+            LOGGER.warn("Rejecting Mercado Pago webhook due to invalid x-signature");
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+
+        if (paymentIdStr != null && (notificationType == null || notificationType.contains("payment"))) {
             try {
                 Long paymentId = Long.parseLong(paymentIdStr);
                 var paymentStatusOpt = paymentCommandService.getPaymentStatus(paymentId);
                 paymentStatusOpt.ifPresent(status ->
-                        LOGGER.info("Received Mercado Pago webhook for payment ID '{}' with status '{}'", paymentId, status.status())
+                        LOGGER.info("Processed Mercado Pago webhook for payment ID '{}' with status '{}' and detail '{}'",
+                                paymentId, status.status(), status.statusDetail())
                 );
             } catch (NumberFormatException e) {
                 LOGGER.warn("Invalid payment ID format in webhook: {}", paymentIdStr);
             }
         }
+
         return ResponseEntity.ok().build();
+    }
+
+    private boolean isValidSignature(String xSignature, String xRequestId, String dataId) {
+        if (xSignature == null || xSignature.isBlank()) {
+            return false;
+        }
+        try {
+            String ts = null;
+            String hash = null;
+            String[] parts = xSignature.split(",");
+            for (String part : parts) {
+                String[] kv = part.split("=", 2);
+                if (kv.length == 2) {
+                    if ("ts".trim().equalsIgnoreCase(kv[0].trim())) {
+                        ts = kv[1].trim();
+                    } else if ("v1".trim().equalsIgnoreCase(kv[0].trim())) {
+                        hash = kv[1].trim();
+                    }
+                }
+            }
+            if (ts == null || hash == null) {
+                return false;
+            }
+            String manifest = String.format("id:%s;request-id:%s;ts:%s;", dataId != null ? dataId : "", xRequestId != null ? xRequestId : "", ts);
+            javax.crypto.Mac mac = javax.crypto.Mac.getInstance("HmacSHA256");
+            mac.init(new javax.crypto.spec.SecretKeySpec(webhookSecret.getBytes(StandardCharsets.UTF_8), "HmacSHA256"));
+            byte[] rawHmac = mac.doFinal(manifest.getBytes(StandardCharsets.UTF_8));
+            StringBuilder hex = new StringBuilder();
+            for (byte b : rawHmac) {
+                hex.append(String.format("%02x", b));
+            }
+            return hex.toString().equalsIgnoreCase(hash);
+        } catch (Exception e) {
+            LOGGER.warn("Error calculating webhook HMAC signature: {}", e.getMessage());
+            return false;
+        }
     }
 }

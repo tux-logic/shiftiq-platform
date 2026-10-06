@@ -134,9 +134,6 @@ public class VoucherCommandServiceImpl implements VoucherCommandService {
             return Result.success(savedVoucher);
         } catch (IllegalArgumentException e) {
             return Result.failure(VoucherCommandFailure.INVALID_VOUCHER_DATA);
-        } catch (org.springframework.dao.DataIntegrityViolationException e) {
-            log.error("Database constraint violation when generating voucher: {}", e.getMessage());
-            return Result.failure(VoucherCommandFailure.QUOTE_ALREADY_INVOICED);
         }
     }
 
@@ -263,9 +260,6 @@ public class VoucherCommandServiceImpl implements VoucherCommandService {
             return Result.success(savedVoucher);
         } catch (IllegalArgumentException | IllegalStateException e) {
             return Result.failure(VoucherCommandFailure.INVALID_VOUCHER_DATA);
-        } catch (org.springframework.dao.DataIntegrityViolationException e) {
-            log.error("Database constraint violation when processing checkout: {}", e.getMessage());
-            return Result.failure(VoucherCommandFailure.QUOTE_ALREADY_INVOICED);
         }
     }
 
@@ -312,8 +306,8 @@ public class VoucherCommandServiceImpl implements VoucherCommandService {
             log.warn("Payment external reference '{}' does not match quote ID '{}'", paymentResult.externalReference(), quote.getId());
             return Result.failure(VoucherCommandFailure.INVALID_VOUCHER_DATA);
         }
-        if (paymentResult.currency() != null && !"PEN".equalsIgnoreCase(paymentResult.currency())) {
-            log.warn("Payment currency '{}' is not 'PEN'", paymentResult.currency());
+        if (paymentResult.currency() == null || !"PEN".equalsIgnoreCase(paymentResult.currency())) {
+            log.warn("Payment currency '{}' is invalid or not 'PEN'", paymentResult.currency());
             return Result.failure(VoucherCommandFailure.INVALID_VOUCHER_DATA);
         }
 
@@ -372,9 +366,6 @@ public class VoucherCommandServiceImpl implements VoucherCommandService {
             return Result.success(savedVoucher);
         } catch (IllegalArgumentException | IllegalStateException e) {
             return Result.failure(VoucherCommandFailure.INVALID_VOUCHER_DATA);
-        } catch (org.springframework.dao.DataIntegrityViolationException e) {
-            log.error("Database constraint violation when saving Mercado Pago voucher: {}", e.getMessage());
-            return Result.failure(VoucherCommandFailure.QUOTE_ALREADY_INVOICED);
         }
     }
 

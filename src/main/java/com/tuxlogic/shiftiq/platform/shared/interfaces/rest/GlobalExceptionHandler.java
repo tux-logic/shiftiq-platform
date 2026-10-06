@@ -157,6 +157,22 @@ public class GlobalExceptionHandler {
     }
 
     /**
+     * Handles transaction rollback exceptions caused by commit-time constraint violations.
+     *
+     * @param ex the transaction exception
+     * @return error response with CONFLICT status
+     */
+    @ExceptionHandler(org.springframework.transaction.TransactionException.class)
+    public ResponseEntity<?> handleTransactionException(org.springframework.transaction.TransactionException ex) {
+        LOGGER.warn("Transaction exception / constraint violation: {}", ex.getMessage());
+        var applicationError = ApplicationError.conflict(
+                "resource",
+                resolveMessageOrDefault("error.conflict.integrity", "The change conflicts with an existing record and was not applied.")
+        );
+        return ErrorResponseAssembler.toErrorResponseFromApplicationError(applicationError);
+    }
+
+    /**
      * Handles entities requested from the persistence layer that do not exist.
      *
      * @param ex the not found exception

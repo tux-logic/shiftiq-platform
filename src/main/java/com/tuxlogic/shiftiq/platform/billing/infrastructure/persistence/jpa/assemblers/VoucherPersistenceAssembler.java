@@ -40,7 +40,7 @@ public class VoucherPersistenceAssembler {
                 var paymentEntity = new PaymentPersistenceEntity();
                 paymentEntity.setId(payment.getId());
                 paymentEntity.setAmount(payment.getAmount().amount());
-                paymentEntity.setCurrency(payment.getAmount() != null && payment.getAmount().currency() != null ? payment.getAmount().currency() : "PEN");
+                paymentEntity.setCurrency("PEN");
                 paymentEntity.setMethod(payment.getMethod());
                 paymentEntity.setPaidAt(payment.getPaidAt() != null ? payment.getPaidAt() : java.time.LocalDateTime.now());
                 paymentEntity.setBranchId(payment.getBranchId());
