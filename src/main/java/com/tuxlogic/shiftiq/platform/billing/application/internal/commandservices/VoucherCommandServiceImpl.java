@@ -34,11 +34,14 @@ import java.util.UUID;
  * Handles the business use cases for Voucher operations, interacting with repositories
  * and with the Factos external service to emit documents to the tax authority.
  */
+import lombok.extern.slf4j.Slf4j;
 import com.tuxlogic.shiftiq.platform.billing.application.outboundservices.PaymentGateway;
 
+@Slf4j
 @Service
 @Transactional
 public class VoucherCommandServiceImpl implements VoucherCommandService {
+
 
     private final VoucherRepository voucherRepository;
     private final QuoteRepository quoteRepository;
@@ -256,38 +259,100 @@ public class VoucherCommandServiceImpl implements VoucherCommandService {
 
     @Override
     @Transactional
-    public Result<Voucher, VoucherCommandFailure> handle(com.tuxlogic.shiftiq.platform.billing.domain.model.commands.ProcessStripeCheckoutCommand command) {
-        // 1. Validate Quote
+    public Result<Voucher, VoucherCommandFailure> handle(com.tuxlogic.shiftiq.platform.billing.domain.model.commands.ProcessMercadoPagoCheckoutCommand command) {
+        // 1. Replay prevention check: Ensure paymentId hasn't been consumed by another voucher
+        if (voucherRepository.existsByExternalPaymentId(command.paymentId())) {
+            log.warn("Mercado Pago payment ID '{}' has already been used for another voucher", command.paymentId());
+            return Result.failure(VoucherCommandFailure.VOUCHER_ALREADY_PAID);
+        }
+
+        // 2. Validate Quote exists and is in APPROVED status
         var quoteOpt = quoteRepository.findById(command.quoteId());
         if (quoteOpt.isEmpty()) {
             return Result.failure(VoucherCommandFailure.QUOTE_NOT_FOUND);
         }
         var quote = quoteOpt.get();
+        if (quote.getStatus() != QuoteStatus.APPROVED) {
+            return Result.failure(VoucherCommandFailure.QUOTE_NOT_APPROVED);
+        }
 
-        // 2. Verify PaymentIntent status and amount
-        var stripeIntentOpt = paymentGateway.getPaymentIntent(command.paymentIntentId());
-        if (stripeIntentOpt.isEmpty()) {
+        // 3. Ensure a voucher has not already been issued for this quote
+        if (voucherRepository.findByQuoteId(command.quoteId()).isPresent()) {
+            return Result.failure(VoucherCommandFailure.VOUCHER_ALREADY_PAID);
+        }
+
+        // 4. Verify Mercado Pago Payment status, amount, and external reference
+        var paymentResultOpt = paymentGateway.getPaymentIntent(command.paymentId());
+        if (paymentResultOpt.isEmpty()) {
             return Result.failure(VoucherCommandFailure.PAYMENT_NOT_FOUND);
         }
-        var stripeIntent = stripeIntentOpt.get();
-        if (!"succeeded".equalsIgnoreCase(stripeIntent.status()) && !"requires_capture".equalsIgnoreCase(stripeIntent.status())) {
+        var paymentResult = paymentResultOpt.get();
+        if (!"approved".equalsIgnoreCase(paymentResult.status()) && !"succeeded".equalsIgnoreCase(paymentResult.status())) {
             return Result.failure(VoucherCommandFailure.INVALID_VOUCHER_DATA);
         }
-        if (stripeIntent.amount().compareTo(quote.getTotalAmount().amount()) != 0) {
+        if (paymentResult.amount().compareTo(quote.getTotalAmount().amount()) != 0) {
             return Result.failure(VoucherCommandFailure.INVALID_VOUCHER_DATA);
         }
 
-        // 3. Delegate to standard checkout with CREDIT_CARD method
-        var checkoutCommand = new com.tuxlogic.shiftiq.platform.billing.domain.model.commands.ProcessCheckoutCommand(
-                command.quoteId(),
+        // 5. Query Core context for Issuer RUC (Tax ID)
+        var coreBranchId = new BranchId(quote.getBranchId().value());
+        var branchOpt = branchQueryService.handle(new GetBranchByIdQuery(coreBranchId));
+        if (branchOpt.isEmpty()) {
+            return Result.failure(VoucherCommandFailure.ISSUER_NOT_FOUND);
+        }
+
+        var workshopOpt = workshopQueryService.handle(new GetWorkshopByIdQuery(branchOpt.get().getWorkshopId()));
+        if (workshopOpt.isEmpty()) {
+            return Result.failure(VoucherCommandFailure.ISSUER_NOT_FOUND);
+        }
+        String issuerRuc = workshopOpt.get().getTaxId().value();
+
+        // 6. Issue Voucher via Factos (SUNAT)
+        var invoiceResultOpt = factosGateway.issueVoucher(
+                issuerRuc,
                 command.type(),
                 command.customerDocumentType(),
                 command.customerDocumentNumber(),
                 command.customerName(),
-                com.tuxlogic.shiftiq.platform.billing.domain.model.valueobjects.PaymentMethod.CREDIT_CARD
+                getDetailedBillingItems(quote)
         );
-        return handle(checkoutCommand);
+
+        if (invoiceResultOpt.isEmpty()) {
+            return Result.failure(VoucherCommandFailure.FACTOS_ISSUANCE_FAILED);
+        }
+
+        var invoiceResult = invoiceResultOpt.get();
+        UUID externalInvoiceId = UUID.nameUUIDFromBytes((invoiceResult.series() + "-" + invoiceResult.correlative()).getBytes(StandardCharsets.UTF_8));
+
+        // 7. Create Voucher Aggregate and record Mercado Pago payment with external payment ID
+        try {
+            var voucher = new Voucher(
+                    command.quoteId(),
+                    command.type(),
+                    command.customerDocumentType(),
+                    command.customerDocumentNumber(),
+                    command.customerName(),
+                    quote.getTotalAmount(),
+                    externalInvoiceId,
+                    invoiceResult.pdfUrl()
+            );
+
+            voucher.addPayment(
+                    quote.getTotalAmount(),
+                    com.tuxlogic.shiftiq.platform.billing.domain.model.valueobjects.PaymentMethod.CREDIT_CARD,
+                    quote.getBranchId().value(),
+                    "MERCADO_PAGO",
+                    command.paymentId()
+            );
+
+            var savedVoucher = voucherRepository.save(voucher);
+            return Result.success(savedVoucher);
+        } catch (IllegalArgumentException | IllegalStateException e) {
+            return Result.failure(VoucherCommandFailure.INVALID_VOUCHER_DATA);
+        }
     }
+
+
 
     private List<FactosGateway.FactosItem> getDetailedBillingItems(com.tuxlogic.shiftiq.platform.billing.domain.model.aggregates.Quote quote) {
         List<FactosGateway.FactosItem> items = new java.util.ArrayList<>();
