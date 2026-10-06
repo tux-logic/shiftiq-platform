@@ -51,7 +51,7 @@ class CustomerRegistrationsControllerTest {
         CustomerRegistration reg = new CustomerRegistration(UUID.randomUUID(), new BranchId(branchId));
 
         when(queryService.handle(registrationId)).thenReturn(Result.success(reg));
-        when(multiTenancySecurityService.isAuthorizedForBranch(branchId)).thenReturn(false);
+        when(multiTenancySecurityService.isAuthorizedForBranch(new BranchId(branchId))).thenReturn(false);
 
         ResponseEntity<?> response = controller.getById(registrationId);
 
@@ -78,7 +78,7 @@ class CustomerRegistrationsControllerTest {
         UpdateCustomerRegistrationResource resource = new UpdateCustomerRegistrationResource("INACTIVE");
 
         when(queryService.handle(registrationId)).thenReturn(Result.success(reg));
-        when(multiTenancySecurityService.isAuthorizedForBranch(branchId)).thenReturn(false);
+        when(multiTenancySecurityService.isAuthorizedForBranch(new BranchId(branchId))).thenReturn(false);
 
         ResponseEntity<?> response = controller.update(registrationId, resource);
 
@@ -93,7 +93,7 @@ class CustomerRegistrationsControllerTest {
         CustomerRegistration reg = new CustomerRegistration(UUID.randomUUID(), new BranchId(branchId));
 
         when(queryService.handle(registrationId)).thenReturn(Result.success(reg));
-        when(multiTenancySecurityService.isAuthorizedForBranch(branchId)).thenReturn(false);
+        when(multiTenancySecurityService.isAuthorizedForBranch(new BranchId(branchId))).thenReturn(false);
 
         ResponseEntity<?> response = controller.delete(registrationId);
 

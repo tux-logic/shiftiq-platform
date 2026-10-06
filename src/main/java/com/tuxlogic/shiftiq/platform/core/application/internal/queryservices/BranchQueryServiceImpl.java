@@ -6,11 +6,13 @@ import com.tuxlogic.shiftiq.platform.core.domain.model.queries.GetAllBranchesByW
 import com.tuxlogic.shiftiq.platform.core.domain.model.queries.GetBranchByIdQuery;
 import com.tuxlogic.shiftiq.platform.core.domain.repositories.BranchRepository;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Optional;
 
 @Service
+@Transactional(readOnly = true)
 public class BranchQueryServiceImpl implements BranchQueryService {
     private final BranchRepository branchRepository;
 

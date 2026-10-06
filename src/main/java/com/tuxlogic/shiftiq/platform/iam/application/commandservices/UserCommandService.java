@@ -8,6 +8,8 @@ import com.tuxlogic.shiftiq.platform.iam.domain.model.commands.UpdateUserPasswor
 import com.tuxlogic.shiftiq.platform.iam.domain.model.commands.GoogleSignInCommand;
 import com.tuxlogic.shiftiq.platform.iam.domain.model.queries.AuthenticatedUser;
 
+import com.tuxlogic.shiftiq.platform.iam.domain.model.commands.AssignBranchToUserCommand;
+
 import java.util.Optional;
 
 public interface UserCommandService {
@@ -16,4 +18,5 @@ public interface UserCommandService {
     Optional<AuthenticatedUser> handle(GoogleSignInCommand command);
     Optional<AuthenticatedUser> handle(UpdateUserEmailCommand command);
     Optional<User> handle(UpdateUserPasswordCommand command);
+    Optional<User> handle(AssignBranchToUserCommand command);
 }

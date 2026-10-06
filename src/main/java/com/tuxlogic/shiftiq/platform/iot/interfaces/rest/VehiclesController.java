@@ -1,6 +1,6 @@
 package com.tuxlogic.shiftiq.platform.iot.interfaces.rest;
 
-import com.tuxlogic.shiftiq.platform.iam.infrastructure.authorization.sfs.model.UserDetailsImpl;
+import com.tuxlogic.shiftiq.platform.shared.infrastructure.security.AuthenticatedPrincipal;
 import com.tuxlogic.shiftiq.platform.iot.application.commandservices.VehicleCommandService;
 import com.tuxlogic.shiftiq.platform.iot.application.queryservices.DtcAlertQueryService;
 import com.tuxlogic.shiftiq.platform.iot.application.queryservices.TelemetryQueryService;
@@ -99,8 +99,8 @@ public class VehiclesController {
 
         var activeDriverRegistration = vehicleRegistrationRepository.findActiveByVehicleId(vehicleIdVo);
         if (activeDriverRegistration.isPresent()) {
-            var userDetails = (UserDetailsImpl) authentication.getPrincipal();
-            if (activeDriverRegistration.get().getUserId().equals(userDetails.getId())) {
+            var principal = (AuthenticatedPrincipal) authentication.getPrincipal();
+            if (activeDriverRegistration.get().getUserId().equals(principal.getId())) {
                 return;
             }
         }
@@ -151,8 +151,8 @@ public class VehiclesController {
     public ResponseEntity<?> registerVehicle(
             @Valid @RequestBody RegisterVehicleResource resource,
             Authentication authentication) {
-        var userDetails = (UserDetailsImpl) authentication.getPrincipal();
-        UUID userId = userDetails.getId();
+        var principal = (AuthenticatedPrincipal) authentication.getPrincipal();
+        UUID userId = principal.getId();
 
         var command = RegisterVehicleCommandFromResourceAssembler.toCommandFromResource(userId, resource);
         var result = vehicleCommandService.handle(command);

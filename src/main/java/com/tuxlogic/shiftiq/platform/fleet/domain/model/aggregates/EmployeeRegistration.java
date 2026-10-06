@@ -59,11 +59,45 @@ public class EmployeeRegistration extends AbstractDomainAggregateRoot<EmployeeRe
         this.deletedAt = deletedAt;
     }
 
+    public EmployeeRegistration(UUID employeeId, BranchId branchId,
+            String speciality, String specialityName, BigDecimal salary,
+            EmployeeRegistrationStatus initialStatus) {
+        this.id = new EmployeeId(UUID.randomUUID());
+        this.employeeId = employeeId;
+        this.branchId = branchId;
+        this.speciality = speciality;
+        this.specialityName = specialityName;
+        this.salary = salary;
+        this.status = initialStatus != null ? initialStatus : EmployeeRegistrationStatus.PENDING_APPROVAL;
+        this.createdAt = Instant.now();
+        this.updatedAt = Instant.now();
+    }
+
     public void update(String speciality, String specialityName, BigDecimal salary) {
         this.speciality = speciality;
         this.specialityName = specialityName;
         this.salary = salary;
         this.updatedAt = Instant.now();
+    }
+
+    public void approve() {
+        if (!EmployeeRegistrationStatus.PENDING_APPROVAL.equals(this.status)) {
+            throw new IllegalStateException("fleet.error.employeeRegistration.cannotApproveNotPending");
+        }
+        this.status = EmployeeRegistrationStatus.ACTIVE;
+        this.updatedAt = Instant.now();
+        this.registerEvent(new com.tuxlogic.shiftiq.platform.shared.domain.model.events.EmployeeRegistrationApprovedEvent(
+                this, this.id.value(), this.employeeId, this.branchId
+        ));
+    }
+
+    public void reject(String reason) {
+        if (!EmployeeRegistrationStatus.PENDING_APPROVAL.equals(this.status)) {
+            throw new IllegalStateException("fleet.error.employeeRegistration.cannotRejectNotPending");
+        }
+        this.status = EmployeeRegistrationStatus.REJECTED;
+        this.updatedAt = Instant.now();
+        this.deletedAt = Instant.now();
     }
 
     public void deactivate() {

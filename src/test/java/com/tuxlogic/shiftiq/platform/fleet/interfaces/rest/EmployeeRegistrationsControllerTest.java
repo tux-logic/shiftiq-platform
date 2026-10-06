@@ -61,7 +61,7 @@ class EmployeeRegistrationsControllerTest {
         );
 
         when(queryService.handle(any(GetEmployeeRegistrationByIdQuery.class))).thenReturn(Result.success(registration));
-        when(multiTenancySecurityService.isAuthorizedForBranch(branchId)).thenReturn(false);
+        when(multiTenancySecurityService.isAuthorizedForBranch(new BranchId(branchId))).thenReturn(false);
 
         ResponseEntity<?> response = controller.getById(id);
 
@@ -95,7 +95,7 @@ class EmployeeRegistrationsControllerTest {
         UpdateEmployeeRegistrationResource resource = new UpdateEmployeeRegistrationResource("ELECTRICISTA", "Electricista automotriz", new BigDecimal("2000.00"));
 
         when(queryService.handle(any(GetEmployeeRegistrationByIdQuery.class))).thenReturn(Result.success(registration));
-        when(multiTenancySecurityService.isAuthorizedForBranch(branchId)).thenReturn(false);
+        when(multiTenancySecurityService.isAuthorizedForBranch(new BranchId(branchId))).thenReturn(false);
 
         ResponseEntity<?> response = controller.updateEmployeeRegistration(id, resource);
 
@@ -118,7 +118,7 @@ class EmployeeRegistrationsControllerTest {
         UpdateEmployeeRegistrationResource resource = new UpdateEmployeeRegistrationResource("ELECTRICISTA", "Electricista automotriz", new BigDecimal("2000.00"));
 
         when(queryService.handle(any(GetEmployeeRegistrationByIdQuery.class))).thenReturn(Result.success(registration));
-        when(multiTenancySecurityService.isAuthorizedForBranch(branchId)).thenReturn(true);
+        when(multiTenancySecurityService.isAuthorizedForBranch(new BranchId(branchId))).thenReturn(true);
         when(commandService.handle(any(UpdateEmployeeRegistrationCommand.class))).thenReturn(Result.success(registration));
 
         ResponseEntity<?> response = controller.updateEmployeeRegistration(id, resource);
@@ -140,7 +140,7 @@ class EmployeeRegistrationsControllerTest {
         );
 
         when(queryService.handle(any(GetEmployeeRegistrationByIdQuery.class))).thenReturn(Result.success(registration));
-        when(multiTenancySecurityService.isAuthorizedForBranch(branchId)).thenReturn(false);
+        when(multiTenancySecurityService.isAuthorizedForBranch(new BranchId(branchId))).thenReturn(false);
 
         ResponseEntity<?> response = controller.deactivateEmployeeRegistration(id);
 
@@ -161,7 +161,7 @@ class EmployeeRegistrationsControllerTest {
         );
 
         when(queryService.handle(any(GetEmployeeRegistrationByIdQuery.class))).thenReturn(Result.success(registration));
-        when(multiTenancySecurityService.isAuthorizedForBranch(branchId)).thenReturn(true);
+        when(multiTenancySecurityService.isAuthorizedForBranch(new BranchId(branchId))).thenReturn(true);
         when(commandService.handle(any(DeleteEmployeeRegistrationCommand.class))).thenReturn(Result.success(registration));
 
         ResponseEntity<?> response = controller.deactivateEmployeeRegistration(id);

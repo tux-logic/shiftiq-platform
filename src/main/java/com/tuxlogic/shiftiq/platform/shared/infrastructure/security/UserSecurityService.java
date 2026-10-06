@@ -1,6 +1,5 @@
 package com.tuxlogic.shiftiq.platform.shared.infrastructure.security;
 
-import com.tuxlogic.shiftiq.platform.iam.infrastructure.authorization.sfs.model.UserDetailsImpl;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
@@ -28,8 +27,8 @@ public class UserSecurityService {
             return false;
         }
         Object principal = authentication.getPrincipal();
-        if (principal instanceof UserDetailsImpl userDetails) {
-            return userId.equals(userDetails.getId());
+        if (principal instanceof AuthenticatedPrincipal authenticatedPrincipal) {
+            return userId.equals(authenticatedPrincipal.getId());
         }
         return false;
     }

@@ -7,10 +7,12 @@ import com.tuxlogic.shiftiq.platform.core.domain.model.queries.GetEmployeeByUser
 import com.tuxlogic.shiftiq.platform.core.domain.model.queries.GetEmployeeByDocumentNumberQuery;
 import com.tuxlogic.shiftiq.platform.core.domain.repositories.EmployeeRepository;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Optional;
 
 @Service
+@Transactional(readOnly = true)
 public class EmployeeQueryServiceImpl implements EmployeeQueryService {
     private final EmployeeRepository employeeRepository;
 

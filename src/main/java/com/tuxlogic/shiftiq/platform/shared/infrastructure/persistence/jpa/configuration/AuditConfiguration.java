@@ -7,7 +7,7 @@ import org.springframework.data.jpa.repository.config.EnableJpaAuditing;
 
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
-import com.tuxlogic.shiftiq.platform.iam.infrastructure.authorization.sfs.model.UserDetailsImpl;
+import com.tuxlogic.shiftiq.platform.shared.infrastructure.security.AuthenticatedPrincipal;
 
 import java.util.Optional;
 import java.util.UUID;
@@ -37,11 +37,11 @@ public class AuditConfiguration {
             }
 
             Object principal = authentication.getPrincipal();
-            if (!(principal instanceof UserDetailsImpl userDetails)) {
+            if (!(principal instanceof AuthenticatedPrincipal authenticatedPrincipal)) {
                 return Optional.empty();
             }
 
-            return Optional.of(userDetails.getId());
+            return Optional.of(authenticatedPrincipal.getId());
         };
     }
 }
