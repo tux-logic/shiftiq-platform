@@ -11,8 +11,13 @@ public record UpdateVehicleCommand(
         String brand,
         String model,
         Integer year,
-        String vin
+        String vin,
+        String photoUrl
 ) {
+    public UpdateVehicleCommand(UUID id, String plateNumber, String brand, String model, Integer year, String vin) {
+        this(id, plateNumber, brand, model, year, vin, null);
+    }
+
     public UpdateVehicleCommand {
         if (id == null) {
             throw new IllegalArgumentException("id cannot be null");

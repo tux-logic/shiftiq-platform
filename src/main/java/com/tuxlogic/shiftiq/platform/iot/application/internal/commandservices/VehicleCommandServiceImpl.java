@@ -70,7 +70,8 @@ public class VehicleCommandServiceImpl implements VehicleCommandService {
                         command.brand(),
                         command.model(),
                         command.year(),
-                        command.vin()
+                        command.vin(),
+                        command.photoUrl()
                 );
                 vehicle = vehicleRepository.save(vehicle);
             }
@@ -124,7 +125,8 @@ public class VehicleCommandServiceImpl implements VehicleCommandService {
                     command.brand(),
                     command.model(),
                     command.year(),
-                    command.vin()
+                    command.vin(),
+                    command.photoUrl()
             );
             Vehicle updatedVehicle = vehicleRepository.save(vehicle);
 

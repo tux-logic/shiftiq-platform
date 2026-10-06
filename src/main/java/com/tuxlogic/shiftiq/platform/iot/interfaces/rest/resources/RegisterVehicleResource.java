@@ -24,6 +24,8 @@ public record RegisterVehicleResource(
         Integer year,
 
         @NotBlank(message = "VIN is required")
-        String vin
+        String vin,
+
+        String photoUrl
 ) {
 }

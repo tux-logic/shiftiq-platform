@@ -11,6 +11,7 @@ public record VehicleResource(
         String brand,
         String model,
         Integer year,
-        String vin
+        String vin,
+        String photoUrl
 ) {
 }
