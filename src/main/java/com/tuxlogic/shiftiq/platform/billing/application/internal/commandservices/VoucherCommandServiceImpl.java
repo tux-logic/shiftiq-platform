@@ -289,7 +289,7 @@ public class VoucherCommandServiceImpl implements VoucherCommandService {
         }
 
         // 4. Verify Mercado Pago Payment status, amount, external reference, and currency
-        var paymentResultOpt = paymentGateway.getPaymentIntent(command.paymentId());
+        var paymentResultOpt = paymentGateway.getPaymentStatus(command.paymentId());
         if (paymentResultOpt.isEmpty()) {
             return Result.failure(VoucherCommandFailure.PAYMENT_NOT_FOUND);
         }

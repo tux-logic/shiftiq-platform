@@ -6,5 +6,5 @@ import java.util.Optional;
  * Outbound service interface for payment gateway verification operations.
  */
 public interface PaymentGateway {
-    Optional<PaymentIntentResult> getPaymentIntent(String paymentIntentId);
+    Optional<PaymentResult> getPaymentStatus(String paymentId);
 }

@@ -12,7 +12,7 @@ import com.mercadopago.resources.preference.Preference;
 import com.tuxlogic.shiftiq.platform.billing.application.outboundservices.MercadoPagoGateway;
 import com.tuxlogic.shiftiq.platform.billing.application.outboundservices.MercadoPagoPaymentResult;
 import com.tuxlogic.shiftiq.platform.billing.application.outboundservices.MercadoPagoPreferenceResult;
-import com.tuxlogic.shiftiq.platform.billing.application.outboundservices.PaymentIntentResult;
+import com.tuxlogic.shiftiq.platform.billing.application.outboundservices.PaymentResult;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -39,10 +39,10 @@ public class MercadoPagoGatewayImpl implements MercadoPagoGateway {
     }
 
     @Override
-    public Optional<PaymentIntentResult> getPaymentIntent(String paymentIntentId) {
+    public Optional<PaymentResult> getPaymentStatus(String paymentId) {
         try {
-            Long paymentId = Long.parseLong(paymentIntentId);
-            return getPaymentStatus(paymentId).map(pay -> new PaymentIntentResult(
+            Long parsedPaymentId = Long.parseLong(paymentId);
+            return getPaymentStatus(parsedPaymentId).map(pay -> new PaymentResult(
                     pay.paymentId().toString(),
                     pay.externalReference(),
                     pay.amount(),
@@ -50,7 +50,7 @@ public class MercadoPagoGatewayImpl implements MercadoPagoGateway {
                     pay.status()
             ));
         } catch (NumberFormatException e) {
-            LOGGER.error("Invalid Mercado Pago payment ID format: {}", paymentIntentId);
+            LOGGER.error("Invalid Mercado Pago payment ID format: {}", paymentId);
             return Optional.empty();
         }
     }

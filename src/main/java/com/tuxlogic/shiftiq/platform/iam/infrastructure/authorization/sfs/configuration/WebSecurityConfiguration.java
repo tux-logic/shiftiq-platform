@@ -22,6 +22,7 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 import java.util.Arrays;
 import java.util.List;
 
+import com.tuxlogic.shiftiq.platform.billing.infrastructure.security.MercadoPagoRateLimitingFilter;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 
 @Configuration
@@ -32,15 +33,18 @@ public class WebSecurityConfiguration {
     private final BearerAuthorizationRequestFilter authorizationRequestFilter;
     private final UnauthorizedRequestHandlerEntryPoint unauthorizedHandler;
     private final BCryptHashingService hashingService;
+    private final MercadoPagoRateLimitingFilter mercadoPagoRateLimitingFilter;
 
     public WebSecurityConfiguration(UserDetailsService userDetailsService,
                                     BearerAuthorizationRequestFilter authorizationRequestFilter,
                                     UnauthorizedRequestHandlerEntryPoint unauthorizedHandler,
-                                    BCryptHashingService hashingService) {
+                                    BCryptHashingService hashingService,
+                                    MercadoPagoRateLimitingFilter mercadoPagoRateLimitingFilter) {
         this.userDetailsService = userDetailsService;
         this.authorizationRequestFilter = authorizationRequestFilter;
         this.unauthorizedHandler = unauthorizedHandler;
         this.hashingService = hashingService;
+        this.mercadoPagoRateLimitingFilter = mercadoPagoRateLimitingFilter;
     }
 
     @Bean
@@ -84,6 +88,7 @@ public class WebSecurityConfiguration {
                 );
 
         http.authenticationProvider(authenticationProvider());
+        http.addFilterBefore(mercadoPagoRateLimitingFilter, UsernamePasswordAuthenticationFilter.class);
         http.addFilterBefore(authorizationRequestFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();

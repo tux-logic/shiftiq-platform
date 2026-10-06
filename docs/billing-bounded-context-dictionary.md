@@ -285,7 +285,7 @@ classDiagram
 * `FactosGateway`:
   - `Optional<FactosInvoiceResult> issueVoucher(String issuerRuc, VoucherType documentType, String customerDocumentType, String customerDocumentNumber, String customerName, List<FactosItem> items)`
 * `PaymentGateway`:
-  - `Optional<PaymentIntentResult> getPaymentIntent(String paymentIntentId)`
+  - `Optional<PaymentResult> getPaymentStatus(String paymentId)`
 * `MercadoPagoGateway`:
   - `Optional<MercadoPagoPreferenceResult> createPreference(BigDecimal amount, String currency, String title, String externalReference)`
   - `Optional<MercadoPagoPaymentResult> getPaymentStatus(Long paymentId)`

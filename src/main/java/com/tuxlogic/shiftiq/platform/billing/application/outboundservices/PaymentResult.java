@@ -5,8 +5,8 @@ import java.math.BigDecimal;
 /**
  * Result DTO representing payment status and gateway details in application layer.
  */
-public record PaymentIntentResult(
-        String paymentIntentId,
+public record PaymentResult(
+        String paymentId,
         String externalReference,
         BigDecimal amount,
         String currency,

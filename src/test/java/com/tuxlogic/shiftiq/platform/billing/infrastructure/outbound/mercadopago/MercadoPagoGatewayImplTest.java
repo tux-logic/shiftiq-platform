@@ -20,13 +20,13 @@ class MercadoPagoGatewayImplTest {
 
     @Test
     void getPaymentStatus_WhenPaymentIdNull_ShouldReturnEmpty() {
-        Optional<MercadoPagoPaymentResult> result = gateway.getPaymentStatus(null);
+        Optional<MercadoPagoPaymentResult> result = gateway.getPaymentStatus((Long) null);
         assertTrue(result.isEmpty());
     }
 
     @Test
-    void getPaymentIntent_WhenInvalidFormat_ShouldReturnEmpty() {
-        var result = gateway.getPaymentIntent("invalid_numeric_id");
+    void getPaymentStatus_WhenInvalidFormat_ShouldReturnEmpty() {
+        var result = gateway.getPaymentStatus("invalid_numeric_id");
         assertTrue(result.isEmpty());
     }
 }
