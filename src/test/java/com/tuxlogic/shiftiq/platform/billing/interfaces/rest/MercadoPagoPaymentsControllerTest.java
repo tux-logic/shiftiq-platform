@@ -4,8 +4,11 @@ import com.tuxlogic.shiftiq.platform.billing.application.commandservices.Mercado
 import com.tuxlogic.shiftiq.platform.billing.application.outboundservices.MercadoPagoPreferenceResult;
 import com.tuxlogic.shiftiq.platform.billing.application.queryservices.QuoteQueryService;
 import com.tuxlogic.shiftiq.platform.billing.domain.model.aggregates.Quote;
+import com.tuxlogic.shiftiq.platform.billing.domain.model.aggregates.Voucher;
 import com.tuxlogic.shiftiq.platform.billing.domain.model.queries.GetQuoteByIdQuery;
 import com.tuxlogic.shiftiq.platform.billing.domain.model.valueobjects.QuoteStatus;
+import com.tuxlogic.shiftiq.platform.billing.domain.model.valueobjects.VoucherType;
+import com.tuxlogic.shiftiq.platform.billing.domain.repositories.VoucherRepository;
 import com.tuxlogic.shiftiq.platform.billing.interfaces.rest.resources.CreateMercadoPagoPreferenceResource;
 import com.tuxlogic.shiftiq.platform.billing.interfaces.rest.resources.MercadoPagoPreferenceResource;
 import com.tuxlogic.shiftiq.platform.shared.domain.model.valueobjects.BranchId;
@@ -40,6 +43,9 @@ class MercadoPagoPaymentsControllerTest {
     private QuoteQueryService quoteQueryService;
 
     @Mock
+    private VoucherRepository voucherRepository;
+
+    @Mock
     private MultiTenancySecurityService multiTenancySecurityService;
 
     @Mock
@@ -49,7 +55,7 @@ class MercadoPagoPaymentsControllerTest {
 
     @BeforeEach
     void setUp() {
-        controller = new MercadoPagoPaymentsController(paymentCommandService, quoteQueryService, multiTenancySecurityService, messageSource);
+        controller = new MercadoPagoPaymentsController(paymentCommandService, quoteQueryService, voucherRepository, multiTenancySecurityService, messageSource);
     }
 
     @Test
@@ -61,6 +67,7 @@ class MercadoPagoPaymentsControllerTest {
         Quote quote = new Quote(quoteId, UUID.randomUUID(), new BranchId(branchId), new Money(amount), 0.0, new Money(amount), QuoteStatus.APPROVED);
 
         when(quoteQueryService.handle(any(GetQuoteByIdQuery.class))).thenReturn(Optional.of(quote));
+        when(voucherRepository.findByQuoteId(eq(quoteId))).thenReturn(Optional.empty());
 
         MercadoPagoPreferenceResult mockResponse = new MercadoPagoPreferenceResult(
                 "pref_123456",
@@ -84,6 +91,27 @@ class MercadoPagoPaymentsControllerTest {
         MercadoPagoPreferenceResource resBody = (MercadoPagoPreferenceResource) response.getBody();
         assertEquals("pref_123456", resBody.preferenceId());
         verify(multiTenancySecurityService).validateBranchAccess(branchId);
+    }
+
+    @Test
+    void createPreference_WhenQuoteAlreadyInvoiced_ShouldReturnConflict() {
+        UUID quoteId = UUID.randomUUID();
+        UUID branchId = UUID.randomUUID();
+        BigDecimal amount = new BigDecimal("150.00");
+
+        Quote quote = new Quote(quoteId, UUID.randomUUID(), new BranchId(branchId), new Money(amount), 0.0, new Money(amount), QuoteStatus.APPROVED);
+        Voucher existingVoucher = new Voucher(quoteId, VoucherType.RECEIPT, "DNI", "12345678", "Juan Perez", quote.getTotalAmount(), UUID.randomUUID(), "http://pdf");
+
+        when(quoteQueryService.handle(any(GetQuoteByIdQuery.class))).thenReturn(Optional.of(quote));
+        when(voucherRepository.findByQuoteId(eq(quoteId))).thenReturn(Optional.of(existingVoucher));
+        when(messageSource.getMessage(anyString(), any(), any())).thenReturn("Quote already invoiced");
+
+        CreateMercadoPagoPreferenceResource resource = new CreateMercadoPagoPreferenceResource(quoteId);
+
+        ResponseEntity<?> response = controller.createPreference(resource);
+
+        assertEquals(HttpStatus.CONFLICT, response.getStatusCode());
+        verify(paymentCommandService, never()).createPreference(any(), any(), any(), any());
     }
 
     @Test
@@ -113,5 +141,12 @@ class MercadoPagoPaymentsControllerTest {
         ResponseEntity<?> response = controller.createPreference(resource);
 
         assertEquals(HttpStatus.NOT_FOUND, response.getStatusCode());
+    }
+
+    @Test
+    void handleWebhook_WhenValidPaymentEvent_ShouldReturnOk() {
+        ResponseEntity<Void> response = controller.handleWebhook("payment", null, null, "123456789");
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        verify(paymentCommandService).getPaymentStatus(123456789L);
     }
 }

@@ -231,7 +231,7 @@ classDiagram
         +handle(AddPaymentCommand) Result~Voucher, VoucherCommandFailure~
         +handle(RemovePaymentCommand) Result~Voucher, VoucherCommandFailure~
         +handle(ProcessCheckoutCommand) Result~Voucher, VoucherCommandFailure~
-        +handle(ProcessStripeCheckoutCommand) Result~Voucher, VoucherCommandFailure~
+        +handle(ProcessMercadoPagoCheckoutCommand) Result~Voucher, VoucherCommandFailure~
     }
 
     class VoucherQueryService {
@@ -240,20 +240,20 @@ classDiagram
         +handle(GetVouchersByBranchIdQuery) List~Voucher~
     }
 
-    class StripePaymentCommandService {
+    class MercadoPagoPaymentCommandService {
         <<Interface>>
-        +createPaymentIntent(BigDecimal, String, String) Optional~StripePaymentIntentResult~
-        +getPaymentIntent(String) Optional~StripePaymentIntentResult~
+        +createPreference(BigDecimal, String, String, String) Optional~MercadoPagoPreferenceResult~
+        +getPaymentStatus(Long) Optional~MercadoPagoPaymentResult~
     }
 
     QuoteCommandServiceImpl ..|> QuoteCommandService
     QuoteQueryServiceImpl ..|> QuoteQueryService
     VoucherCommandServiceImpl ..|> VoucherCommandService
     VoucherQueryServiceImpl ..|> VoucherQueryService
-    StripePaymentCommandServiceImpl ..|> StripePaymentCommandService
+    MercadoPagoPaymentCommandServiceImpl ..|> MercadoPagoPaymentCommandService
 
     VoucherCommandServiceImpl --> FactosGateway
-    StripePaymentCommandServiceImpl --> StripeGateway
+    MercadoPagoPaymentCommandServiceImpl --> MercadoPagoGateway
 ```
 
 ---
@@ -461,12 +461,12 @@ Descomposición del Container API en sus componentes principales para el Bounded
 ```mermaid
 graph TB
     subgraph Client_Tier ["Frontend / Mobile Clients Tier"]
-        ClientApp["ShiftIQ WebApp / Mobile Client<br><i>[TypeScript / Flutter]</i><br>Pasarela de pago en caja, emisión de comprobantes y cobros Stripe."]
+        ClientApp["ShiftIQ WebApp / Mobile Client<br><i>[TypeScript / Flutter]</i><br>Pasarela de pago en caja, emisión de comprobantes y cobros Mercado Pago."]
     end
 
     subgraph External_Services ["External Services Tier"]
         FactosAPI["Factos Electronic Invoicing API<br><i>[REST Service]</i><br>Proveedor autorizado SUNAT para emisión de comprobantes CPE."]
-        StripeAPI["Stripe Payments API<br><i>[REST Service]</i><br>Pasarela de procesamientos de tarjetas de crédito/débito."]
+        MercadoPagoAPI["Mercado Pago API<br><i>[REST Service]</i><br>Pasarela de procesamiento de cobros y tarjetas."]
     end
 
     subgraph External_DB ["Database Tier"]
@@ -477,16 +477,16 @@ graph TB
         QuotesCtrl["QuotesController<br><b>[Spring REST Controller]</b><br>Endpoints para gestión de cotizaciones y aprobaciones."]
         VouchersCtrl["VouchersController<br><b>[Spring REST Controller]</b><br>Endpoints para generación de comprobantes y pagos."]
         CheckoutsCtrl["CheckoutsController<br><b>[Spring REST Controller]</b><br>Flujos completos de checkout inmediato."]
-        StripePaymentsCtrl["StripePaymentsController<br><b>[Spring REST Controller]</b><br>Generación de PaymentIntents de tarjeta."]
+        MercadoPagoCtrl["MercadoPagoPaymentsController<br><b>[Spring REST Controller]</b><br>Generación de preferencias de pago y webhooks."]
 
         VoucherListener["VoucherPaidListener<br><b>[Domain Event Listener]</b><br>Escucha pagos completos de comprobantes."]
 
         QuoteCmdService["QuoteCommandService<br><b>[Application Service]</b><br>Gestión de cotizaciones y descuentos."]
         VoucherCmdService["VoucherCommandService<br><b>[Application Service]</b><br>Generación de comprobantes, abonos y checkouts."]
-        StripePaymentCmdService["StripePaymentCommandService<br><b>[Application Service]</b><br>Creación y verificación de cobros en Stripe."]
+        MercadoPagoCmdService["MercadoPagoPaymentCommandService<br><b>[Application Service]</b><br>Creación y verificación de cobros en Mercado Pago."]
 
         FactosClient["FactosGatewayImpl<br><b>[Outbound ACL Adapter]</b><br>Emisión electrónica de facturas F001 / boletas B001 en SUNAT."]
-        StripeClient["StripeGatewayImpl<br><b>[Outbound ACL Adapter]</b><br>Cliente API oficial de Stripe."]
+        MercadoPagoClient["MercadoPagoGatewayImpl<br><b>[Outbound ACL Adapter]</b><br>Cliente API oficial de Mercado Pago."]
 
         QuoteRepoAdapter["QuoteRepositoryImpl<br><b>[Infrastructure Adapter]</b>"]
         VoucherRepoAdapter["VoucherRepositoryImpl<br><b>[Infrastructure Adapter]</b>"]
@@ -495,18 +495,18 @@ graph TB
     ClientApp -->|"HTTPS / REST"| QuotesCtrl
     ClientApp -->|"HTTPS / REST"| VouchersCtrl
     ClientApp -->|"HTTPS / REST"| CheckoutsCtrl
-    ClientApp -->|"HTTPS / REST"| StripePaymentsCtrl
+    ClientApp -->|"HTTPS / REST"| MercadoPagoCtrl
 
     QuotesCtrl --> QuoteCmdService
     VouchersCtrl --> VoucherCmdService
     CheckoutsCtrl --> VoucherCmdService
-    StripePaymentsCtrl --> StripePaymentCmdService
+    MercadoPagoCtrl --> MercadoPagoCmdService
 
     VoucherCmdService --> FactosClient
-    StripePaymentCmdService --> StripeClient
+    MercadoPagoCmdService --> MercadoPagoClient
 
     FactosClient -->|"HTTP REST / JSON"| FactosAPI
-    StripeClient -->|"HTTPS REST / Stripe API"| StripeAPI
+    MercadoPagoClient -->|"HTTPS REST / Mercado Pago API"| MercadoPagoAPI
 
     QuoteCmdService --> QuoteRepoAdapter
     VoucherCmdService --> VoucherRepoAdapter

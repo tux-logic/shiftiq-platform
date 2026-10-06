@@ -1,6 +1,6 @@
 # Billing Bounded Context - Endpoints Documentation
 
-Este documento detalla el uso de los endpoints REST expuestos por el Bounded Context de **Billing** (Facturación) en la plataforma Atelier. El contexto se divide principalmente en dos recursos: **Quotes** (Cotizaciones) y **Vouchers** (Comprobantes de Pago: Boletas/Facturas).
+Este documento detalla el uso de los endpoints REST expuestos por el Bounded Context de **Billing** (Facturación) en la plataforma Atelier. El contexto se divide en cuatro áreas principales: **Quotes** (Cotizaciones), **Vouchers** (Comprobantes de Pago: Boletas/Facturas), **Checkouts** (Flujos de Facturación e Integración Mercado Pago) y **Mercado Pago Payments** (Preferencias y Webhooks).
 
 ---
 
@@ -47,7 +47,7 @@ Permite modificar el descuento de una cotización, siempre y cuando esté en est
 Transiciona el estado de la cotización de `DRAFT` a `APPROVED`. Solo las cotizaciones aprobadas pueden ser facturadas (convertidas a Vouchers).
 
 - **Método:** `POST`
-- **Ruta:** `/api/v1/quotes/{id}/approve`
+- **Ruta:** `/api/v1/quotes/{id}/approvals`
 - **Respuestas:**
   - `200 OK`: Cotización aprobada.
 
@@ -55,13 +55,13 @@ Transiciona el estado de la cotización de `DRAFT` a `APPROVED`. Solo las cotiza
 Transiciona el estado de la cotización a `CANCELED`.
 
 - **Método:** `POST`
-- **Ruta:** `/api/v1/quotes/{id}/cancel`
+- **Ruta:** `/api/v1/quotes/{id}/cancellations`
 - **Respuestas:**
   - `200 OK`: Cotización cancelada.
 
 ### 1.5. Obtener Cotizaciones
 - **Por ID:** `GET /api/v1/quotes/{id}`
-- **Por Sucursal:** `GET /api/v1/quotes/branch/{branchId}`
+- **Por Sucursal:** `GET /api/v1/quotes?branchId={branchId}`
 
 ---
 
@@ -71,7 +71,7 @@ Transiciona el estado de la cotización a `CANCELED`.
 Un Voucher representa un comprobante de pago electrónico (Boleta o Factura). Se generan a partir de cotizaciones `APPROVED`.
 
 ### 2.1. Generar Comprobante (Generate Voucher)
-Crea un comprobante a partir de una cotización aprobada y lo envía a SUNAT vía Facthub. Inicialmente se crea en estado `PENDING_PAYMENT`.
+Crea un comprobante a partir de una cotización aprobada y lo envía a SUNAT vía Factos. Inicialmente se crea en estado `PENDING`.
 
 - **Método:** `POST`
 - **Ruta:** `/api/v1/vouchers`
@@ -89,32 +89,11 @@ Crea un comprobante a partir de una cotización aprobada y lo envía a SUNAT ví
 
 - **Respuestas:**
   - `201 Created`: Comprobante emitido correctamente.
-  - `409 Conflict`: La cotización no está en estado `APPROVED`.
-  - `503 Service Unavailable`: Falla en la integración con Facthub.
+  - `409 Conflict`: La cotización no está en estado `APPROVED` o ya fue facturada.
+  - `500 Internal Server Error`: Falla en la integración con Factos.
 
-### 2.2. Flujo Completo de Checkout (Process Checkout)
-Genera el comprobante y registra el pago total en una sola transacción. Es útil para el caso de uso donde el cliente paga el total de inmediato.
-
-- **Método:** `POST`
-- **Ruta:** `/api/v1/vouchers/checkout`
-- **Request Body:**
-```json
-{
-  "quoteId": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
-  "type": "RECEIPT",
-  "customerDocumentType": "DNI",
-  "customerDocumentNumber": "70123456",
-  "customerName": "Juan Perez",
-  "method": "CREDIT_CARD"
-}
-```
-*Nota: `method` soporta valores como `CASH`, `CREDIT_CARD`, `DEBIT_CARD`, `BANK_TRANSFER`.*
-
-- **Respuestas:**
-  - `201 Created`: Comprobante emitido y pagado en su totalidad (`PAID`).
-
-### 2.3. Agregar un Pago Parcial (Add Payment)
-Agrega un pago (parcial o total) a un comprobante que está en estado `PENDING_PAYMENT`. Si la suma de los pagos alcanza el monto total, el comprobante pasa a `PAID`.
+### 2.2. Agregar un Pago Parcial/Total (Add Payment)
+Agrega un pago a un comprobante. Si la suma de los pagos alcanza el monto total, el comprobante pasa a `PAID`.
 
 - **Método:** `POST`
 - **Ruta:** `/api/v1/vouchers/{voucherId}/payments`
@@ -125,39 +104,89 @@ Agrega un pago (parcial o total) a un comprobante que está en estado `PENDING_P
   "method": "CASH"
 }
 ```
-- **Respuestas:**
-  - `200 OK`: Pago registrado.
-  - `400 Bad Request`: El monto supera la deuda restante.
-  - `409 Conflict`: El comprobante ya fue pagado en su totalidad o fue cancelado.
 
-### 2.4. Eliminar un Pago (Remove Payment)
-Elimina un pago registrado por error. Si el comprobante estaba pagado, regresará al estado de pendiente.
-
+### 2.3. Eliminar un Pago (Remove Payment)
 - **Método:** `DELETE`
 - **Ruta:** `/api/v1/vouchers/{voucherId}/payments/{paymentId}`
-- **Respuestas:**
-  - `200 OK`: Pago eliminado.
-  - `404 Not Found`: Pago no encontrado.
 
-### 2.5. Obtener Comprobantes
+### 2.4. Obtener Comprobantes
 - **Por ID:** `GET /api/v1/vouchers/{voucherId}`
 - **Por Sucursal:** `GET /api/v1/vouchers?branchId={branchId}`
 
 ---
 
-## 3. Consideraciones de Internacionalización (i18n)
+## 3. Checkouts & Mercado Pago Integrations
+**Base URLs:** `/api/v1/checkouts`, `/api/v1/payments/mercadopago`
+
+### 3.1. Flujo Completo de Checkout Directo (Process Checkout)
+Genera el comprobante y registra el pago total en una sola transacción (efectivo/tarjeta manual).
+
+- **Método:** `POST`
+- **Ruta:** `/api/v1/checkouts`
+- **Request Body:**
+```json
+{
+  "quoteId": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+  "type": "RECEIPT",
+  "customerDocumentType": "DNI",
+  "customerDocumentNumber": "70123456",
+  "customerName": "Juan Perez",
+  "method": "CASH"
+}
+```
+
+### 3.2. Crear Preferencia de Mercado Pago (Create Mercado Pago Preference)
+Genera la preferencia de cobro derivada directamente desde la Cotización aprobada.
+
+- **Método:** `POST`
+- **Ruta:** `/api/v1/payments/mercadopago/preferences`
+- **Request Body:**
+```json
+{
+  "quoteId": "3fa85f64-5717-4562-b3fc-2c963f66afa6"
+}
+```
+- **Respuesta `201 Created`:**
+```json
+{
+  "preferenceId": "123456789-abc-def",
+  "initPoint": "https://www.mercadopago.com.pe/checkout/v1/redirect?pref_id=...",
+  "sandboxInitPoint": "https://sandbox.mercadopago.com.pe/checkout/v1/redirect?pref_id=...",
+  "amount": 150.00,
+  "currency": "PEN",
+  "externalReference": "3fa85f64-5717-4562-b3fc-2c963f66afa6"
+}
+```
+
+### 3.3. Confirmar Checkout con Mercado Pago (Process Mercado Pago Checkout)
+Verifica la validez, monto, moneda y pertenencia del pago en Mercado Pago, emite el comprobante fiscal en SUNAT y registra el pago con prevención de ataques de replay.
+
+- **Método:** `POST`
+- **Ruta:** `/api/v1/checkouts/mercadopago`
+- **Request Body:**
+```json
+{
+  "quoteId": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+  "type": "RECEIPT",
+  "customerDocumentType": "DNI",
+  "customerDocumentNumber": "70123456",
+  "customerName": "Juan Perez",
+  "paymentId": "9988776655"
+}
+```
+
+### 3.4. Webhooks / Notificaciones IPN de Mercado Pago
+Endpoint expuesto para la recepción asíncrona de cambios de estado de pagos desde los servidores de Mercado Pago.
+
+- **Método:** `POST`
+- **Ruta:** `/api/v1/payments/mercadopago/webhooks?type=payment&data.id=9988776655`
+
+---
+
+## 4. Consideraciones de Internacionalización (i18n)
 
 Todos los endpoints que retornen errores de negocio o validación soportan **Internacionalización**. 
 
 Para recibir los mensajes en el idioma deseado, debe enviar la cabecera HTTP:
 `Accept-Language: es` (Para Español)
 `Accept-Language: en` (Para Inglés)
-
-*Ejemplo de respuesta de error:*
-```json
-{
-  "code": "QUOTE_CONFLICT",
-  "message": "Quote must be APPROVED to generate a voucher",
-  "details": null
-}
-```

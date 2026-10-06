@@ -83,6 +83,9 @@ public class VoucherCommandServiceImpl implements VoucherCommandService {
         if (quote.getStatus() != QuoteStatus.APPROVED) {
             return Result.failure(VoucherCommandFailure.QUOTE_NOT_APPROVED);
         }
+        if (voucherRepository.findByQuoteId(command.quoteId()).isPresent()) {
+            return Result.failure(VoucherCommandFailure.QUOTE_ALREADY_INVOICED);
+        }
 
         // 2. Query Core context for Issuer RUC (Tax ID)
         var coreBranchId = new BranchId(quote.getBranchId().value());
@@ -131,6 +134,9 @@ public class VoucherCommandServiceImpl implements VoucherCommandService {
             return Result.success(savedVoucher);
         } catch (IllegalArgumentException e) {
             return Result.failure(VoucherCommandFailure.INVALID_VOUCHER_DATA);
+        } catch (org.springframework.dao.DataIntegrityViolationException e) {
+            log.error("Database constraint violation when generating voucher: {}", e.getMessage());
+            return Result.failure(VoucherCommandFailure.QUOTE_ALREADY_INVOICED);
         }
     }
 
@@ -202,6 +208,9 @@ public class VoucherCommandServiceImpl implements VoucherCommandService {
         if (quote.getStatus() != QuoteStatus.APPROVED) {
             return Result.failure(VoucherCommandFailure.QUOTE_NOT_APPROVED);
         }
+        if (voucherRepository.findByQuoteId(command.quoteId()).isPresent()) {
+            return Result.failure(VoucherCommandFailure.QUOTE_ALREADY_INVOICED);
+        }
 
         // 2. Query Core context for Issuer RUC (Tax ID)
         var coreBranchId = new BranchId(quote.getBranchId().value());
@@ -254,19 +263,16 @@ public class VoucherCommandServiceImpl implements VoucherCommandService {
             return Result.success(savedVoucher);
         } catch (IllegalArgumentException | IllegalStateException e) {
             return Result.failure(VoucherCommandFailure.INVALID_VOUCHER_DATA);
+        } catch (org.springframework.dao.DataIntegrityViolationException e) {
+            log.error("Database constraint violation when processing checkout: {}", e.getMessage());
+            return Result.failure(VoucherCommandFailure.QUOTE_ALREADY_INVOICED);
         }
     }
 
     @Override
     @Transactional
     public Result<Voucher, VoucherCommandFailure> handle(com.tuxlogic.shiftiq.platform.billing.domain.model.commands.ProcessMercadoPagoCheckoutCommand command) {
-        // 1. Replay prevention check: Ensure paymentId hasn't been consumed by another voucher
-        if (voucherRepository.existsByExternalPaymentId(command.paymentId())) {
-            log.warn("Mercado Pago payment ID '{}' has already been used for another voucher", command.paymentId());
-            return Result.failure(VoucherCommandFailure.VOUCHER_ALREADY_PAID);
-        }
-
-        // 2. Validate Quote exists and is in APPROVED status
+        // 1. Validate Quote exists and is in APPROVED status FIRST (prevents info leakage/unauthorized replay probing)
         var quoteOpt = quoteRepository.findById(command.quoteId());
         if (quoteOpt.isEmpty()) {
             return Result.failure(VoucherCommandFailure.QUOTE_NOT_FOUND);
@@ -276,21 +282,38 @@ public class VoucherCommandServiceImpl implements VoucherCommandService {
             return Result.failure(VoucherCommandFailure.QUOTE_NOT_APPROVED);
         }
 
-        // 3. Ensure a voucher has not already been issued for this quote
+        // 2. Ensure a voucher has not already been issued for this quote
         if (voucherRepository.findByQuoteId(command.quoteId()).isPresent()) {
-            return Result.failure(VoucherCommandFailure.VOUCHER_ALREADY_PAID);
+            log.warn("Quote ID '{}' has already been invoiced", command.quoteId());
+            return Result.failure(VoucherCommandFailure.QUOTE_ALREADY_INVOICED);
         }
 
-        // 4. Verify Mercado Pago Payment status, amount, and external reference
+        // 3. Replay prevention check: Ensure paymentId hasn't been consumed by another voucher
+        if (voucherRepository.existsByExternalPaymentId(command.paymentId())) {
+            log.warn("Mercado Pago payment ID '{}' has already been used for another voucher", command.paymentId());
+            return Result.failure(VoucherCommandFailure.PAYMENT_ALREADY_CONSUMED);
+        }
+
+        // 4. Verify Mercado Pago Payment status, amount, external reference, and currency
         var paymentResultOpt = paymentGateway.getPaymentIntent(command.paymentId());
         if (paymentResultOpt.isEmpty()) {
             return Result.failure(VoucherCommandFailure.PAYMENT_NOT_FOUND);
         }
         var paymentResult = paymentResultOpt.get();
         if (!"approved".equalsIgnoreCase(paymentResult.status()) && !"succeeded".equalsIgnoreCase(paymentResult.status())) {
+            log.warn("Payment status '{}' is not approved", paymentResult.status());
             return Result.failure(VoucherCommandFailure.INVALID_VOUCHER_DATA);
         }
         if (paymentResult.amount().compareTo(quote.getTotalAmount().amount()) != 0) {
+            log.warn("Payment amount '{}' does not match quote total amount '{}'", paymentResult.amount(), quote.getTotalAmount().amount());
+            return Result.failure(VoucherCommandFailure.INVALID_VOUCHER_DATA);
+        }
+        if (paymentResult.externalReference() == null || !quote.getId().toString().equals(paymentResult.externalReference())) {
+            log.warn("Payment external reference '{}' does not match quote ID '{}'", paymentResult.externalReference(), quote.getId());
+            return Result.failure(VoucherCommandFailure.INVALID_VOUCHER_DATA);
+        }
+        if (paymentResult.currency() != null && !"PEN".equalsIgnoreCase(paymentResult.currency())) {
+            log.warn("Payment currency '{}' is not 'PEN'", paymentResult.currency());
             return Result.failure(VoucherCommandFailure.INVALID_VOUCHER_DATA);
         }
 
@@ -349,6 +372,9 @@ public class VoucherCommandServiceImpl implements VoucherCommandService {
             return Result.success(savedVoucher);
         } catch (IllegalArgumentException | IllegalStateException e) {
             return Result.failure(VoucherCommandFailure.INVALID_VOUCHER_DATA);
+        } catch (org.springframework.dao.DataIntegrityViolationException e) {
+            log.error("Database constraint violation when saving Mercado Pago voucher: {}", e.getMessage());
+            return Result.failure(VoucherCommandFailure.QUOTE_ALREADY_INVOICED);
         }
     }
 

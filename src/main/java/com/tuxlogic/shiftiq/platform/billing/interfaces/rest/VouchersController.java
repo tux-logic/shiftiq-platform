@@ -195,6 +195,14 @@ public class VouchersController {
                 String message = messageSource.getMessage("billing.error.payment.notFound", null, org.springframework.context.i18n.LocaleContextHolder.getLocale());
                 yield com.tuxlogic.shiftiq.platform.shared.interfaces.rest.transform.ErrorResponseAssembler.toErrorResponseFromApplicationError(com.tuxlogic.shiftiq.platform.shared.application.result.ApplicationError.notFound("voucher", message));
             }
+            case QUOTE_ALREADY_INVOICED -> {
+                String message = messageSource.getMessage("billing.error.quote.alreadyInvoiced", null, org.springframework.context.i18n.LocaleContextHolder.getLocale());
+                yield com.tuxlogic.shiftiq.platform.shared.interfaces.rest.transform.ErrorResponseAssembler.toErrorResponseFromApplicationError(com.tuxlogic.shiftiq.platform.shared.application.result.ApplicationError.conflict("voucher", message));
+            }
+            case PAYMENT_ALREADY_CONSUMED -> {
+                String message = messageSource.getMessage("billing.error.payment.alreadyConsumed", null, org.springframework.context.i18n.LocaleContextHolder.getLocale());
+                yield com.tuxlogic.shiftiq.platform.shared.interfaces.rest.transform.ErrorResponseAssembler.toErrorResponseFromApplicationError(com.tuxlogic.shiftiq.platform.shared.application.result.ApplicationError.conflict("voucher", message));
+            }
         };
     }
 }

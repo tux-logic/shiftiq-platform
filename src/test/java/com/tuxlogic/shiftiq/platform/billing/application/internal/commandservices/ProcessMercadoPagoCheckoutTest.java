@@ -66,13 +66,19 @@ class ProcessMercadoPagoCheckoutTest {
     }
 
     @Test
-    @DisplayName("ProcessMercadoPagoCheckout fails with VOUCHER_ALREADY_PAID when paymentId has already been consumed (Replay Attack)")
+    @DisplayName("ProcessMercadoPagoCheckout fails with PAYMENT_ALREADY_CONSUMED when paymentId has already been consumed (Replay Attack)")
     void processCheckoutFailsWhenPaymentIdAlreadyConsumed() {
+        UUID quoteId = UUID.randomUUID();
+        Quote quote = new Quote(quoteId, UUID.randomUUID(), new BranchId(UUID.randomUUID()), new Money(new BigDecimal("100.00")), 0.0, new Money(new BigDecimal("100.00")), QuoteStatus.APPROVED);
+
+        when(quoteRepository.findById(eq(quoteId))).thenReturn(Optional.of(quote));
+        when(voucherRepository.findByQuoteId(eq(quoteId))).thenReturn(Optional.empty());
+
         String consumedPaymentId = "99887766";
         when(voucherRepository.existsByExternalPaymentId(eq(consumedPaymentId))).thenReturn(true);
 
         ProcessMercadoPagoCheckoutCommand command = new ProcessMercadoPagoCheckoutCommand(
-                UUID.randomUUID(),
+                quoteId,
                 VoucherType.RECEIPT,
                 "DNI",
                 "12345678",
@@ -83,8 +89,33 @@ class ProcessMercadoPagoCheckoutTest {
         Result<Voucher, VoucherCommandFailure> result = service.handle(command);
 
         assertThat(result.isFailure()).isTrue();
-        assertThat(result.failure().get()).isEqualTo(VoucherCommandFailure.VOUCHER_ALREADY_PAID);
-        verify(quoteRepository, never()).findById(any());
+        assertThat(result.failure().get()).isEqualTo(VoucherCommandFailure.PAYMENT_ALREADY_CONSUMED);
+    }
+
+    @Test
+    @DisplayName("ProcessMercadoPagoCheckout fails with QUOTE_ALREADY_INVOICED when quote has already been invoiced")
+    void processCheckoutFailsWhenQuoteAlreadyInvoiced() {
+        UUID quoteId = UUID.randomUUID();
+        Quote quote = new Quote(quoteId, UUID.randomUUID(), new BranchId(UUID.randomUUID()), new Money(new BigDecimal("100.00")), 0.0, new Money(new BigDecimal("100.00")), QuoteStatus.APPROVED);
+        Voucher existingVoucher = new Voucher(quoteId, VoucherType.RECEIPT, "DNI", "12345678", "Juan Perez", quote.getTotalAmount(), UUID.randomUUID(), "http://pdf");
+
+        when(quoteRepository.findById(eq(quoteId))).thenReturn(Optional.of(quote));
+        when(voucherRepository.findByQuoteId(eq(quoteId))).thenReturn(Optional.of(existingVoucher));
+
+        ProcessMercadoPagoCheckoutCommand command = new ProcessMercadoPagoCheckoutCommand(
+                quoteId,
+                VoucherType.RECEIPT,
+                "DNI",
+                "12345678",
+                "Juan Perez",
+                "11223344"
+        );
+
+        Result<Voucher, VoucherCommandFailure> result = service.handle(command);
+
+        assertThat(result.isFailure()).isTrue();
+        assertThat(result.failure().get()).isEqualTo(VoucherCommandFailure.QUOTE_ALREADY_INVOICED);
+        verify(voucherRepository, never()).existsByExternalPaymentId(any());
     }
 
     @Test
@@ -93,7 +124,6 @@ class ProcessMercadoPagoCheckoutTest {
         UUID quoteId = UUID.randomUUID();
         Quote draftQuote = new Quote(quoteId, UUID.randomUUID(), new BranchId(UUID.randomUUID()), new Money(new BigDecimal("100.00")), 0.0, new Money(new BigDecimal("100.00")), QuoteStatus.DRAFT);
 
-        when(voucherRepository.existsByExternalPaymentId(any())).thenReturn(false);
         when(quoteRepository.findById(eq(quoteId))).thenReturn(Optional.of(draftQuote));
 
         ProcessMercadoPagoCheckoutCommand command = new ProcessMercadoPagoCheckoutCommand(
@@ -112,14 +142,70 @@ class ProcessMercadoPagoCheckoutTest {
     }
 
     @Test
+    @DisplayName("ProcessMercadoPagoCheckout fails with INVALID_VOUCHER_DATA when payment externalReference does not match quoteId")
+    void processCheckoutFailsWhenExternalReferenceMismatched() {
+        UUID quoteId = UUID.randomUUID();
+        Quote quote = new Quote(quoteId, UUID.randomUUID(), new BranchId(UUID.randomUUID()), new Money(new BigDecimal("100.00")), 0.0, new Money(new BigDecimal("100.00")), QuoteStatus.APPROVED);
+
+        when(quoteRepository.findById(eq(quoteId))).thenReturn(Optional.of(quote));
+        when(voucherRepository.findByQuoteId(eq(quoteId))).thenReturn(Optional.empty());
+        when(voucherRepository.existsByExternalPaymentId(any())).thenReturn(false);
+
+        PaymentIntentResult mockPayment = new PaymentIntentResult("11223344", UUID.randomUUID().toString(), new BigDecimal("100.00"), "PEN", "approved");
+        when(paymentGateway.getPaymentIntent(eq("11223344"))).thenReturn(Optional.of(mockPayment));
+
+        ProcessMercadoPagoCheckoutCommand command = new ProcessMercadoPagoCheckoutCommand(
+                quoteId,
+                VoucherType.RECEIPT,
+                "DNI",
+                "12345678",
+                "Juan Perez",
+                "11223344"
+        );
+
+        Result<Voucher, VoucherCommandFailure> result = service.handle(command);
+
+        assertThat(result.isFailure()).isTrue();
+        assertThat(result.failure().get()).isEqualTo(VoucherCommandFailure.INVALID_VOUCHER_DATA);
+    }
+
+    @Test
+    @DisplayName("ProcessMercadoPagoCheckout fails with INVALID_VOUCHER_DATA when payment currency is not PEN")
+    void processCheckoutFailsWhenCurrencyIsNotPen() {
+        UUID quoteId = UUID.randomUUID();
+        Quote quote = new Quote(quoteId, UUID.randomUUID(), new BranchId(UUID.randomUUID()), new Money(new BigDecimal("100.00")), 0.0, new Money(new BigDecimal("100.00")), QuoteStatus.APPROVED);
+
+        when(quoteRepository.findById(eq(quoteId))).thenReturn(Optional.of(quote));
+        when(voucherRepository.findByQuoteId(eq(quoteId))).thenReturn(Optional.empty());
+        when(voucherRepository.existsByExternalPaymentId(any())).thenReturn(false);
+
+        PaymentIntentResult mockPayment = new PaymentIntentResult("11223344", quoteId.toString(), new BigDecimal("100.00"), "USD", "approved");
+        when(paymentGateway.getPaymentIntent(eq("11223344"))).thenReturn(Optional.of(mockPayment));
+
+        ProcessMercadoPagoCheckoutCommand command = new ProcessMercadoPagoCheckoutCommand(
+                quoteId,
+                VoucherType.RECEIPT,
+                "DNI",
+                "12345678",
+                "Juan Perez",
+                "11223344"
+        );
+
+        Result<Voucher, VoucherCommandFailure> result = service.handle(command);
+
+        assertThat(result.isFailure()).isTrue();
+        assertThat(result.failure().get()).isEqualTo(VoucherCommandFailure.INVALID_VOUCHER_DATA);
+    }
+
+    @Test
     @DisplayName("ProcessMercadoPagoCheckout fails with INVALID_VOUCHER_DATA when payment status is not approved")
     void processCheckoutFailsWhenPaymentStatusRejected() {
         UUID quoteId = UUID.randomUUID();
         Quote quote = new Quote(quoteId, UUID.randomUUID(), new BranchId(UUID.randomUUID()), new Money(new BigDecimal("100.00")), 0.0, new Money(new BigDecimal("100.00")), QuoteStatus.APPROVED);
 
-        when(voucherRepository.existsByExternalPaymentId(any())).thenReturn(false);
         when(quoteRepository.findById(eq(quoteId))).thenReturn(Optional.of(quote));
         when(voucherRepository.findByQuoteId(eq(quoteId))).thenReturn(Optional.empty());
+        when(voucherRepository.existsByExternalPaymentId(any())).thenReturn(false);
 
         PaymentIntentResult mockPayment = new PaymentIntentResult("11223344", quoteId.toString(), new BigDecimal("100.00"), "PEN", "rejected");
         when(paymentGateway.getPaymentIntent(eq("11223344"))).thenReturn(Optional.of(mockPayment));
@@ -145,9 +231,9 @@ class ProcessMercadoPagoCheckoutTest {
         UUID quoteId = UUID.randomUUID();
         Quote quote = new Quote(quoteId, UUID.randomUUID(), new BranchId(UUID.randomUUID()), new Money(new BigDecimal("200.00")), 0.0, new Money(new BigDecimal("200.00")), QuoteStatus.APPROVED);
 
-        when(voucherRepository.existsByExternalPaymentId(any())).thenReturn(false);
         when(quoteRepository.findById(eq(quoteId))).thenReturn(Optional.of(quote));
         when(voucherRepository.findByQuoteId(eq(quoteId))).thenReturn(Optional.empty());
+        when(voucherRepository.existsByExternalPaymentId(any())).thenReturn(false);
 
         PaymentIntentResult mockPayment = new PaymentIntentResult("11223344", quoteId.toString(), new BigDecimal("100.00"), "PEN", "approved");
         when(paymentGateway.getPaymentIntent(eq("11223344"))).thenReturn(Optional.of(mockPayment));
