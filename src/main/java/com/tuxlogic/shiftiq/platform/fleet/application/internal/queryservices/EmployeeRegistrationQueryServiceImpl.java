@@ -11,11 +11,13 @@ import com.tuxlogic.shiftiq.platform.fleet.domain.repositories.EmployeeRegistrat
 import com.tuxlogic.shiftiq.platform.shared.application.result.Result;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
 @Slf4j
 @Service
+@Transactional(readOnly = true)
 public class EmployeeRegistrationQueryServiceImpl implements EmployeeRegistrationQueryService {
 
     private final EmployeeRegistrationRepository employeeRegistrationRepository;

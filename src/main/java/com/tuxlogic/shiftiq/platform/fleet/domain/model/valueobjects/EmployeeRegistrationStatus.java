@@ -5,6 +5,8 @@ public record EmployeeRegistrationStatus(String value) {
         if (value == null || value.isBlank())
             throw new IllegalArgumentException("Employee registration status cannot be null or empty");
     }
-    public static final EmployeeRegistrationStatus ACTIVE   = new EmployeeRegistrationStatus("ACTIVE");
-    public static final EmployeeRegistrationStatus INACTIVE = new EmployeeRegistrationStatus("INACTIVE");
+    public static final EmployeeRegistrationStatus PENDING_APPROVAL = new EmployeeRegistrationStatus("PENDING_APPROVAL");
+    public static final EmployeeRegistrationStatus ACTIVE           = new EmployeeRegistrationStatus("ACTIVE");
+    public static final EmployeeRegistrationStatus REJECTED         = new EmployeeRegistrationStatus("REJECTED");
+    public static final EmployeeRegistrationStatus INACTIVE         = new EmployeeRegistrationStatus("INACTIVE");
 }

@@ -7,6 +7,10 @@ import com.tuxlogic.shiftiq.platform.fleet.domain.model.aggregates.EmployeeRegis
 import com.tuxlogic.shiftiq.platform.fleet.domain.model.commands.CreateEmployeeRegistrationCommand;
 import com.tuxlogic.shiftiq.platform.fleet.domain.model.commands.UpdateEmployeeRegistrationCommand;
 import com.tuxlogic.shiftiq.platform.fleet.domain.model.commands.DeleteEmployeeRegistrationCommand;
+import com.tuxlogic.shiftiq.platform.fleet.domain.model.commands.RequestEmployeeJoinCommand;
+import com.tuxlogic.shiftiq.platform.fleet.domain.model.commands.ApproveEmployeeRegistrationCommand;
+import com.tuxlogic.shiftiq.platform.fleet.domain.model.commands.RejectEmployeeRegistrationCommand;
+import com.tuxlogic.shiftiq.platform.fleet.domain.model.valueobjects.EmployeeRegistrationStatus;
 import com.tuxlogic.shiftiq.platform.fleet.domain.repositories.EmployeeRegistrationRepository;
 import com.tuxlogic.shiftiq.platform.shared.application.result.Result;
 import lombok.extern.slf4j.Slf4j;
@@ -85,8 +89,82 @@ public class EmployeeRegistrationCommandServiceImpl implements EmployeeRegistrat
 
         var registration = registrationOptional.get();
         registration.deactivate();
-        
         var savedRegistration = repository.save(registration);
+        return Result.success(savedRegistration);
+    }
+
+    @Override
+    @Transactional
+    public Result<EmployeeRegistration, EmployeeRegistrationCommandFailure> handle(RequestEmployeeJoinCommand command) {
+        try {
+            if (!externalCoreService.existsBranchById(command.branchId())) {
+                log.warn("Request employee join failed: Branch {} does not exist", command.branchId());
+                return Result.failure(EmployeeRegistrationCommandFailure.INVALID_REGISTRATION_DATA);
+            }
+            if (!externalCoreService.existsEmployeeById(command.employeeId())) {
+                log.warn("Request employee join failed: Employee {} does not exist", command.employeeId());
+                return Result.failure(EmployeeRegistrationCommandFailure.INVALID_REGISTRATION_DATA);
+            }
+            if (repository.existsByEmployeeIdAndBranchId(command.employeeId().value(), command.branchId().value())) {
+                log.warn("Request employee join conflict: employee {} already registered/pending in branch {}", command.employeeId(), command.branchId());
+                return Result.failure(EmployeeRegistrationCommandFailure.REGISTRATION_ALREADY_EXISTS);
+            }
+
+            var registration = new EmployeeRegistration(
+                    command.employeeId().value(),
+                    command.branchId(),
+                    command.speciality(),
+                    command.specialityName(),
+                    command.salary(),
+                    EmployeeRegistrationStatus.PENDING_APPROVAL);
+            var saved = repository.save(registration);
+            log.info("Employee join request created successfully with ID {}", saved.getId());
+            return Result.success(saved);
+        } catch (IllegalArgumentException ex) {
+            log.error("Failed to request employee join: {}", ex.getMessage());
+            return Result.failure(EmployeeRegistrationCommandFailure.INVALID_REGISTRATION_DATA);
+        }
+    }
+
+    @Override
+    @Transactional
+    public Result<EmployeeRegistration, EmployeeRegistrationCommandFailure> handle(ApproveEmployeeRegistrationCommand command) {
+        var registrationOptional = repository.findById(command.registrationId());
+        if (registrationOptional.isEmpty()) {
+            return Result.failure(EmployeeRegistrationCommandFailure.REGISTRATION_NOT_FOUND);
+        }
+
+        var registration = registrationOptional.get();
+        try {
+            registration.approve();
+        } catch (IllegalStateException ex) {
+            log.warn("Failed to approve employee registration {}: {}", command.registrationId(), ex.getMessage());
+            return Result.failure(EmployeeRegistrationCommandFailure.INVALID_STATUS_TRANSITION);
+        }
+
+        var savedRegistration = repository.save(registration);
+        log.info("Employee registration {} approved successfully", command.registrationId());
+        return Result.success(savedRegistration);
+    }
+
+    @Override
+    @Transactional
+    public Result<EmployeeRegistration, EmployeeRegistrationCommandFailure> handle(RejectEmployeeRegistrationCommand command) {
+        var registrationOptional = repository.findById(command.registrationId());
+        if (registrationOptional.isEmpty()) {
+            return Result.failure(EmployeeRegistrationCommandFailure.REGISTRATION_NOT_FOUND);
+        }
+
+        var registration = registrationOptional.get();
+        try {
+            registration.reject(command.reason());
+        } catch (IllegalStateException ex) {
+            log.warn("Failed to reject employee registration {}: {}", command.registrationId(), ex.getMessage());
+            return Result.failure(EmployeeRegistrationCommandFailure.INVALID_STATUS_TRANSITION);
+        }
+
+        var savedRegistration = repository.save(registration);
+        log.info("Employee registration {} rejected successfully", command.registrationId());
         return Result.success(savedRegistration);
     }
 }

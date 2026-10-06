@@ -11,10 +11,15 @@ import com.tuxlogic.shiftiq.platform.fleet.domain.model.queries.GetEmployeeRegis
 import com.tuxlogic.shiftiq.platform.fleet.domain.model.queries.GetEmployeeRegistrationsByBranchIdQuery;
 import com.tuxlogic.shiftiq.platform.fleet.domain.model.queries.GetEmployeeRegistrationsByBranchIdAndStatusQuery;
 import com.tuxlogic.shiftiq.platform.fleet.domain.model.valueobjects.EmployeeRegistrationStatus;
+import com.tuxlogic.shiftiq.platform.fleet.domain.model.commands.ApproveEmployeeRegistrationCommand;
+import com.tuxlogic.shiftiq.platform.fleet.domain.model.commands.RejectEmployeeRegistrationCommand;
 import com.tuxlogic.shiftiq.platform.fleet.interfaces.rest.resources.CreateEmployeeRegistrationResource;
+import com.tuxlogic.shiftiq.platform.fleet.interfaces.rest.resources.RequestEmployeeJoinResource;
+import com.tuxlogic.shiftiq.platform.fleet.interfaces.rest.resources.RejectEmployeeRegistrationResource;
 import com.tuxlogic.shiftiq.platform.fleet.interfaces.rest.resources.UpdateEmployeeRegistrationResource;
 import com.tuxlogic.shiftiq.platform.fleet.interfaces.rest.transform.CreateEmployeeRegistrationCommandFromResourceAssembler;
 import com.tuxlogic.shiftiq.platform.fleet.interfaces.rest.transform.EmployeeRegistrationResourceFromAggregateAssembler;
+import com.tuxlogic.shiftiq.platform.fleet.interfaces.rest.transform.RequestEmployeeJoinCommandFromResourceAssembler;
 import com.tuxlogic.shiftiq.platform.fleet.interfaces.rest.transform.UpdateEmployeeRegistrationCommandFromResourceAssembler;
 import com.tuxlogic.shiftiq.platform.shared.application.result.ApplicationError;
 import com.tuxlogic.shiftiq.platform.shared.interfaces.rest.transform.ErrorResponseAssembler;
@@ -74,7 +79,7 @@ public class EmployeeRegistrationsController {
             return ResponseEntity.notFound().build();
         }
         var registration = result.success().get();
-        if (registration.getBranchId() != null && !multiTenancySecurityService.isAuthorizedForBranch(registration.getBranchId().value())) {
+        if (!multiTenancySecurityService.isAuthorizedForBranch(registration.getBranchId())) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
         }
         var resource = EmployeeRegistrationResourceFromAggregateAssembler.toResourceFromAggregate(registration);
@@ -95,7 +100,7 @@ public class EmployeeRegistrationsController {
                 return ResponseEntity.notFound().build();
             }
             var registration = result.success().get();
-            if (registration.getBranchId() != null && !multiTenancySecurityService.isAuthorizedForBranch(registration.getBranchId().value())) {
+            if (!multiTenancySecurityService.isAuthorizedForBranch(registration.getBranchId())) {
                 return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
             }
             return ResponseEntity.ok(EmployeeRegistrationResourceFromAggregateAssembler.toResourceFromAggregate(registration));
@@ -139,7 +144,7 @@ public class EmployeeRegistrationsController {
             return ResponseEntity.notFound().build();
         }
         var registration = queryResult.success().get();
-        if (registration.getBranchId() != null && !multiTenancySecurityService.isAuthorizedForBranch(registration.getBranchId().value())) {
+        if (!multiTenancySecurityService.isAuthorizedForBranch(registration.getBranchId())) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
         }
 
@@ -160,7 +165,7 @@ public class EmployeeRegistrationsController {
             return ResponseEntity.notFound().build();
         }
         var registration = queryResult.success().get();
-        if (registration.getBranchId() != null && !multiTenancySecurityService.isAuthorizedForBranch(registration.getBranchId().value())) {
+        if (!multiTenancySecurityService.isAuthorizedForBranch(registration.getBranchId())) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
         }
 
@@ -173,17 +178,72 @@ public class EmployeeRegistrationsController {
         );
     }
 
+    @PostMapping("/request-join")
+    @Operation(summary = "Request employee join to branch", description = "Submits a request to join a branch in PENDING_APPROVAL status")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<?> requestJoin(@Valid @RequestBody RequestEmployeeJoinResource resource) {
+        var command = RequestEmployeeJoinCommandFromResourceAssembler.toCommandFromResource(resource);
+        var result = commandService.handle(command);
+        return result.fold(
+                registration -> ResponseEntity.status(HttpStatus.CREATED)
+                        .body(EmployeeRegistrationResourceFromAggregateAssembler.toResourceFromAggregate(registration)),
+                this::handleCommandFailure
+        );
+    }
+
+    @PostMapping("/{id}/approve")
+    @Operation(summary = "Approve an employee registration request", description = "Approves a pending employee registration, setting status to ACTIVE and assigning branch in IAM")
+    public ResponseEntity<?> approve(@PathVariable UUID id) {
+        var queryResult = queryService.handle(new GetEmployeeRegistrationByIdQuery(new EmployeeId(id)));
+        if (queryResult.isFailure()) {
+            return ResponseEntity.notFound().build();
+        }
+        var registration = queryResult.success().get();
+        if (!multiTenancySecurityService.isAuthorizedForBranch(registration.getBranchId())) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
+
+        var command = new ApproveEmployeeRegistrationCommand(new EmployeeId(id));
+        var result = commandService.handle(command);
+        return result.fold(
+                approvedReg -> ResponseEntity.ok(EmployeeRegistrationResourceFromAggregateAssembler.toResourceFromAggregate(approvedReg)),
+                this::handleCommandFailure
+        );
+    }
+
+    @PostMapping("/{id}/reject")
+    @Operation(summary = "Reject an employee registration request", description = "Rejects a pending employee registration")
+    public ResponseEntity<?> reject(@PathVariable UUID id, @RequestBody(required = false) RejectEmployeeRegistrationResource resource) {
+        var queryResult = queryService.handle(new GetEmployeeRegistrationByIdQuery(new EmployeeId(id)));
+        if (queryResult.isFailure()) {
+            return ResponseEntity.notFound().build();
+        }
+        var registration = queryResult.success().get();
+        if (!multiTenancySecurityService.isAuthorizedForBranch(registration.getBranchId())) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
+
+        String reason = resource != null ? resource.reason() : null;
+        var command = new RejectEmployeeRegistrationCommand(new EmployeeId(id), reason);
+        var result = commandService.handle(command);
+        return result.fold(
+                rejectedReg -> ResponseEntity.ok(EmployeeRegistrationResourceFromAggregateAssembler.toResourceFromAggregate(rejectedReg)),
+                this::handleCommandFailure
+        );
+    }
+
     private ResponseEntity<?> handleCommandFailure(EmployeeRegistrationCommandFailure failure) {
         String messageKey = switch (failure) {
             case REGISTRATION_ALREADY_EXISTS -> "fleet.error.employeeRegistration.alreadyExists";
             case REGISTRATION_NOT_FOUND -> "fleet.error.employeeRegistration.notFound";
             case INVALID_REGISTRATION_DATA -> "fleet.error.employeeRegistration.invalidData";
+            case INVALID_STATUS_TRANSITION -> "fleet.error.employeeRegistration.invalidStatusTransition";
         };
         String message = messageSource.getMessage(messageKey, null, LocaleContextHolder.getLocale());
         ApplicationError error = switch (failure) {
             case REGISTRATION_ALREADY_EXISTS -> ApplicationError.conflict("employeeRegistration", message);
             case REGISTRATION_NOT_FOUND -> ApplicationError.notFound("employeeRegistration", message);
-            case INVALID_REGISTRATION_DATA -> ApplicationError.validationError("employeeRegistration", message);
+            case INVALID_REGISTRATION_DATA, INVALID_STATUS_TRANSITION -> ApplicationError.validationError("employeeRegistration", message);
         };
         return ErrorResponseAssembler.toErrorResponseFromApplicationError(error);
     }

@@ -105,7 +105,7 @@ public class BranchesController {
         var branches = branchQueryService.handle(query);
 
         var branchResources = branches.stream()
-                .peek(branch -> multiTenancySecurityService.validateBranchAccess(branch.getId().value()))
+                .filter(branch -> multiTenancySecurityService.isAuthorizedForBranch(branch.getId().value()))
                 .map(BranchResourceFromEntityAssembler::toResourceFromEntity)
                 .collect(Collectors.toList());
 

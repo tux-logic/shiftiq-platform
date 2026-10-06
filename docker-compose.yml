@@ -1,6 +1,27 @@
-version: '3.8'
-
 services:
+  app:
+    build: .
+    container_name: shiftiq-app
+    depends_on:
+      - postgres-db
+    ports:
+      - "8080:8080"
+    environment:
+      - spring.datasource.url=jdbc:postgresql://postgres-db:5432/shiftiq_db
+      - spring.datasource.username=shiftiq_user
+      - spring.datasource.password=shiftiq_password
+      - spring.jpa.hibernate.ddl-auto=validate
+      - spring.flyway.url=jdbc:postgresql://postgres-db:5432/shiftiq_db
+      - spring.flyway.user=shiftiq_user
+      - spring.flyway.password=shiftiq_password
+      - spring.flyway.baseline-on-migrate=true
+      - spring.flyway.baseline-version=1
+      - AUTHORIZATION_JWT_SECRET=${JWT_SECRET}
+      - AUTHORIZATION_JWT_ACCESS_TOKEN_EXPIRATION_MINUTES=15
+      - AUTHORIZATION_JWT_REFRESH_TOKEN_EXPIRATION_DAYS=7
+    ports:
+      - "8080:8080"
+
   postgres-db:
     image: postgres:16-alpine
     container_name: shiftiq-postgres

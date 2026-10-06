@@ -1,12 +1,12 @@
 package com.tuxlogic.shiftiq.platform.iam.application.internal.commandservices;
 
 import com.tuxlogic.shiftiq.platform.iam.application.internal.outboundservices.hashing.HashingService;
-import com.tuxlogic.shiftiq.platform.iam.application.internal.outboundservices.tokens.TokenService;
 import com.tuxlogic.shiftiq.platform.iam.domain.model.aggregates.User;
 import com.tuxlogic.shiftiq.platform.iam.domain.model.commands.SignInCommand;
 import com.tuxlogic.shiftiq.platform.iam.domain.model.commands.SignUpCommand;
 import com.tuxlogic.shiftiq.platform.iam.domain.model.commands.UpdateUserEmailCommand;
 import com.tuxlogic.shiftiq.platform.iam.domain.model.commands.UpdateUserPasswordCommand;
+import com.tuxlogic.shiftiq.platform.iam.application.internal.services.SessionIssuer;
 import com.tuxlogic.shiftiq.platform.iam.domain.model.queries.AuthenticatedUser;
 import com.tuxlogic.shiftiq.platform.iam.domain.repositories.UserRepository;
 import com.tuxlogic.shiftiq.platform.iam.application.commandservices.UserCommandService;
@@ -34,17 +34,17 @@ public class UserCommandServiceImpl implements UserCommandService {
 
     private final UserRepository userRepository;
     private final HashingService hashingService;
-    private final TokenService tokenService;
+    private final SessionIssuer sessionIssuer;
     private final GoogleIdTokenVerifier googleVerifier;
 
     public UserCommandServiceImpl(
             UserRepository userRepository,
             HashingService hashingService,
-            TokenService tokenService,
+            SessionIssuer sessionIssuer,
             @Value("${google.client.id:default-google-client-id}") String googleClientId) {
         this.userRepository = userRepository;
         this.hashingService = hashingService;
-        this.tokenService = tokenService;
+        this.sessionIssuer = sessionIssuer;
         this.googleVerifier = new GoogleIdTokenVerifier.Builder(new NetHttpTransport(), new GsonFactory())
                 .setAudience(Collections.singletonList(googleClientId))
                 .build();
@@ -75,9 +75,8 @@ public class UserCommandServiceImpl implements UserCommandService {
             throw new IllegalArgumentException("iam.error.credentials.invalid");
         }
 
-        var token = tokenService.generateToken(user.getEmail().value());
         LOGGER.info("User authenticated successfully: {}", command.email().value());
-        return Optional.of(new AuthenticatedUser(user, token));
+        return Optional.of(sessionIssuer.issue(user));
     }
 
     @Override
@@ -108,9 +107,8 @@ public class UserCommandServiceImpl implements UserCommandService {
                 }
             }
 
-            var token = tokenService.generateToken(user.getEmail().value());
             LOGGER.info("Google sign-in successful for user email: {}", email);
-            return Optional.of(new AuthenticatedUser(user, token));
+            return Optional.of(sessionIssuer.issue(user));
 
         } catch (Exception e) {
             LOGGER.error("Google sign-in exception: {}", e.getMessage());
@@ -131,9 +129,8 @@ public class UserCommandServiceImpl implements UserCommandService {
         user.changeEmail(command.newEmail());
         userRepository.save(user);
         LOGGER.info("User ID {} updated email to {}", command.userId().value(), command.newEmail().value());
-        
-        var token = tokenService.generateToken(user.getEmail().value());
-        return Optional.of(new AuthenticatedUser(user, token));
+
+        return Optional.of(sessionIssuer.issue(user));
     }
 
     @Override
@@ -149,6 +146,16 @@ public class UserCommandServiceImpl implements UserCommandService {
         user.changePassword(new com.tuxlogic.shiftiq.platform.iam.domain.model.valueobjects.Password(hashingService.encode(command.newPassword().value())));
         userRepository.save(user);
         LOGGER.info("Password updated successfully for User ID {}", command.userId().value());
+        return Optional.of(user);
+    }
+
+    @Override
+    public Optional<User> handle(com.tuxlogic.shiftiq.platform.iam.domain.model.commands.AssignBranchToUserCommand command) {
+        var user = userRepository.findById(command.userId().value())
+                .orElseThrow(() -> new IllegalArgumentException("iam.error.user.notFound"));
+        user.assignBranch(command.branchId().value());
+        userRepository.save(user);
+        LOGGER.info("Assigned branch {} to user ID {}", command.branchId().value(), command.userId().value());
         return Optional.of(user);
     }
 }

@@ -1,6 +1,12 @@
 -- =================================================================================================
 -- ATELIER DATABASE - SCHEMA (PostgreSQL)
 -- =================================================================================================
+--
+-- DEPRECATED / REFERENCE ONLY.
+-- The schema is now owned by Flyway: see src/main/resources/db/migration/V1__baseline.sql.
+-- Do not apply this file manually and do not modify it; new schema changes must be Flyway
+-- migrations (V2__, V3__, ...).
+-- =================================================================================================
 
 -- -------------------------------------------------------------------------------------------------
 -- 1. CREACIÓN DE TABLAS

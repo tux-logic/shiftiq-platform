@@ -6,10 +6,12 @@ import com.tuxlogic.shiftiq.platform.iam.domain.model.queries.GetUserByIdQuery;
 import com.tuxlogic.shiftiq.platform.iam.domain.repositories.UserRepository;
 import com.tuxlogic.shiftiq.platform.iam.application.queryservices.UserQueryService;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Optional;
 
 @Service
+@Transactional(readOnly = true)
 public class UserQueryServiceImpl implements UserQueryService {
 
     private final UserRepository userRepository;

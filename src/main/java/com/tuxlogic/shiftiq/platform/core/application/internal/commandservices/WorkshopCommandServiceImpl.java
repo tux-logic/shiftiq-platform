@@ -9,10 +9,12 @@ import com.tuxlogic.shiftiq.platform.core.domain.repositories.WorkshopRepository
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Optional;
 
 @Service
+@Transactional
 public class WorkshopCommandServiceImpl implements WorkshopCommandService {
 
     private static final Logger log = LoggerFactory.getLogger(WorkshopCommandServiceImpl.class);

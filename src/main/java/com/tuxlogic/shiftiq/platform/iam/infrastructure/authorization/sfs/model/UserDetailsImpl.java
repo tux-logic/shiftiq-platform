@@ -2,6 +2,7 @@ package com.tuxlogic.shiftiq.platform.iam.infrastructure.authorization.sfs.model
 
 import com.tuxlogic.shiftiq.platform.iam.domain.model.aggregates.User;
 import com.tuxlogic.shiftiq.platform.iam.domain.model.valueobjects.UserStatus;
+import com.tuxlogic.shiftiq.platform.shared.infrastructure.security.AuthenticatedPrincipal;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import lombok.Getter;
 import org.springframework.security.core.GrantedAuthority;
@@ -14,7 +15,7 @@ import java.util.Set;
 import java.util.UUID;
 
 @Getter
-public class UserDetailsImpl implements UserDetails {
+public class UserDetailsImpl implements UserDetails, AuthenticatedPrincipal {
 
     private final UUID id;
     private final String username;
@@ -41,6 +42,17 @@ public class UserDetailsImpl implements UserDetails {
 
     public UserDetailsImpl(UUID id, String username, String password, Collection<? extends GrantedAuthority> authorities, boolean enabled) {
         this(id, username, password, authorities, Collections.emptySet(), enabled);
+    }
+
+    @Override
+    public boolean hasRole(String role) {
+        return authorities != null && authorities.stream()
+                .anyMatch(authority -> authority.getAuthority().equals(role));
+    }
+
+    @Override
+    public boolean hasBranch(UUID branchId) {
+        return branchId != null && branchIds != null && branchIds.contains(branchId);
     }
 
     public static UserDetailsImpl build(User user) {

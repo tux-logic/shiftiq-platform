@@ -5,6 +5,7 @@ import com.tuxlogic.shiftiq.platform.billing.domain.model.aggregates.Quote;
 import com.tuxlogic.shiftiq.platform.billing.domain.model.queries.GetQuoteByIdQuery;
 import com.tuxlogic.shiftiq.platform.billing.domain.repositories.QuoteRepository;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Optional;
 
@@ -13,6 +14,7 @@ import java.util.Optional;
  * Delegates query operations to the underlying Quote persistence repository.
  */
 @Service
+@Transactional(readOnly = true)
 public class QuoteQueryServiceImpl implements QuoteQueryService {
 
     private final QuoteRepository quoteRepository;

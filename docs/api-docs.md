@@ -7,27 +7,66 @@ Esta guía está diseñada para el equipo de **Frontend**. Su propósito es expl
 ## 1. Arquitectura General y Autenticación (IAM)
 **URL Base (Producción):** `https://shiftiq-platform.onrender.com`
 
-El sistema ShiftIQ está protegido mediante **JSON Web Tokens (JWT)**. Todas las peticiones al backend desplegado en Render (a excepción del login/registro) deben enviar un token válido en la cabecera HTTP:
+El sistema ShiftIQ está protegido mediante **JSON Web Tokens (JWT)** de vida corta. Todas las peticiones al backend desplegado en Render (a excepción del login/registro/refresh) deben enviar un token de acceso válido en la cabecera HTTP:
 `Authorization: Bearer <tu_token_aqui>`
 
+El access token caduca a los **15 minutos** (configurable con `authorization.jwt.access-token.expiration.minutes`). Cuando caduca, no lo vuelvas a pedir con la contraseña: canjea el **refresh token** (vida de **7 días**, configurable con `authorization.jwt.refresh-token.expiration.days`).
+
 ### 🔑 Autenticación (Login)
-* **Endpoint:** `POST /api/v1/authentication/sign-in`
-* **Descripción:** Intercambia credenciales por un JWT y el ID del usuario.
+* **Endpoint:** `POST /api/v1/authentication/sessions`
+* **Descripción:** Intercambia credenciales por un access token y un refresh token.
 * **Request:**
   ```json
   {
-    "username": "taller@shiftiq.com",
+    "email": "taller@shiftiq.com",
     "password": "password123"
   }
   ```
 * **Response (200 OK):**
   ```json
   {
-    "id": 1,
-    "username": "taller@shiftiq.com",
-    "token": "eyJhbGciOiJIUzI1NiJ9..."
+    "id": "c9d2f1a4-5f3a-4a2e-9d9a-1a2b3c4d5e6f",
+    "email": "taller@shiftiq.com",
+    "role": "ROLE_OWNER",
+    "token": "eyJhbGciOiJIUzI1NiJ9...",
+    "refreshToken": "eyJhbGciOiJIUzI1NiJ9...",
+    "accessTokenExpiresInSeconds": 900
   }
   ```
+* **Response (401 Unauthorized):** cuerpo vacío si las credenciales no son válidas.
+
+### 🔁 Refresco de sesión
+* **Endpoint:** `POST /api/v1/authentication/sessions/refresh`
+* **Descripción:** Canjea el refresh token por un access token nuevo y un refresh token nuevo.
+* **Request:**
+  ```json
+  {
+    "refreshToken": "eyJhbGciOiJIUzI1NiJ9..."
+  }
+  ```
+* **Response (200 OK):** misma forma que el login (con `token` y `refreshToken` nuevos).
+* **Response (401 Unauthorized):** cuerpo vacío si el refresh token no es válido, ya fue usado, fue revocado o expiró.
+
+> ⚠️ **Cada refresh token sirve una sola vez.** Guarda el `refreshToken` recibido en la respuesta y reemplaza siempre el anterior. Si envías un refresh token que ya se usó, la API devuelve 401 (así se detecta un robo de token).
+
+### 🚪 Cierre de sesión (logout)
+* **Endpoint:** `DELETE /api/v1/authentication/sessions`
+* **Descripción:** Revoca en el servidor el refresh token indicado; a partir de ese momento ya no puede canjearse.
+* **Request:**
+  ```json
+  {
+    "refreshToken": "eyJhbGciOiJIUzI1NiJ9..."
+  }
+  ```
+* **Response (204 No Content):** sin cuerpo.
+* **Response (401 Unauthorized):** si el token no es reconocido.
+
+### Flujo recomendado del cliente
+1. Guardar `token` (en memoria) y `refreshToken` (en almacenamiento persistente).
+2. Enviar `Authorization: Bearer <token>` en cada petición.
+3. Si la API responde **401**, llamar a `/sessions/refresh` con el `refreshToken` y reintentar la petición original con el token nuevo.
+4. Si el refresh también responde **401**, la sesión terminó: pedir credenciales de nuevo.
+5. Al salir, llamar a `DELETE /sessions` con el `refreshToken` para revocarlo.
 
 ---
 
@@ -141,8 +180,12 @@ En Swagger podrás:
 Para que tengas una visión global, aquí tienes el listado de todas las rutas (APIs) disponibles agrupadas por módulo. Revisa Swagger para ver el detalle (GET, POST, PUT, DELETE) de cada una.
 
 **Autenticación & Usuarios (IAM)**
-- `/api/v1/authentication/sign-in`
-- `/api/v1/authentication/sign-up`
+- `/api/v1/authentication/sessions` (POST: login, DELETE: logout)
+- `/api/v1/authentication/sessions/refresh`
+- `/api/v1/authentication/sessions/google`
+- `/api/v1/authentication/password-recoveries`
+- `/api/v1/authentication/password-resets`
+- `/api/v1/users` (POST: registro)
 - `/api/v1/users/{userId}*`
 - `/api/v1/users?email={email}`
 
@@ -484,6 +527,16 @@ A continuación, se detalla **CADA ENDPOINT** disponible en el sistema con sus p
 
 **📥 Qué vas a recibir (Responses):**
 - **Código HTTP 200**: OK
+  ```json
+  {
+    "id": "string",
+    "email": "string",
+    "role": "string",
+    "token": "string",
+    "refreshToken": "string",
+    "accessTokenExpiresInSeconds": 900
+  }
+  ```
 
 ---
 
@@ -1639,7 +1692,7 @@ A continuación, se detalla **CADA ENDPOINT** disponible en el sistema con sus p
 
 ---
 
-### `POST /api/v1/authentication/sign-up`
+### `POST /api/v1/users`
 **Propósito:** Sign up
 
 *Register a new user*
@@ -1665,10 +1718,10 @@ A continuación, se detalla **CADA ENDPOINT** disponible en el sistema con sus p
 
 ---
 
-### `POST /api/v1/authentication/sign-in`
+### `POST /api/v1/authentication/sessions`
 **Propósito:** Sign in
 
-*Authenticate a user and return a token*
+*Authenticate a user and return an access token plus a refresh token*
 
 **📍 Parámetros:** Ninguno.
 
@@ -1686,13 +1739,57 @@ A continuación, se detalla **CADA ENDPOINT** disponible en el sistema con sus p
   {
     "id": "string",
     "email": "string",
-    "token": "string"
+    "role": "string",
+    "token": "string",
+    "refreshToken": "string",
+    "accessTokenExpiresInSeconds": 900
   }
   ```
+- **Código HTTP 401**: cuerpo vacío si las credenciales no son válidas.
 
 ---
 
-### `POST /api/v1/authentication/reset-password`
+### `POST /api/v1/authentication/sessions/refresh`
+**Propósito:** Refresh session
+
+*Exchanges a refresh token for a new access token and a new refresh token*
+
+**📍 Parámetros:** Ninguno.
+
+**📤 Qué tienes que enviar (Request Body JSON):**
+```json
+{
+  "refreshToken": "string_value"
+}
+```
+
+**📥 Qué vas a recibir (Responses):**
+- **Código HTTP 200**: OK (misma forma que sign in)
+- **Código HTTP 401**: cuerpo vacío si el refresh token no es válido, ya fue usado, fue revocado o expiró.
+
+---
+
+### `DELETE /api/v1/authentication/sessions`
+**Propósito:** Sign out
+
+*Revokes the session identified by the given refresh token*
+
+**📍 Parámetros:** Ninguno.
+
+**📤 Qué tienes que enviar (Request Body JSON):**
+```json
+{
+  "refreshToken": "string_value"
+}
+```
+
+**📥 Qué vas a recibir (Responses):**
+- **Código HTTP 204**: sin cuerpo.
+- **Código HTTP 401**: cuerpo vacío si el token no es reconocido.
+
+---
+
+### `POST /api/v1/authentication/password-resets`
 **Propósito:** Reset password
 
 *Reset user password using recovery token*
@@ -1712,10 +1809,10 @@ A continuación, se detalla **CADA ENDPOINT** disponible en el sistema con sus p
 
 ---
 
-### `POST /api/v1/authentication/google-sign-in`
+### `POST /api/v1/authentication/sessions/google`
 **Propósito:** Google sign in
 
-*Authenticate a user using Google and return a token*
+*Authenticate a user using Google and return an access token plus a refresh token*
 
 **📍 Parámetros:** Ninguno.
 
@@ -1732,13 +1829,16 @@ A continuación, se detalla **CADA ENDPOINT** disponible en el sistema con sus p
   {
     "id": "string",
     "email": "string",
-    "token": "string"
+    "role": "string",
+    "token": "string",
+    "refreshToken": "string",
+    "accessTokenExpiresInSeconds": 900
   }
   ```
 
 ---
 
-### `POST /api/v1/authentication/forgot-password`
+### `POST /api/v1/authentication/password-recoveries`
 **Propósito:** Forgot password
 
 *Send a password recovery email*

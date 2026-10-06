@@ -1,5 +1,6 @@
 package com.tuxlogic.shiftiq.platform.iam.infrastructure.tokens.jwt.services;
 
+import com.tuxlogic.shiftiq.platform.iam.application.internal.outboundservices.tokens.RefreshTokenClaims;
 import com.tuxlogic.shiftiq.platform.iam.infrastructure.tokens.jwt.BearerTokenService;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
@@ -14,19 +15,57 @@ import javax.crypto.SecretKey;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 import java.util.function.Function;
 
 @Service
 public class TokenServiceImpl implements BearerTokenService {
 
-    private final String secret;
-    private final int expirationDays;
+    /**
+     * Audience of short lived access tokens: the only kind accepted by the request filter.
+     */
+    private static final String ACCESS_TOKEN_AUDIENCE = "shiftiq-users";
+
+    /**
+     * Audience of long lived refresh tokens: usable only on the refresh endpoint.
+     */
+    private static final String REFRESH_TOKEN_AUDIENCE = "shiftiq-refresh";
+
+    private final SecretKey signingKey;
+    private final int accessTokenExpirationMinutes;
+    private final int refreshTokenExpirationDays;
 
     public TokenServiceImpl(
             @Value("${authorization.jwt.secret}") String secret,
-            @Value("${authorization.jwt.expiration.days:30}") int expirationDays) {
-        this.secret = secret;
-        this.expirationDays = expirationDays;
+            @Value("${authorization.jwt.access-token.expiration.minutes:15}") int accessTokenExpirationMinutes,
+            @Value("${authorization.jwt.refresh-token.expiration.days:7}") int refreshTokenExpirationDays) {
+        this.signingKey = buildSigningKey(secret);
+        this.accessTokenExpirationMinutes = accessTokenExpirationMinutes;
+        this.refreshTokenExpirationDays = refreshTokenExpirationDays;
+    }
+
+    /**
+     * Builds the signing key eagerly so an unusable secret fails the application at
+     * startup instead of failing on the first sign-in. HS256 requires at least 256 bits.
+     */
+    private static SecretKey buildSigningKey(String secret) {
+        if (secret == null || secret.isBlank()) {
+            throw new IllegalStateException(
+                    "authorization.jwt.secret is not set. Provide a Base64 encoded secret of at least 32 bytes.");
+        }
+        final byte[] keyBytes;
+        try {
+            keyBytes = Decoders.BASE64.decode(secret);
+        } catch (Exception ex) {
+            throw new IllegalStateException(
+                    "authorization.jwt.secret must be a valid Base64 value", ex);
+        }
+        if (keyBytes.length < 32) {
+            throw new IllegalStateException(
+                    "authorization.jwt.secret must decode to at least 32 bytes (256 bits) to sign tokens with HS256, got "
+                            + keyBytes.length);
+        }
+        return Keys.hmacShaKeyFor(keyBytes);
     }
 
     @Override
@@ -36,18 +75,41 @@ public class TokenServiceImpl implements BearerTokenService {
 
     @Override
     public String generateToken(String username) {
-        return buildToken(new HashMap<>(), username);
+        long expiresInMillis = accessTokenExpirationMinutes * 60L * 1000L;
+        return buildToken(ACCESS_TOKEN_AUDIENCE, new HashMap<>(), username, expiresInMillis);
     }
 
-    private String buildToken(Map<String, Object> extraClaims, String username) {
+    @Override
+    public String generateRefreshToken(String username) {
+        long expiresInMillis = refreshTokenExpirationDays * 24L * 60L * 60L * 1000L;
+        return buildToken(REFRESH_TOKEN_AUDIENCE, new HashMap<>(), username, expiresInMillis);
+    }
+
+    @Override
+    public Optional<RefreshTokenClaims> parseRefreshToken(String token) {
+        if (token == null || token.isBlank()) {
+            return Optional.empty();
+        }
+        try {
+            var claims = extractAllClaims(token);
+            if (!REFRESH_TOKEN_AUDIENCE.equals(claims.getAudience())) {
+                return Optional.empty();
+            }
+            return Optional.of(new RefreshTokenClaims(claims.getSubject(), claims.getExpiration().toInstant()));
+        } catch (Exception e) {
+            return Optional.empty();
+        }
+    }
+
+    private String buildToken(String audience, Map<String, Object> extraClaims, String username, long expiresInMillis) {
         return Jwts.builder()
                 .claims(extraClaims)
                 .subject(username)
                 .issuer("shiftiq-platform")
-                .audience().add("shiftiq-users").and()
+                .audience().add(audience).and()
                 .issuedAt(new Date(System.currentTimeMillis()))
-                .expiration(new Date(System.currentTimeMillis() + expirationDays * 24L * 60L * 60L * 1000L))
-                .signWith(getSignInKey(), Jwts.SIG.HS256)
+                .expiration(new Date(System.currentTimeMillis() + expiresInMillis))
+                .signWith(signingKey, Jwts.SIG.HS256)
                 .compact();
     }
 
@@ -56,11 +118,16 @@ public class TokenServiceImpl implements BearerTokenService {
         return extractClaim(token, Claims::getSubject);
     }
 
+    /**
+     * A token is usable as an access token only when its signature and expiry are
+     * valid and it was issued as an access token: refresh tokens must never be
+     * accepted by the request filter.
+     */
     @Override
     public boolean validateToken(String token) {
         try {
-            extractAllClaims(token);
-            return true;
+            var claims = extractAllClaims(token);
+            return ACCESS_TOKEN_AUDIENCE.equals(claims.getAudience());
         } catch (Exception e) {
             return false;
         }
@@ -73,15 +140,10 @@ public class TokenServiceImpl implements BearerTokenService {
 
     private Claims extractAllClaims(String token) {
         return Jwts.parser()
-                .verifyWith(getSignInKey())
+                .verifyWith(signingKey)
                 .build()
                 .parseSignedClaims(token)
                 .getPayload();
-    }
-
-    private SecretKey getSignInKey() {
-        byte[] keyBytes = Decoders.BASE64.decode(secret);
-        return Keys.hmacShaKeyFor(keyBytes);
     }
 
     @Override
