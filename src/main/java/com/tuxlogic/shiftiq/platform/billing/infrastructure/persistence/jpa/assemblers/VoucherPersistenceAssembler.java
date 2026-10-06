@@ -44,6 +44,8 @@ public class VoucherPersistenceAssembler {
                 paymentEntity.setMethod(payment.getMethod());
                 paymentEntity.setPaidAt(payment.getPaidAt() != null ? payment.getPaidAt() : java.time.LocalDateTime.now());
                 paymentEntity.setBranchId(payment.getBranchId());
+                paymentEntity.setPaymentProvider(payment.getPaymentProvider());
+                paymentEntity.setExternalPaymentId(payment.getExternalPaymentId());
                 paymentEntity.setVoucher(entity);
                 return paymentEntity;
             }).collect(Collectors.toList());
@@ -55,9 +57,17 @@ public class VoucherPersistenceAssembler {
 
     public static Voucher toAggregate(VoucherPersistenceEntity entity) {
         if (entity == null) return null;
-        
+
         var payments = entity.getPayments() != null ? entity.getPayments().stream()
-                .map(pEntity -> new Payment(pEntity.getId(), new Money(pEntity.getAmount()), pEntity.getMethod(), pEntity.getBranchId(), pEntity.getPaidAt()))
+                .map(pEntity -> new Payment(
+                        pEntity.getId(),
+                        new Money(pEntity.getAmount()),
+                        pEntity.getMethod(),
+                        pEntity.getBranchId(),
+                        pEntity.getPaidAt(),
+                        pEntity.getPaymentProvider(),
+                        pEntity.getExternalPaymentId()
+                ))
                 .collect(Collectors.toList()) : new java.util.ArrayList<Payment>();
 
         return new Voucher(
@@ -75,3 +85,4 @@ public class VoucherPersistenceAssembler {
         );
     }
 }
+

@@ -34,4 +34,7 @@ public interface VoucherRepository {
      * @return a list of vouchers
      */
     List<Voucher> findByBranchId(BranchId branchId);
+    Optional<Voucher> findByQuoteId(UUID quoteId);
+    boolean existsByExternalPaymentId(String externalPaymentId);
 }
+

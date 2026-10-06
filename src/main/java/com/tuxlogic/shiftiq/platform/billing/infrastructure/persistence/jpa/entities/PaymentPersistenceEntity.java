@@ -38,7 +38,14 @@ public class PaymentPersistenceEntity {
     @Column(name = "branch_id")
     private UUID branchId;
 
+    @Column(name = "payment_provider", length = 50)
+    private String paymentProvider;
+
+    @Column(name = "external_payment_id", length = 255)
+    private String externalPaymentId;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "voucher_id", nullable = false)
     private VoucherPersistenceEntity voucher;
 }
+

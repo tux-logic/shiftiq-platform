@@ -115,6 +115,10 @@ public class Voucher extends AbstractDomainAggregateRoot<Voucher> {
      * @throws IllegalStateException if the voucher is canceled, already paid, or if the payment exceeds the remaining debt
      */
     public void addPayment(Money amount, PaymentMethod method, UUID branchId) {
+        addPayment(amount, method, branchId, "MANUAL", null);
+    }
+
+    public void addPayment(Money amount, PaymentMethod method, UUID branchId, String paymentProvider, String externalPaymentId) {
         if (this.status == VoucherStatus.CANCELED) {
             throw new IllegalStateException("billing.error.voucher.cannotAddPaymentCanceled");
         }
@@ -129,7 +133,7 @@ public class Voucher extends AbstractDomainAggregateRoot<Voucher> {
             throw new IllegalStateException("billing.error.voucher.paymentExceedsDebt");
         }
 
-        this.payments.add(new Payment(amount, method, branchId));
+        this.payments.add(new Payment(amount, method, branchId, paymentProvider, externalPaymentId));
 
         if (newTotalPaid.compareTo(this.totalAmount.amount()) == 0) {
             this.status = VoucherStatus.PAID;
@@ -138,6 +142,7 @@ public class Voucher extends AbstractDomainAggregateRoot<Voucher> {
             this.status = VoucherStatus.PARTIALLY_PAID;
         }
     }
+
 
     /**
      * Removes a previously recorded payment from this voucher.

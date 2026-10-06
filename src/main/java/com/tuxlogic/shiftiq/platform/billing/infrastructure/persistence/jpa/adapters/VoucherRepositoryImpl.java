@@ -64,4 +64,17 @@ public class VoucherRepositoryImpl implements VoucherRepository {
                 .map(VoucherPersistenceAssembler::toAggregate)
                 .toList();
     }
+
+    @Override
+    public Optional<Voucher> findByQuoteId(UUID quoteId) {
+        return persistenceRepository.findByQuoteId(quoteId)
+                .map(VoucherPersistenceAssembler::toAggregate);
+    }
+
+    @Override
+    public boolean existsByExternalPaymentId(String externalPaymentId) {
+        if (externalPaymentId == null || externalPaymentId.isBlank()) return false;
+        return persistenceRepository.existsByExternalPaymentId(externalPaymentId);
+    }
 }
+
