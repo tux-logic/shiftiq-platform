@@ -68,3 +68,7 @@ ENTRYPOINT ["java", "-jar", "app.jar"]
 # Mail / SMTP Configuration:
 # - MAIL_USERNAME: SMTP username/email address.
 # - MAIL_PASSWORD: App password or credentials for SMTP server.
+#
+# Reverse proxy (client IP used by the Mercado Pago rate limiter):
+# - SERVER_TOMCAT_REMOTEIP_INTERNALPROXIES: CIDR or regex of the edge proxy. Only needed when
+#   the proxy has a public IP; private ranges and loopback are trusted by default.

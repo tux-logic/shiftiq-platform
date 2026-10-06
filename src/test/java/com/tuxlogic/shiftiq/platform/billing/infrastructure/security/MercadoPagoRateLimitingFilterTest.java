@@ -107,7 +107,7 @@ class MercadoPagoRateLimitingFilterTest {
     }
 
     @Test
-    void doFilter_WhenSpoofedHeaderProvided_ReliesOnRemoteAddrResolvedByFramework() throws ServletException, IOException {
+    void doFilter_WhenSpoofedHeaderProvided_IgnoresXForwardedForAndUsesRemoteAddr() throws ServletException, IOException {
         String authenticRemoteIp = "192.168.10.20";
 
         for (int i = 0; i < 30; i++) {

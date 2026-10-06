@@ -114,9 +114,11 @@ public class MercadoPagoRateLimitingFilter extends OncePerRequestFilter {
 
     /**
      * Resolves the remote IP address.
-     * When server.forward-headers-strategy=framework is enabled, Spring's ForwardedHeaderFilter
-     * securely resolves the authentic client IP into request.getRemoteAddr(), preventing
-     * spoofing of untrusted X-Forwarded-For headers.
+     * This filter never reads X-Forwarded-For: with server.forward-headers-strategy=native,
+     * Tomcat's RemoteIpValve rewrites request.getRemoteAddr() before the security chain runs,
+     * but only when the direct peer is a trusted proxy (server.tomcat.remoteip.internal-proxies)
+     * and the value comes from the right-most untrusted hop. With no trusted proxy the raw
+     * socket address is used, so an untrusted client cannot choose its own bucket key.
      */
     private String getClientIp(HttpServletRequest request) {
         String remoteAddr = request.getRemoteAddr();
