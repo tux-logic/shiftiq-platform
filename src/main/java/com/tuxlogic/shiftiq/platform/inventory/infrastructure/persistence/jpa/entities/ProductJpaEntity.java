@@ -41,6 +41,9 @@ public class ProductJpaEntity extends AuditableAbstractPersistenceEntity impleme
     @Column(columnDefinition = "text")
     private String description;
 
+    @Column(name = "image_url")
+    private String imageUrl;
+
     @Column(name = "current_selling_price", nullable = false)
     @Convert(converter = MoneyAttributeConverter.class)
     private Money currentSellingPrice;
@@ -80,6 +83,8 @@ public class ProductJpaEntity extends AuditableAbstractPersistenceEntity impleme
     public void setSku(String sku) { this.sku = sku; }
     public String getDescription() { return description; }
     public void setDescription(String description) { this.description = description; }
+    public String getImageUrl() { return imageUrl; }
+    public void setImageUrl(String imageUrl) { this.imageUrl = imageUrl; }
     public Money getCurrentSellingPrice() { return currentSellingPrice; }
     public void setCurrentSellingPrice(Money currentSellingPrice) { this.currentSellingPrice = currentSellingPrice; }
     public Integer getCurrentStock() { return currentStock; }
