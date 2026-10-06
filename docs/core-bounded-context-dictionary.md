@@ -20,8 +20,9 @@ classDiagram
         -String businessName
         -Document document
         -Phone phone
-        +Customer(UserId, boolean, PersonName, String, Document, Phone)
-        +update(PersonName, String, Document, Phone) void
+        -String profileImageUrl
+        +Customer(UserId, boolean, PersonName, String, Document, Phone, String)
+        +update(PersonName, String, Document, Phone, String) void
     }
 
     class Employee {
@@ -30,8 +31,9 @@ classDiagram
         -PersonName name
         -Document document
         -Phone phone
-        +Employee(UserId, PersonName, Document, Phone)
-        +update(PersonName, Document, Phone) void
+        -String profileImageUrl
+        +Employee(UserId, PersonName, Document, Phone, String)
+        +update(PersonName, Document, Phone, String) void
     }
 
     class Owner {
@@ -40,8 +42,9 @@ classDiagram
         -PersonName name
         -Document document
         -Phone phone
-        +Owner(UserId, PersonName, Document, Phone)
-        +update(PersonName, Document, Phone) void
+        -String profileImageUrl
+        +Owner(UserId, PersonName, Document, Phone, String)
+        +update(PersonName, Document, Phone, String) void
     }
 
     class Workshop {
@@ -51,8 +54,9 @@ classDiagram
         -String brandName
         -TaxId taxId
         -MileageIntervalConfig mileageIntervalConfig
-        +Workshop(OwnerId, String, String, TaxId, MileageIntervalConfig)
-        +update(String, String, TaxId, MileageIntervalConfig) void
+        -String logoUrl
+        +Workshop(OwnerId, String, String, TaxId, MileageIntervalConfig, String)
+        +update(String, String, TaxId, MileageIntervalConfig, String) void
     }
 
     class Branch {
@@ -62,10 +66,11 @@ classDiagram
         -String name
         -Address address
         -Phone phone
+        -String photoUrl
         -UUID createdBy
         -UUID updatedBy
-        +Branch(WorkshopId, String, String, Address, Phone)
-        +update(String, String, Address, Phone) void
+        +Branch(WorkshopId, String, String, Address, Phone, String)
+        +update(String, String, Address, Phone, String) void
     }
 
     class BranchSubscription {

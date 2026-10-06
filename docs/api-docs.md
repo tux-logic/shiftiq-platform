@@ -223,12 +223,34 @@ Para que tengas una visión global, aquí tienes el listado de todas las rutas (
 - `/api/v1/vh-telemetry-batches`
 - `/api/v1/customer-vehicles`
 
+**Gestión de Archivos y Multimedia (Shared Kernel)**
+- `/api/v1/media/upload` (POST: Carga de archivos/imágenes a Cloudinary)
+
 
 ---
 
 ## 📚 Referencia Completa de Endpoints
 
 A continuación, se detalla **CADA ENDPOINT** disponible en el sistema con sus parámetros, body a enviar y lo que vas a recibir.
+
+### `POST /api/v1/media/upload`
+**Propósito:** Carga de imágenes a Cloudinary (Servicio de almacenamiento de archivos multimedia)
+
+*Permite subir imágenes (foto de perfil de cliente/empleado, foto de vehículo, logo de taller, imágenes de inspección inicial de orden de trabajo o evidencias de tareas de mantenimiento) a Cloudinary y obtener su URL pública de acceso.*
+
+**📍 Form Data (multipart/form-data):**
+- `file` (file): Archivo de imagen a subir (Requerido: true)
+
+**📥 Qué vas a recibir (Responses):**
+- **Código HTTP 200**: OK
+  ```json
+  {
+    "url": "https://res.cloudinary.com/z9rmazyn/image/upload/v1234567890/shiftiq/sample.jpg"
+  }
+  ```
+- **Código HTTP 400**: Bad Request (si no se proporciona archivo o el archivo está vacío)
+
+---
 
 ### `GET /api/v1/users`
 **Propósito:** Get user by email

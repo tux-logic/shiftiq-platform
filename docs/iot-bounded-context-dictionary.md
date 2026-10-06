@@ -19,11 +19,13 @@ classDiagram
         -String model
         -Integer year
         -String vin
+        -String photoUrl
         -Long version
         -Instant createdAt
         -Instant updatedAt
         -Instant deletedAt
         +updateDetails(String, String, String, Integer, String) void
+        +updatePhotoUrl(String) void
         +delete() void
     }
 

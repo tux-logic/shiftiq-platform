@@ -24,7 +24,8 @@ classDiagram
         -Mileage mileageIn
         -Money totalAmount
         -List~WorkOrderTask~ tasks
-        +addTask(ServiceId, MechanicId, TaskDescription, Money) void
+        -List~String~ entryInspectionImages
+        +addTask(ServiceId, MechanicId, TaskDescription, Money, List~String~) void
         +addProductToTask(WorkOrderTaskId, ProductId, Quantity, Money) void
         +removeProductFromTask(WorkOrderTaskId, ProductId) void
         +removeTask(WorkOrderTaskId) void
@@ -35,7 +36,7 @@ classDiagram
         +completeWorkOrder() void
         +assignMechanicToTask(WorkOrderTaskId, MechanicId) void
         +markAsPaid() void
-        +updateDetails(DiagnosticSummary, Mileage) void
+        +updateDetails(DiagnosticSummary, Mileage, List~String~) void
         +updateTaskDetails(...) void
         +updateProductQuantityInTask(...) void
     }
@@ -51,12 +52,14 @@ classDiagram
         -Instant startedAt
         -Instant completedAt
         -List~WorkOrderTaskProduct~ products
+        -List~String~ evidenceImages
         +addProduct(ProductId, Quantity, Money) void
         +removeProduct(ProductId) void
         +start() void
         +complete() boolean
         +reopen() boolean
-        +updateDetails(ServiceId, MechanicId, TaskDescription, Money) void
+        +updateDetails(ServiceId, MechanicId, TaskDescription, Money, List~String~) void
+        +updateEvidenceImages(List~String~) void
         +updateProductQuantity(ProductId, Quantity) Quantity
         +assignMechanic(MechanicId) void
     }
