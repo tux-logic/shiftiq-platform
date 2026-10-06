@@ -32,6 +32,7 @@ public final class EmployeePersistenceAssembler {
         }
         
         entity.setPhone(employee.getPhone() != null ? employee.getPhone().value() : null);
+        entity.setProfileImageUrl(employee.getProfileImageUrl());
         entity.setCreatedAt(employee.getCreatedAt());
         entity.setUpdatedAt(employee.getUpdatedAt());
         entity.setDeletedAt(employee.getDeletedAt());
@@ -49,6 +50,7 @@ public final class EmployeePersistenceAssembler {
                 personName,
                 document,
                 new Phone(entity.getPhone()),
+                entity.getProfileImageUrl(),
                 entity.getCreatedAt(),
                 entity.getUpdatedAt(),
                 entity.getDeletedAt(),

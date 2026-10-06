@@ -35,6 +35,7 @@ public final class CustomerPersistenceAssembler {
         }
         
         entity.setPhone(customer.getPhone() != null ? customer.getPhone().value() : null);
+        entity.setProfileImageUrl(customer.getProfileImageUrl());
         entity.setCreatedAt(customer.getCreatedAt());
         entity.setUpdatedAt(customer.getUpdatedAt());
         entity.setDeletedAt(customer.getDeletedAt());
@@ -61,6 +62,7 @@ public final class CustomerPersistenceAssembler {
                 entity.getBusinessName(),
                 document,
                 new Phone(entity.getPhone()),
+                entity.getProfileImageUrl(),
                 entity.getCreatedAt(),
                 entity.getUpdatedAt(),
                 entity.getDeletedAt(),
