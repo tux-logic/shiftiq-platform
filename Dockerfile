@@ -64,3 +64,7 @@ ENTRYPOINT ["java", "-jar", "app.jar"]
 # - JWT_SECRET: Secret key for signing and validating JWT tokens.
 # - CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, CLOUDINARY_API_SECRET: Media storage credentials.
 # - GOOGLE_CLIENT_ID: OAuth2 client ID.
+#
+# Mail / SMTP Configuration:
+# - MAIL_USERNAME: SMTP username/email address.
+# - MAIL_PASSWORD: App password or credentials for SMTP server.

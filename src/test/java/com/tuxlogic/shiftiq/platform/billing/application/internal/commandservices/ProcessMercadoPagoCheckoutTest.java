@@ -152,7 +152,7 @@ class ProcessMercadoPagoCheckoutTest {
         when(voucherRepository.existsByExternalPaymentId(any())).thenReturn(false);
 
         PaymentResult mockPayment = new PaymentResult("11223344", UUID.randomUUID().toString(), new BigDecimal("100.00"), "PEN", "approved");
-        when(paymentGateway.getPaymentStatus(eq("11223344"))).thenReturn(Optional.of(mockPayment));
+        when(paymentGateway.getPaymentStatusByExternalId(eq("11223344"))).thenReturn(Optional.of(mockPayment));
 
         ProcessMercadoPagoCheckoutCommand command = new ProcessMercadoPagoCheckoutCommand(
                 quoteId,
@@ -180,7 +180,7 @@ class ProcessMercadoPagoCheckoutTest {
         when(voucherRepository.existsByExternalPaymentId(any())).thenReturn(false);
 
         PaymentResult mockPayment = new PaymentResult("11223344", quoteId.toString(), new BigDecimal("100.00"), "USD", "approved");
-        when(paymentGateway.getPaymentStatus(eq("11223344"))).thenReturn(Optional.of(mockPayment));
+        when(paymentGateway.getPaymentStatusByExternalId(eq("11223344"))).thenReturn(Optional.of(mockPayment));
 
         ProcessMercadoPagoCheckoutCommand command = new ProcessMercadoPagoCheckoutCommand(
                 quoteId,
@@ -208,7 +208,7 @@ class ProcessMercadoPagoCheckoutTest {
         when(voucherRepository.existsByExternalPaymentId(any())).thenReturn(false);
 
         PaymentResult mockPayment = new PaymentResult("11223344", quoteId.toString(), new BigDecimal("100.00"), null, "approved");
-        when(paymentGateway.getPaymentStatus(eq("11223344"))).thenReturn(Optional.of(mockPayment));
+        when(paymentGateway.getPaymentStatusByExternalId(eq("11223344"))).thenReturn(Optional.of(mockPayment));
 
         ProcessMercadoPagoCheckoutCommand command = new ProcessMercadoPagoCheckoutCommand(
                 quoteId,
@@ -236,7 +236,7 @@ class ProcessMercadoPagoCheckoutTest {
         when(voucherRepository.existsByExternalPaymentId(any())).thenReturn(false);
 
         PaymentResult mockPayment = new PaymentResult("11223344", quoteId.toString(), new BigDecimal("100.00"), "PEN", "rejected");
-        when(paymentGateway.getPaymentStatus(eq("11223344"))).thenReturn(Optional.of(mockPayment));
+        when(paymentGateway.getPaymentStatusByExternalId(eq("11223344"))).thenReturn(Optional.of(mockPayment));
 
         ProcessMercadoPagoCheckoutCommand command = new ProcessMercadoPagoCheckoutCommand(
                 quoteId,
@@ -264,7 +264,7 @@ class ProcessMercadoPagoCheckoutTest {
         when(voucherRepository.existsByExternalPaymentId(any())).thenReturn(false);
 
         PaymentResult mockPayment = new PaymentResult("11223344", quoteId.toString(), new BigDecimal("100.00"), "PEN", "approved");
-        when(paymentGateway.getPaymentStatus(eq("11223344"))).thenReturn(Optional.of(mockPayment));
+        when(paymentGateway.getPaymentStatusByExternalId(eq("11223344"))).thenReturn(Optional.of(mockPayment));
 
         ProcessMercadoPagoCheckoutCommand command = new ProcessMercadoPagoCheckoutCommand(
                 quoteId,

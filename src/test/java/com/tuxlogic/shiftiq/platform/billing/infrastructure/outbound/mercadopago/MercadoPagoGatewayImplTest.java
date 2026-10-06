@@ -25,8 +25,14 @@ class MercadoPagoGatewayImplTest {
     }
 
     @Test
-    void getPaymentStatus_WhenInvalidFormat_ShouldReturnEmpty() {
-        var result = gateway.getPaymentStatus("invalid_numeric_id");
+    void getPaymentStatusByExternalId_WhenInvalidFormat_ShouldReturnEmpty() {
+        var result = gateway.getPaymentStatusByExternalId("invalid_numeric_id");
+        assertTrue(result.isEmpty());
+    }
+
+    @Test
+    void getPaymentStatusByExternalId_WhenNull_ShouldReturnEmpty() {
+        var result = gateway.getPaymentStatusByExternalId(null);
         assertTrue(result.isEmpty());
     }
 }

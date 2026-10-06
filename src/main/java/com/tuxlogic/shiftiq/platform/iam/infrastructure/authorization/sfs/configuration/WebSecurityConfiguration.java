@@ -22,7 +22,10 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 import java.util.Arrays;
 import java.util.List;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.tuxlogic.shiftiq.platform.billing.infrastructure.security.MercadoPagoRateLimitingFilter;
+import org.springframework.boot.web.servlet.FilterRegistrationBean;
+import org.springframework.context.MessageSource;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 
 @Configuration
@@ -33,18 +36,27 @@ public class WebSecurityConfiguration {
     private final BearerAuthorizationRequestFilter authorizationRequestFilter;
     private final UnauthorizedRequestHandlerEntryPoint unauthorizedHandler;
     private final BCryptHashingService hashingService;
-    private final MercadoPagoRateLimitingFilter mercadoPagoRateLimitingFilter;
 
     public WebSecurityConfiguration(UserDetailsService userDetailsService,
                                     BearerAuthorizationRequestFilter authorizationRequestFilter,
                                     UnauthorizedRequestHandlerEntryPoint unauthorizedHandler,
-                                    BCryptHashingService hashingService,
-                                    MercadoPagoRateLimitingFilter mercadoPagoRateLimitingFilter) {
+                                    BCryptHashingService hashingService) {
         this.userDetailsService = userDetailsService;
         this.authorizationRequestFilter = authorizationRequestFilter;
         this.unauthorizedHandler = unauthorizedHandler;
         this.hashingService = hashingService;
-        this.mercadoPagoRateLimitingFilter = mercadoPagoRateLimitingFilter;
+    }
+
+    @Bean
+    public MercadoPagoRateLimitingFilter mercadoPagoRateLimitingFilter(ObjectMapper objectMapper, MessageSource messageSource) {
+        return new MercadoPagoRateLimitingFilter(objectMapper, messageSource);
+    }
+
+    @Bean
+    public FilterRegistrationBean<MercadoPagoRateLimitingFilter> mercadoPagoRateLimitingFilterRegistration(MercadoPagoRateLimitingFilter filter) {
+        FilterRegistrationBean<MercadoPagoRateLimitingFilter> registration = new FilterRegistrationBean<>(filter);
+        registration.setEnabled(false);
+        return registration;
     }
 
     @Bean
@@ -70,7 +82,7 @@ public class WebSecurityConfiguration {
 
     @Bean
     @SuppressWarnings("RedundantThrows")
-    public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+    public SecurityFilterChain filterChain(HttpSecurity http, MercadoPagoRateLimitingFilter mercadoPagoRateLimitingFilter) throws Exception {
         http.cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .csrf(AbstractHttpConfigurer::disable)
                 .exceptionHandling(exception -> exception.authenticationEntryPoint(unauthorizedHandler))

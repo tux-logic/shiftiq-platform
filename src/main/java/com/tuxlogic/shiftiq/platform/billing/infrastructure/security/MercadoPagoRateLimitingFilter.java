@@ -1,24 +1,28 @@
 package com.tuxlogic.shiftiq.platform.billing.infrastructure.security;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.tuxlogic.shiftiq.platform.shared.interfaces.rest.resources.ErrorResource;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import org.springframework.context.MessageSource;
+import org.springframework.context.i18n.LocaleContextHolder;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
-import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
+import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * In-memory rate limiting filter protecting public and sensitive Mercado Pago endpoints
  * from abuse, denial of service, and preference spamming.
  */
-@Component
 public class MercadoPagoRateLimitingFilter extends OncePerRequestFilter {
 
     private static final int WEBHOOK_MAX_REQUESTS_PER_MINUTE = 120;
@@ -26,15 +30,22 @@ public class MercadoPagoRateLimitingFilter extends OncePerRequestFilter {
     private static final long WINDOW_MILLIS = 60_000L;
 
     private static class RateLimitBucket {
-        long windowStart;
-        final AtomicInteger count = new AtomicInteger(0);
+        final AtomicLong windowStart;
+        final AtomicInteger count = new AtomicInteger(1);
 
         RateLimitBucket(long windowStart) {
-            this.windowStart = windowStart;
+            this.windowStart = new AtomicLong(windowStart);
         }
     }
 
     private final Map<String, RateLimitBucket> rateLimitBuckets = new ConcurrentHashMap<>();
+    private final ObjectMapper objectMapper;
+    private final MessageSource messageSource;
+
+    public MercadoPagoRateLimitingFilter(ObjectMapper objectMapper, MessageSource messageSource) {
+        this.objectMapper = objectMapper;
+        this.messageSource = messageSource;
+    }
 
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
@@ -66,25 +77,33 @@ public class MercadoPagoRateLimitingFilter extends OncePerRequestFilter {
             response.setStatus(HttpStatus.TOO_MANY_REQUESTS.value());
             response.setContentType(MediaType.APPLICATION_JSON_VALUE);
             response.setHeader("Retry-After", "60");
-            response.getWriter().write("{\"error\":\"Too many requests. Please try again later.\"}");
+
+            Locale locale = LocaleContextHolder.getLocale();
+            String localizedMessage = messageSource.getMessage(
+                    "billing.error.rateLimitExceeded",
+                    null,
+                    "Too many requests. Please try again later.",
+                    locale
+            );
+            ErrorResource errorResource = new ErrorResource("TOO_MANY_REQUESTS", localizedMessage);
+            response.getWriter().write(objectMapper.writeValueAsString(errorResource));
             return;
         }
 
         filterChain.doFilter(request, response);
     }
 
-    private synchronized boolean isRateLimited(String bucketKey, int maxAllowed) {
+    private boolean isRateLimited(String bucketKey, int maxAllowed) {
         long now = System.currentTimeMillis();
-        // Periodically purge old entries to avoid memory growth
+
+        // Non-blocking purge of expired buckets when map grows large
         if (rateLimitBuckets.size() > 5000) {
-            rateLimitBuckets.entrySet().removeIf(entry -> now - entry.getValue().windowStart > WINDOW_MILLIS * 2);
+            rateLimitBuckets.entrySet().removeIf(entry -> now - entry.getValue().windowStart.get() > WINDOW_MILLIS * 2);
         }
 
         RateLimitBucket bucket = rateLimitBuckets.compute(bucketKey, (key, existing) -> {
-            if (existing == null || (now - existing.windowStart) > WINDOW_MILLIS) {
-                RateLimitBucket newBucket = new RateLimitBucket(now);
-                newBucket.count.set(1);
-                return newBucket;
+            if (existing == null || (now - existing.windowStart.get()) > WINDOW_MILLIS) {
+                return new RateLimitBucket(now);
             }
             existing.count.incrementAndGet();
             return existing;
@@ -93,12 +112,15 @@ public class MercadoPagoRateLimitingFilter extends OncePerRequestFilter {
         return bucket.count.get() > maxAllowed;
     }
 
+    /**
+     * Resolves the remote IP address.
+     * When server.forward-headers-strategy=framework is enabled, Spring's ForwardedHeaderFilter
+     * securely resolves the authentic client IP into request.getRemoteAddr(), preventing
+     * spoofing of untrusted X-Forwarded-For headers.
+     */
     private String getClientIp(HttpServletRequest request) {
-        String xForwardedFor = request.getHeader("X-Forwarded-For");
-        if (xForwardedFor != null && !xForwardedFor.isBlank()) {
-            return xForwardedFor.split(",")[0].trim();
-        }
-        return request.getRemoteAddr() != null ? request.getRemoteAddr() : "unknown";
+        String remoteAddr = request.getRemoteAddr();
+        return (remoteAddr != null && !remoteAddr.isBlank()) ? remoteAddr : "unknown";
     }
 
     void reset() {

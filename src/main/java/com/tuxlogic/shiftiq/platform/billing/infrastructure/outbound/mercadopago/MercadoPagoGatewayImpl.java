@@ -39,9 +39,12 @@ public class MercadoPagoGatewayImpl implements MercadoPagoGateway {
     }
 
     @Override
-    public Optional<PaymentResult> getPaymentStatus(String paymentId) {
+    public Optional<PaymentResult> getPaymentStatusByExternalId(String externalPaymentId) {
+        if (externalPaymentId == null) {
+            return Optional.empty();
+        }
         try {
-            Long parsedPaymentId = Long.parseLong(paymentId);
+            Long parsedPaymentId = Long.parseLong(externalPaymentId);
             return getPaymentStatus(parsedPaymentId).map(pay -> new PaymentResult(
                     pay.paymentId().toString(),
                     pay.externalReference(),
@@ -50,7 +53,7 @@ public class MercadoPagoGatewayImpl implements MercadoPagoGateway {
                     pay.status()
             ));
         } catch (NumberFormatException e) {
-            LOGGER.error("Invalid Mercado Pago payment ID format: {}", paymentId);
+            LOGGER.error("Invalid Mercado Pago payment ID format: {}", externalPaymentId);
             return Optional.empty();
         }
     }
