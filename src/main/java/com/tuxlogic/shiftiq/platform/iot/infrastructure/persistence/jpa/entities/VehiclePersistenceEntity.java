@@ -46,6 +46,9 @@ public class VehiclePersistenceEntity extends AuditableAbstractPersistenceEntity
     @Column(nullable = false)
     private String vin;
 
+    @Column(name = "photo_url")
+    private String photoUrl;
+
     @Column(name = "deleted_at")
     private Instant deletedAt;
 }

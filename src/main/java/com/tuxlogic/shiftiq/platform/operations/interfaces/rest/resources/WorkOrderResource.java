@@ -35,6 +35,7 @@ public record WorkOrderResource(
         Integer mileageIn,
         BigDecimal totalAmount,
         List<WorkOrderTaskResource> tasks, // Lista de tareas internas formateadas
+        List<String> entryInspectionImages,
         Instant createdAt,
         Instant updatedAt
 ) {}

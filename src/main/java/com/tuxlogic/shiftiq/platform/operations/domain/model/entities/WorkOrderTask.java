@@ -29,6 +29,7 @@ public class WorkOrderTask {
     private Instant startedAt;
     private Instant completedAt;
     private List<WorkOrderTaskProduct> products;
+    private List<String> evidenceImages;
     private Instant createdAt;
     private Instant updatedAt;
     private Instant deletedAt;
@@ -38,7 +39,7 @@ public class WorkOrderTask {
 
     public WorkOrderTask() {}
 
-    public WorkOrderTask(WorkOrderTaskId id, ServiceId serviceId, BranchId branchId, MechanicId assignedMechanicId, WorkOrderTaskStatus status, TaskDescription description, Money price, Instant startedAt, Instant completedAt, List<WorkOrderTaskProduct> products, Instant createdAt, Instant updatedAt, Instant deletedAt, UUID createdBy, UUID updatedBy, Long version) {
+    public WorkOrderTask(WorkOrderTaskId id, ServiceId serviceId, BranchId branchId, MechanicId assignedMechanicId, WorkOrderTaskStatus status, TaskDescription description, Money price, Instant startedAt, Instant completedAt, List<WorkOrderTaskProduct> products, List<String> evidenceImages, Instant createdAt, Instant updatedAt, Instant deletedAt, UUID createdBy, UUID updatedBy, Long version) {
         this.id = id;
         this.serviceId = serviceId;
         this.branchId = branchId;
@@ -49,6 +50,7 @@ public class WorkOrderTask {
         this.startedAt = startedAt;
         this.completedAt = completedAt;
         this.products = products;
+        this.evidenceImages = evidenceImages != null ? new ArrayList<>(evidenceImages) : new ArrayList<>();
         this.createdAt = createdAt;
         this.updatedAt = updatedAt;
         this.deletedAt = deletedAt;
@@ -57,15 +59,11 @@ public class WorkOrderTask {
         this.version = version;
     }
 
-    /**
-     * Constructor to create a new WorkOrderTask with the specified service, branch, assigned mechanic, description, and price. It initializes the task with a unique identifier, sets the initial status to PENDING, and calculates the total price based on the price and any associated products. This constructor is used when creating a new task for a work order.
-     * @param serviceId the identifier of the service associated with this task
-     * @param branchId the identifier of the branch where the task will be performed
-     * @param mechanicId the identifier of the mechanic assigned to this task
-     * @param description a description of the task to be performed
-     * @param laborPrice the price of the service associated with this task
-     */
     public WorkOrderTask(ServiceId serviceId, BranchId branchId, MechanicId mechanicId, TaskDescription description, Money laborPrice) {
+        this(serviceId, branchId, mechanicId, description, laborPrice, new ArrayList<>());
+    }
+
+    public WorkOrderTask(ServiceId serviceId, BranchId branchId, MechanicId mechanicId, TaskDescription description, Money laborPrice, List<String> evidenceImages) {
         this.id = new WorkOrderTaskId(UUID.randomUUID());
         this.serviceId = serviceId;
         this.branchId = branchId;
@@ -73,6 +71,7 @@ public class WorkOrderTask {
         this.description = description;
         this.status = WorkOrderTaskStatus.PENDING;
         this.products = new ArrayList<>();
+        this.evidenceImages = evidenceImages != null ? new ArrayList<>(evidenceImages) : new ArrayList<>();
         this.price = laborPrice;
     }
 
@@ -156,17 +155,35 @@ public class WorkOrderTask {
      * @param newLaborPrice the new labor price associated with the potentially updated service.
      */
     public void updateDetails(ServiceId serviceId, MechanicId mechanicId, TaskDescription description, Money newLaborPrice) {
+        updateDetails(serviceId, mechanicId, description, newLaborPrice, this.evidenceImages);
+    }
+
+    public void updateDetails(ServiceId serviceId, MechanicId mechanicId, TaskDescription description, Money newLaborPrice, List<String> evidenceImages) {
         if (this.status == WorkOrderTaskStatus.COMPLETED) {
             throw new IllegalStateException(OperationsMessageKeys.TASK_CANNOT_MODIFY_COMPLETED);
         }
         this.serviceId = serviceId;
         this.assignedMechanicId = mechanicId;
         this.description = description;
+        if (evidenceImages != null) {
+            this.evidenceImages = new ArrayList<>(evidenceImages);
+        }
 
         this.price = this.products.stream()
                 .filter(p -> !p.isDeleted())
                 .map(WorkOrderTaskProduct::getTotalAmount)
                 .reduce(newLaborPrice, Money::plus);
+    }
+
+    public void updateEvidenceImages(List<String> evidenceImages) {
+        if (this.status == WorkOrderTaskStatus.COMPLETED) {
+            throw new IllegalStateException(OperationsMessageKeys.TASK_CANNOT_MODIFY_COMPLETED);
+        }
+        this.evidenceImages = evidenceImages != null ? new ArrayList<>(evidenceImages) : new ArrayList<>();
+    }
+
+    public List<String> getEvidenceImages() {
+        return this.evidenceImages != null ? java.util.Collections.unmodifiableList(this.evidenceImages) : java.util.Collections.emptyList();
     }
 
     /**

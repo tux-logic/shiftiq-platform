@@ -265,6 +265,9 @@ classDiagram
 * Centraliza las excepciones no capturadas a nivel REST.
 * Traduce `@Valid` binding errors (`MethodArgumentNotValidException`), `IllegalArgumentException`, `AccessDeniedException` y `RuntimeException` a respuestas `ErrorResource` internacionalizadas mediante `messages.properties`.
 
+#### 📌 `MediaController` (`/api/v1/media`)
+* Endpoint `POST /api/v1/media/upload` para la carga síncrona de archivos multimedia (imágenes PNG, JPG, WEBP). Delegado a `StorageService`.
+
 #### 📌 `ErrorResponseAssembler` & `ResponseEntityAssembler`
 * Mapea códigos de error (`VALIDATION_ERROR`, `NOT_FOUND`, `CONFLICT`, `ACCESS_DENIED`) a los códigos de estado HTTP correspondientes (`400`, `404`, `409`, `403`, `500`).
 

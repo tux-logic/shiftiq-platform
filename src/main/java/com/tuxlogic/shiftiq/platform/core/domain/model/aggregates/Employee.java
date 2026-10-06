@@ -22,6 +22,7 @@ public class Employee extends AbstractDomainAggregateRoot<Employee> {
     private PersonName name;
     private Document document;
     private Phone phone;
+    private String profileImageUrl;
     private Instant createdAt;
     private Instant updatedAt;
     private Instant deletedAt;
@@ -29,25 +30,40 @@ public class Employee extends AbstractDomainAggregateRoot<Employee> {
 
     public Employee() {}
 
-    public Employee(EmployeeId id, UserId userId, PersonName name, Document document, Phone phone, Instant createdAt, Instant updatedAt, Instant deletedAt, Long version) {
+    public Employee(EmployeeId id, UserId userId, PersonName name, Document document, Phone phone, String profileImageUrl, Instant createdAt, Instant updatedAt, Instant deletedAt, Long version) {
         this.id = id;
         this.userId = userId;
         this.name = name;
         this.document = document;
         this.phone = phone;
+        this.profileImageUrl = profileImageUrl;
         this.createdAt = createdAt;
         this.updatedAt = updatedAt;
         this.deletedAt = deletedAt;
         this.version = version;
     }
 
-    public Employee(UserId userId, PersonName name, Document document, Phone phone) {
+    public Employee(EmployeeId id, UserId userId, PersonName name, Document document, Phone phone, Instant createdAt, Instant updatedAt, Instant deletedAt, Long version) {
+        this(id, userId, name, document, phone, null, createdAt, updatedAt, deletedAt, version);
+    }
+
+    public Employee(UserId userId, PersonName name, Document document, Phone phone, String profileImageUrl) {
         this.id = new EmployeeId(UUID.randomUUID());
         this.userId = userId;
         this.name = name;
         this.document = document;
         this.phone = phone;
+        this.profileImageUrl = profileImageUrl;
         this.registerDomainEvent(new EmployeeCreatedEvent(this, this.id.value(), this.userId != null ? this.userId.value() : null));
+    }
+
+    public Employee(UserId userId, PersonName name, Document document, Phone phone) {
+        this(userId, name, document, phone, null);
+    }
+
+    public void updateProfileImage(String profileImageUrl) {
+        this.profileImageUrl = profileImageUrl;
+        this.updatedAt = Instant.now();
     }
 
     public void update(PersonName name, Document document, Phone phone) {

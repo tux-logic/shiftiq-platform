@@ -223,12 +223,34 @@ Para que tengas una visión global, aquí tienes el listado de todas las rutas (
 - `/api/v1/vh-telemetry-batches`
 - `/api/v1/customer-vehicles`
 
+**Gestión de Archivos y Multimedia (Shared Kernel)**
+- `/api/v1/media/upload` (POST: Carga de archivos/imágenes a Cloudinary)
+
 
 ---
 
 ## 📚 Referencia Completa de Endpoints
 
 A continuación, se detalla **CADA ENDPOINT** disponible en el sistema con sus parámetros, body a enviar y lo que vas a recibir.
+
+### `POST /api/v1/media/upload`
+**Propósito:** Carga de imágenes a Cloudinary (Servicio de almacenamiento de archivos multimedia)
+
+*Permite subir imágenes (foto de perfil de cliente/empleado, foto de vehículo, logo de taller, imágenes de inspección inicial de orden de trabajo o evidencias de tareas de mantenimiento) a Cloudinary y obtener su URL pública de acceso.*
+
+**📍 Form Data (multipart/form-data):**
+- `file` (file): Archivo de imagen a subir (Requerido: true)
+
+**📥 Qué vas a recibir (Responses):**
+- **Código HTTP 200**: OK
+  ```json
+  {
+    "url": "https://res.cloudinary.com/z9rmazyn/image/upload/v1234567890/shiftiq/sample.jpg"
+  }
+  ```
+- **Código HTTP 400**: Bad Request (si no se proporciona archivo o el archivo está vacío)
+
+---
 
 ### `GET /api/v1/users`
 **Propósito:** Get user by email
@@ -2503,6 +2525,64 @@ A continuación, se detalla **CADA ENDPOINT** disponible en el sistema con sus p
   ```
 
 ---
+
+## 📷 Media & Storage (Cloudinary Uploads)
+
+### `POST /api/v1/media/upload`
+**Propósito:** Subir imágenes de perfiles, productos, vehículos o evidencias de trabajo a Cloudinary y obtener su URL HTTPS segura.
+
+**📍 Parámetros (Multipart Form Data):**
+- `file` (form-data): Archivo de imagen a subir. **Requerido**. (Formatos permitidos: `JPEG`, `PNG`, `WEBP`, `GIF`, `SVG`, `AVIF`. Tamaño máximo: **10 MB**).
+- `folder` (form-data / query): Nombre de la subcarpeta de destino. **Opcional** (Por defecto: `"uploads"`). Carpetas recomendadas: `"customers"`, `"employees"`, `"products"`, `"vehicles"`, `"workorders"`.
+
+**📥 Respuestas (Responses):**
+- **Código HTTP 201 Created**: Imagen subida con éxito.
+  ```json
+  {
+    "url": "https://res.cloudinary.com/shiftiq/image/upload/v1700000000/shiftiq/customers/profile_a1b2c3d4.jpg"
+  }
+  ```
+- **Código HTTP 400 Bad Request**: Archivo vacío o formato no permitido.
+  ```json
+  {
+    "error": "Only image files (JPEG, PNG, WEBP, GIF, SVG, AVIF) are allowed. Provided type: application/pdf"
+  }
+  ```
+- **Código HTTP 413 Payload Too Large**: El archivo supera el límite de 10 MB.
+- **Código HTTP 401 Unauthorized**: Falta el token JWT o ha expirado.
+
+#### 🖥️ Ejemplo en cURL (Terminal / Postman)
+```bash
+curl -X POST "https://shiftiq-platform.onrender.com/api/v1/media/upload?folder=customers" \
+  -H "Authorization: Bearer <TU_JWT_TOKEN>" \
+  -F "file=@/ruta/a/mi_foto.jpg"
+```
+
+#### 💻 Guía de consumo en Frontend (JavaScript / React)
+```javascript
+async function uploadImage(file, folderName = 'uploads') {
+  const formData = new FormData();
+  formData.append('file', file);
+
+  const response = await fetch(`https://shiftiq-platform.onrender.com/api/v1/media/upload?folder=${folderName}`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${localStorage.getItem('accessToken')}`
+      // IMPORTANTE: NO incluir 'Content-Type', el navegador lo establece automáticamente con la boundary.
+    },
+    body: formData
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json();
+    throw new Error(errorData.error || 'Error al subir la imagen');
+  }
+
+  const data = await response.json();
+  return data.url; // URL HTTPS lista para guardar en Customer, Product, Vehicle u WorkOrder
+}
+```
+
 
 
 

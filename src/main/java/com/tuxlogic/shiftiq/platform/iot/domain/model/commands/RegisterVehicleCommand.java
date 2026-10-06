@@ -11,8 +11,13 @@ public record RegisterVehicleCommand(
         String brand,
         String model,
         Integer year,
-        String vin
+        String vin,
+        String photoUrl
 ) {
+    public RegisterVehicleCommand(UUID userId, String plateNumber, String brand, String model, Integer year, String vin) {
+        this(userId, plateNumber, brand, model, year, vin, null);
+    }
+
     public RegisterVehicleCommand {
         if (userId == null) {
             throw new IllegalArgumentException("userId cannot be null");

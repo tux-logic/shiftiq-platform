@@ -19,6 +19,7 @@ public class Vehicle extends AbstractDomainAggregateRoot<Vehicle> {
     private String model;
     private Integer year;
     private String vin;
+    private String photoUrl;
     private Long version;
     private Instant createdAt;
     private Instant updatedAt;
@@ -28,6 +29,10 @@ public class Vehicle extends AbstractDomainAggregateRoot<Vehicle> {
     }
 
     public Vehicle(String plateNumber, String brand, String model, Integer year, String vin) {
+        this(plateNumber, brand, model, year, vin, null);
+    }
+
+    public Vehicle(String plateNumber, String brand, String model, Integer year, String vin, String photoUrl) {
         validate(plateNumber, brand, model, year, vin);
         this.id = new VehicleId(UUID.randomUUID());
         this.plateNumber = plateNumber;
@@ -35,6 +40,7 @@ public class Vehicle extends AbstractDomainAggregateRoot<Vehicle> {
         this.model = model;
         this.year = year;
         this.vin = vin;
+        this.photoUrl = photoUrl;
         this.createdAt = Instant.now();
     }
 
@@ -45,6 +51,7 @@ public class Vehicle extends AbstractDomainAggregateRoot<Vehicle> {
             String model,
             Integer year,
             String vin,
+            String photoUrl,
             Long version,
             Instant createdAt,
             Instant updatedAt,
@@ -56,6 +63,7 @@ public class Vehicle extends AbstractDomainAggregateRoot<Vehicle> {
         this.model = model;
         this.year = year;
         this.vin = vin;
+        this.photoUrl = photoUrl;
         this.version = version;
         this.createdAt = createdAt;
         this.updatedAt = updatedAt;
@@ -66,16 +74,26 @@ public class Vehicle extends AbstractDomainAggregateRoot<Vehicle> {
      * Updates the vehicle details.
      */
     public void updateDetails(String plateNumber, String brand, String model, Integer year, String vin) {
+        updateDetails(plateNumber, brand, model, year, vin, this.photoUrl);
+    }
+
+    public void updateDetails(String plateNumber, String brand, String model, Integer year, String vin, String photoUrl) {
         validate(plateNumber, brand, model, year, vin);
         this.plateNumber = plateNumber;
         this.brand = brand;
         this.model = model;
         this.year = year;
         this.vin = vin;
+        this.photoUrl = photoUrl;
         this.updatedAt = Instant.now();
         registerDomainEvent(new com.tuxlogic.shiftiq.platform.iot.domain.model.events.VehicleDetailsUpdatedEvent(
                 this.id, this.plateNumber, this.brand, this.model, this.year, this.vin
         ));
+    }
+
+    public void updatePhotoUrl(String photoUrl) {
+        this.photoUrl = photoUrl;
+        this.updatedAt = Instant.now();
     }
 
     /**

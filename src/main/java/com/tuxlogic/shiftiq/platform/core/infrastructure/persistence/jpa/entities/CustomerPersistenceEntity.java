@@ -53,6 +53,9 @@ public class CustomerPersistenceEntity extends AuditableAbstractPersistenceEntit
     @Column(nullable = false)
     private String phone;
 
+    @Column(name = "profile_image_url")
+    private String profileImageUrl;
+
     @Column(name = "deleted_at")
     private Instant deletedAt;
 }

@@ -29,6 +29,7 @@ public final class WorkOrderPersistenceAssembler {
         persistenceEntity.setTasks(domainEntity.getTasks() != null ? domainEntity.getTasks().stream()
                 .map(WorkOrderTaskPersistenceAssembler::toPersistenceEntity)
                 .collect(Collectors.toList()) : Collections.emptyList());
+        persistenceEntity.setEntryInspectionImages(domainEntity.getEntryInspectionImages());
         persistenceEntity.setCreatedAt(domainEntity.getCreatedAt());
         persistenceEntity.setUpdatedAt(domainEntity.getUpdatedAt());
         persistenceEntity.setCreatedBy(domainEntity.getCreatedBy());
@@ -54,6 +55,7 @@ public final class WorkOrderPersistenceAssembler {
                 persistenceEntity.getTasks() != null ? persistenceEntity.getTasks().stream()
                         .map(WorkOrderTaskPersistenceAssembler::toDomainEntity)
                         .collect(Collectors.toList()) : Collections.emptyList(),
+                persistenceEntity.getEntryInspectionImages(),
                 persistenceEntity.getCreatedAt(),
                 persistenceEntity.getUpdatedAt(),
                 persistenceEntity.getDeletedAt(),

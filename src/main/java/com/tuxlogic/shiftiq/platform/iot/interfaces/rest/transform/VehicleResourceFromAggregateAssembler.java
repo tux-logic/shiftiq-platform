@@ -14,7 +14,8 @@ public class VehicleResourceFromAggregateAssembler {
                 aggregate.getBrand(),
                 aggregate.getModel(),
                 aggregate.getYear(),
-                aggregate.getVin()
+                aggregate.getVin(),
+                aggregate.getPhotoUrl()
         );
     }
 }

@@ -25,7 +25,8 @@ public final class UpdateVehicleCommandFromResourceAssembler {
                 resource.brand(),
                 resource.model(),
                 resource.year(),
-                resource.vin()
+                resource.vin(),
+                resource.photoUrl()
         );
     }
 }

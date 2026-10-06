@@ -24,6 +24,7 @@ public class ProductEntityAssembler {
         entity.setName(product.getName().name());
         entity.setSku(product.getSku().value());
         entity.setDescription(product.getDescription());
+        entity.setImageUrl(product.getImageUrl());
         entity.setCurrentSellingPrice(product.getCurrentSellingPrice());
         entity.setCurrentStock(product.getCurrentStock().value());
         entity.setMinimumStock(product.getMinimumStock());
@@ -82,7 +83,8 @@ public class ProductEntityAssembler {
             entity.getMinimumStock(),
             entity.isLowStockAlert(),
             entity.getVersion(),
-            batches
+            batches,
+            entity.getImageUrl()
         );
     }
 }

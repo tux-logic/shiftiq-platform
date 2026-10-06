@@ -32,5 +32,7 @@ public record CreateWorkOrderResource(
         String diagnosticSummary,
 
         @NotNull(message = "operations.error.resource.mileageIn.required")
-        Integer mileageIn
+        Integer mileageIn,
+
+        java.util.List<String> entryInspectionImages
 ) {}

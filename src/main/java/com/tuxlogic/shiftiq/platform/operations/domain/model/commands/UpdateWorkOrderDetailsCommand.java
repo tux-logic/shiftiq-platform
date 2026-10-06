@@ -12,11 +12,18 @@ import com.tuxlogic.shiftiq.platform.shared.domain.model.valueobjects.Mileage;
  * @param mileageIn
  * @author Joel Huamani Estefanero
  */
+import java.util.List;
+
 public record UpdateWorkOrderDetailsCommand(
         WorkOrderId workOrderId,
         DiagnosticSummary diagnosticSummary,
-        Mileage mileageIn
+        Mileage mileageIn,
+        List<String> entryInspectionImages
 ) {
+    public UpdateWorkOrderDetailsCommand(WorkOrderId workOrderId, DiagnosticSummary diagnosticSummary, Mileage mileageIn) {
+        this(workOrderId, diagnosticSummary, mileageIn, null);
+    }
+
     public UpdateWorkOrderDetailsCommand {
         if (workOrderId == null) throw new IllegalArgumentException("operations.error.command.workOrderId.required");
         if (diagnosticSummary == null) throw new IllegalArgumentException("operations.error.command.diagnosticSummary.required");

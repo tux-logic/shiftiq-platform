@@ -23,13 +23,14 @@ classDiagram
         -String description
         -Integer minimumStock
         -boolean lowStockAlert
+        -String imageUrl
         -Long version
         -List~ProductBatch~ batches
-        +Product(UUID, BranchId, ProductCategory, ProductName, Sku, Money, String, Integer)
+        +Product(UUID, BranchId, ProductCategory, ProductName, Sku, Money, String, Integer, String)
         +reconstitute(...)$ Product
         +addBatch(ProductBatch) void
         +applyStockMovement(StockMovementQuantity, Money) Optional~ProductBatch~
-        +updateDetails(ProductName, ProductCategory, Sku, Money, String, Integer) void
+        +updateDetails(ProductName, ProductCategory, Sku, Money, String, Integer, String) void
         +refreshLowStockAlert() boolean
         +reserveStock(InventoryQuantity) void
         +releaseStock(InventoryQuantity) void
