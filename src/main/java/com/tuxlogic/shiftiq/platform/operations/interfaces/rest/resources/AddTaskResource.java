@@ -20,5 +20,7 @@ public record AddTaskResource(
 
         @NotNull(message = "operations.error.resource.description.required")
         @Size(min = 10, max = 1000, message = "operations.error.resource.description.size")
-        String description
+        String description,
+
+        java.util.List<String> evidenceImages
 ) {}

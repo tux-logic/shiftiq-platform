@@ -13,14 +13,21 @@ import com.tuxlogic.shiftiq.platform.shared.domain.model.valueobjects.*;
  * @param mileageIn
  * @author Joel Huamani Estefanero
  */
+import java.util.List;
+
 public record CreateWorkOrderCommand(
         AppointmentId appointmentId,
         BranchId branchId,
         VehicleId vehicleId,
         CustomerId customerId,
         DiagnosticSummary diagnosticSummary,
-        Mileage mileageIn
+        Mileage mileageIn,
+        List<String> entryInspectionImages
 ) {
+    public CreateWorkOrderCommand(AppointmentId appointmentId, BranchId branchId, VehicleId vehicleId, CustomerId customerId, DiagnosticSummary diagnosticSummary, Mileage mileageIn) {
+        this(appointmentId, branchId, vehicleId, customerId, diagnosticSummary, mileageIn, java.util.Collections.emptyList());
+    }
+
     public CreateWorkOrderCommand {
         if (appointmentId == null) throw new IllegalArgumentException("operations.error.command.appointmentId.required");
         if (branchId == null) throw new IllegalArgumentException("operations.error.command.branchId.required");

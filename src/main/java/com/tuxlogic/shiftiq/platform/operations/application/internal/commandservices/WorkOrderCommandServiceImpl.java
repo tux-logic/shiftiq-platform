@@ -60,7 +60,7 @@ public class WorkOrderCommandServiceImpl implements WorkOrderCommandService {
     public Result<WorkOrder, WorkOrderCommandFailure> handle(UpdateWorkOrderDetailsCommand command) {
         return executeCommand(() -> {
             WorkOrder workOrder = findWorkOrderOrThrow(command.workOrderId());
-            workOrder.updateDetails(command.diagnosticSummary(), command.mileageIn());
+            workOrder.updateDetails(command.diagnosticSummary(), command.mileageIn(), command.entryInspectionImages());
             return workOrderRepository.save(workOrder);
         });
     }
@@ -82,7 +82,8 @@ public class WorkOrderCommandServiceImpl implements WorkOrderCommandService {
                     command.customerId(),
                     nextInternalNumber,
                     command.diagnosticSummary(),
-                    command.mileageIn()
+                    command.mileageIn(),
+                    command.entryInspectionImages()
             );
             return workOrderRepository.save(workOrder);
         });
@@ -95,7 +96,7 @@ public class WorkOrderCommandServiceImpl implements WorkOrderCommandService {
             WorkOrder workOrder = findWorkOrderOrThrow(command.workOrderId());
             var service = serviceRepository.findById(command.serviceId())
                     .orElseThrow(() -> new IllegalArgumentException(OperationsMessageKeys.SERVICE_NOT_FOUND));
-            workOrder.addTask(command.serviceId(), command.mechanicId(), command.description(), service.getPrice());
+            workOrder.addTask(command.serviceId(), command.mechanicId(), command.description(), service.getPrice(), command.evidenceImages());
             return workOrderRepository.save(workOrder);
         });
     }
@@ -184,7 +185,8 @@ public class WorkOrderCommandServiceImpl implements WorkOrderCommandService {
                     command.serviceId(),
                     command.mechanicId(),
                     command.description(),
-                    service.getPrice()
+                    service.getPrice(),
+                    command.evidenceImages()
             );
             return workOrderRepository.save(workOrder);
         });

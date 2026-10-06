@@ -29,12 +29,13 @@ public class Product extends AbstractAggregateRoot<Product> {
     private InventoryQuantity currentStock;
     private Money currentSellingPrice;
     private String description;
+    private String imageUrl;
     private Integer minimumStock;
     private boolean lowStockAlert;
     private Long version;
     private final List<ProductBatch> batches;
 
-    public Product(UUID id, BranchId branchId, ProductCategory category, ProductName name, Sku sku, Money currentSellingPrice, String description, Integer minimumStock) {
+    public Product(UUID id, BranchId branchId, ProductCategory category, ProductName name, Sku sku, Money currentSellingPrice, String description, Integer minimumStock, String imageUrl) {
         this.id = id != null ? id : UUID.randomUUID();
         this.branchId = branchId;
         this.category = category;
@@ -43,13 +44,18 @@ public class Product extends AbstractAggregateRoot<Product> {
         this.currentSellingPrice = currentSellingPrice;
         this.description = description;
         this.minimumStock = minimumStock;
+        this.imageUrl = imageUrl;
         this.currentStock = new InventoryQuantity(0);
         this.lowStockAlert = false;
         this.batches = new ArrayList<>();
         this.registerEvent(new ProductCreatedEvent(this, this.branchId, this.id));
     }
 
-    private Product(UUID id, BranchId branchId, ProductCategory category, ProductName name, Sku sku, InventoryQuantity currentStock, Money currentSellingPrice, String description, Integer minimumStock, boolean lowStockAlert, Long version) {
+    public Product(UUID id, BranchId branchId, ProductCategory category, ProductName name, Sku sku, Money currentSellingPrice, String description, Integer minimumStock) {
+        this(id, branchId, category, name, sku, currentSellingPrice, description, minimumStock, null);
+    }
+
+    private Product(UUID id, BranchId branchId, ProductCategory category, ProductName name, Sku sku, InventoryQuantity currentStock, Money currentSellingPrice, String description, Integer minimumStock, boolean lowStockAlert, Long version, String imageUrl) {
         this.id = id;
         this.branchId = branchId;
         this.category = category;
@@ -61,15 +67,20 @@ public class Product extends AbstractAggregateRoot<Product> {
         this.minimumStock = minimumStock;
         this.lowStockAlert = lowStockAlert;
         this.version = version;
+        this.imageUrl = imageUrl;
         this.batches = new ArrayList<>();
     }
 
-    public static Product reconstitute(UUID id, BranchId branchId, ProductCategory category, ProductName name, Sku sku, InventoryQuantity currentStock, Money currentSellingPrice, String description, Integer minimumStock, boolean lowStockAlert, Long version, List<ProductBatch> batches) {
-        Product p = new Product(id, branchId, category, name, sku, currentStock, currentSellingPrice, description, minimumStock, lowStockAlert, version);
+    public static Product reconstitute(UUID id, BranchId branchId, ProductCategory category, ProductName name, Sku sku, InventoryQuantity currentStock, Money currentSellingPrice, String description, Integer minimumStock, boolean lowStockAlert, Long version, List<ProductBatch> batches, String imageUrl) {
+        Product p = new Product(id, branchId, category, name, sku, currentStock, currentSellingPrice, description, minimumStock, lowStockAlert, version, imageUrl);
         if (batches != null) {
             p.batches.addAll(batches);
         }
         return p;
+    }
+
+    public static Product reconstitute(UUID id, BranchId branchId, ProductCategory category, ProductName name, Sku sku, InventoryQuantity currentStock, Money currentSellingPrice, String description, Integer minimumStock, boolean lowStockAlert, Long version, List<ProductBatch> batches) {
+        return reconstitute(id, branchId, category, name, sku, currentStock, currentSellingPrice, description, minimumStock, lowStockAlert, version, batches, null);
     }
 
     public UUID getId() { return id; }
@@ -80,10 +91,15 @@ public class Product extends AbstractAggregateRoot<Product> {
     public InventoryQuantity getCurrentStock() { return currentStock; }
     public Money getCurrentSellingPrice() { return currentSellingPrice; }
     public String getDescription() { return description; }
+    public String getImageUrl() { return imageUrl; }
     public Integer getMinimumStock() { return minimumStock; }
     public boolean isLowStockAlert() { return lowStockAlert; }
     public Long getVersion() { return version; }
     public List<ProductBatch> getBatches() { return Collections.unmodifiableList(batches); }
+
+    public void updateImageUrl(String imageUrl) {
+        this.imageUrl = imageUrl;
+    }
 
     public void addBatch(ProductBatch batch) {
         this.batches.add(batch);
@@ -103,15 +119,23 @@ public class Product extends AbstractAggregateRoot<Product> {
         return Optional.empty();
     }
 
-    public void updateDetails(ProductName name, ProductCategory category, Sku sku, Money currentSellingPrice, String description, Integer minimumStock) {
+
+    public void updateDetails(ProductName name, ProductCategory category, Sku sku, Money currentSellingPrice, String description, Integer minimumStock, String imageUrl) {
         this.name = name;
         this.category = category;
         this.sku = sku;
         this.currentSellingPrice = currentSellingPrice;
         this.description = description;
         this.minimumStock = minimumStock;
+        if (imageUrl != null) {
+            this.imageUrl = imageUrl;
+        }
         refreshLowStockAlert();
         registerEvent(new ProductUpdatedEvent(this, this.branchId, this.id));
+    }
+
+    public void updateDetails(ProductName name, ProductCategory category, Sku sku, Money currentSellingPrice, String description, Integer minimumStock) {
+        updateDetails(name, category, sku, currentSellingPrice, description, minimumStock, this.imageUrl);
     }
 
     public boolean refreshLowStockAlert() {

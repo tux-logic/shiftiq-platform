@@ -24,6 +24,7 @@ public class Customer extends AbstractDomainAggregateRoot<Customer> {
     private String businessName;
     private Document document;
     private Phone phone;
+    private String profileImageUrl;
     private Instant createdAt;
     private Instant updatedAt;
     private Instant deletedAt;
@@ -31,7 +32,7 @@ public class Customer extends AbstractDomainAggregateRoot<Customer> {
 
     public Customer() {}
 
-    public Customer(CustomerId id, UserId userId, boolean isCorporate, PersonName name, String businessName, Document document, Phone phone, Instant createdAt, Instant updatedAt, Instant deletedAt, Long version) {
+    public Customer(CustomerId id, UserId userId, boolean isCorporate, PersonName name, String businessName, Document document, Phone phone, String profileImageUrl, Instant createdAt, Instant updatedAt, Instant deletedAt, Long version) {
         this.id = id;
         this.userId = userId;
         this.isCorporate = isCorporate;
@@ -39,13 +40,18 @@ public class Customer extends AbstractDomainAggregateRoot<Customer> {
         this.businessName = businessName;
         this.document = document;
         this.phone = phone;
+        this.profileImageUrl = profileImageUrl;
         this.createdAt = createdAt;
         this.updatedAt = updatedAt;
         this.deletedAt = deletedAt;
         this.version = version;
     }
 
-    public Customer(UserId userId, boolean isCorporate, PersonName name, String businessName, Document document, Phone phone) {
+    public Customer(CustomerId id, UserId userId, boolean isCorporate, PersonName name, String businessName, Document document, Phone phone, Instant createdAt, Instant updatedAt, Instant deletedAt, Long version) {
+        this(id, userId, isCorporate, name, businessName, document, phone, null, createdAt, updatedAt, deletedAt, version);
+    }
+
+    public Customer(UserId userId, boolean isCorporate, PersonName name, String businessName, Document document, Phone phone, String profileImageUrl) {
         if (isCorporate && (businessName == null || businessName.isBlank())) {
             throw new IllegalArgumentException("core.error.businessName.required");
         }
@@ -60,7 +66,17 @@ public class Customer extends AbstractDomainAggregateRoot<Customer> {
         this.businessName = businessName;
         this.document = document;
         this.phone = phone;
+        this.profileImageUrl = profileImageUrl;
         this.registerDomainEvent(new CustomerCreatedEvent(this, this.id.value(), this.userId != null ? this.userId.value() : null));
+    }
+
+    public Customer(UserId userId, boolean isCorporate, PersonName name, String businessName, Document document, Phone phone) {
+        this(userId, isCorporate, name, businessName, document, phone, null);
+    }
+
+    public void updateProfileImage(String profileImageUrl) {
+        this.profileImageUrl = profileImageUrl;
+        this.updatedAt = Instant.now();
     }
 
     public void update(PersonName name, String businessName, Document document, Phone phone) {

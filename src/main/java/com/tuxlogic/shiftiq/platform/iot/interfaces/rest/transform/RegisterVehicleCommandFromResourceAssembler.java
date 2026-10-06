@@ -19,7 +19,8 @@ public class RegisterVehicleCommandFromResourceAssembler {
                 resource.brand(),
                 resource.model(),
                 resource.year(),
-                resource.vin()
+                resource.vin(),
+                resource.photoUrl()
         );
     }
 }

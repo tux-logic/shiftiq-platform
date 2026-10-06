@@ -14,5 +14,6 @@ public record UpdateWorkOrderDetailsResource(
         @Size(min = 5, max = 2000, message = "operations.error.resource.diagnosticSummary.size")
         String diagnosticSummary,
         @NotNull(message = "operations.error.resource.mileageIn.required")
-        Integer mileageIn
+        Integer mileageIn,
+        java.util.List<String> entryInspectionImages
 ) {}

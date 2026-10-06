@@ -11,12 +11,19 @@ import com.tuxlogic.shiftiq.platform.operations.domain.model.valueobjects.*;
  * @param description
  * @author Joel Huamani Estefanero
  */
+import java.util.List;
+
 public record AddTaskToWorkOrderCommand(
         WorkOrderId workOrderId,
         ServiceId serviceId,
         MechanicId mechanicId,
-        TaskDescription description
+        TaskDescription description,
+        List<String> evidenceImages
 ) {
+    public AddTaskToWorkOrderCommand(WorkOrderId workOrderId, ServiceId serviceId, MechanicId mechanicId, TaskDescription description) {
+        this(workOrderId, serviceId, mechanicId, description, java.util.Collections.emptyList());
+    }
+
     public AddTaskToWorkOrderCommand {
         if (workOrderId == null) throw new IllegalArgumentException("operations.error.command.workOrderId.required");
         if (serviceId == null) throw new IllegalArgumentException("operations.error.command.serviceId.required");
