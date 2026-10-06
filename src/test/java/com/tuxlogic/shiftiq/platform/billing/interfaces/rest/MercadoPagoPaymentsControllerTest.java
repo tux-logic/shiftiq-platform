@@ -1,6 +1,7 @@
 package com.tuxlogic.shiftiq.platform.billing.interfaces.rest;
 
 import com.tuxlogic.shiftiq.platform.billing.application.commandservices.MercadoPagoPaymentCommandService;
+import com.tuxlogic.shiftiq.platform.billing.application.outboundservices.MercadoPagoPaymentResult;
 import com.tuxlogic.shiftiq.platform.billing.application.outboundservices.MercadoPagoPreferenceResult;
 import com.tuxlogic.shiftiq.platform.billing.application.queryservices.QuoteQueryService;
 import com.tuxlogic.shiftiq.platform.billing.application.queryservices.VoucherQueryService;
@@ -26,7 +27,10 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
 
+import javax.crypto.Mac;
+import javax.crypto.spec.SecretKeySpec;
 import java.math.BigDecimal;
+import java.nio.charset.StandardCharsets;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -37,6 +41,8 @@ import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
 class MercadoPagoPaymentsControllerTest {
+
+    private static final String TEST_SECRET = "test_webhook_secret_key_12345";
 
     @Mock
     private MercadoPagoPaymentCommandService paymentCommandService;
@@ -63,8 +69,20 @@ class MercadoPagoPaymentsControllerTest {
                 voucherQueryService,
                 multiTenancySecurityService,
                 messageSource,
-                ""
+                TEST_SECRET
         );
+    }
+
+    private String generateValidSignature(String secret, String dataId, String requestId, String ts) throws Exception {
+        String manifest = String.format("id:%s;request-id:%s;ts:%s;", dataId != null ? dataId : "", requestId != null ? requestId : "", ts);
+        Mac mac = Mac.getInstance("HmacSHA256");
+        mac.init(new SecretKeySpec(secret.getBytes(StandardCharsets.UTF_8), "HmacSHA256"));
+        byte[] rawHmac = mac.doFinal(manifest.getBytes(StandardCharsets.UTF_8));
+        StringBuilder hex = new StringBuilder();
+        for (byte b : rawHmac) {
+            hex.append(String.format("%02x", b));
+        }
+        return "ts=" + ts + ",v1=" + hex.toString();
     }
 
     @Test
@@ -173,37 +191,52 @@ class MercadoPagoPaymentsControllerTest {
     }
 
     @Test
-    void handleWebhook_WhenValidBodyEvent_ShouldReturnOk() {
+    void handleWebhook_WhenValidSignatureAndBody_ShouldReturnOk() throws Exception {
+        String dataId = "123456789";
+        String requestId = "req-123";
+        String ts = "1672531199";
+        String validSignature = generateValidSignature(TEST_SECRET, dataId, requestId, ts);
+
         MercadoPagoWebhookResource body = new MercadoPagoWebhookResource(
                 "payment.created",
                 "payment",
-                new MercadoPagoWebhookResource.MercadoPagoWebhookData("123456789"),
+                new MercadoPagoWebhookResource.MercadoPagoWebhookData(dataId),
                 null
         );
 
-        ResponseEntity<Void> response = controller.handleWebhook(null, null, body, null, null, null, null);
+        when(paymentCommandService.getPaymentStatus(123456789L)).thenReturn(Optional.of(
+                new MercadoPagoPaymentResult(
+                        123456789L, "approved", "accredited", new BigDecimal("150.00"), "PEN", "quote-1"
+                )
+        ));
+
+        ResponseEntity<Void> response = controller.handleWebhook(validSignature, requestId, body, null, null, null, null);
+
         assertEquals(HttpStatus.OK, response.getStatusCode());
         verify(paymentCommandService).getPaymentStatus(123456789L);
     }
 
     @Test
-    void handleWebhook_WhenValidQueryParams_ShouldReturnOk() {
-        ResponseEntity<Void> response = controller.handleWebhook(null, null, null, "payment", null, null, "987654321");
+    void handleWebhook_WhenValidSignatureAndQueryParams_ShouldReturnOk() throws Exception {
+        String dataId = "987654321";
+        String requestId = "req-456";
+        String ts = "1672531200";
+        String validSignature = generateValidSignature(TEST_SECRET, dataId, requestId, ts);
+
+        when(paymentCommandService.getPaymentStatus(987654321L)).thenReturn(Optional.of(
+                new MercadoPagoPaymentResult(
+                        987654321L, "approved", "accredited", new BigDecimal("200.00"), "PEN", "quote-2"
+                )
+        ));
+
+        ResponseEntity<Void> response = controller.handleWebhook(validSignature, requestId, null, "payment", null, null, dataId);
+
         assertEquals(HttpStatus.OK, response.getStatusCode());
         verify(paymentCommandService).getPaymentStatus(987654321L);
     }
 
     @Test
-    void handleWebhook_WhenInvalidSignatureWithSecretConfigured_ShouldReturnUnauthorized() {
-        MercadoPagoPaymentsController controllerWithSecret = new MercadoPagoPaymentsController(
-                paymentCommandService,
-                quoteQueryService,
-                voucherQueryService,
-                multiTenancySecurityService,
-                messageSource,
-                "my_secret_token"
-        );
-
+    void handleWebhook_WhenInvalidSignature_ShouldReturnUnauthorized() {
         MercadoPagoWebhookResource body = new MercadoPagoWebhookResource(
                 "payment.created",
                 "payment",
@@ -211,7 +244,7 @@ class MercadoPagoPaymentsControllerTest {
                 null
         );
 
-        ResponseEntity<Void> response = controllerWithSecret.handleWebhook(
+        ResponseEntity<Void> response = controller.handleWebhook(
                 "ts=123456,v1=invalid_hash",
                 "req-1",
                 body,
@@ -222,6 +255,30 @@ class MercadoPagoPaymentsControllerTest {
         );
 
         assertEquals(HttpStatus.UNAUTHORIZED, response.getStatusCode());
+        verify(paymentCommandService, never()).getPaymentStatus(any());
+    }
+
+    @Test
+    void handleWebhook_WhenSecretUnconfigured_ShouldReturnServiceUnavailable() {
+        MercadoPagoPaymentsController controllerWithoutSecret = new MercadoPagoPaymentsController(
+                paymentCommandService,
+                quoteQueryService,
+                voucherQueryService,
+                multiTenancySecurityService,
+                messageSource,
+                ""
+        );
+
+        MercadoPagoWebhookResource body = new MercadoPagoWebhookResource(
+                "payment.created",
+                "payment",
+                new MercadoPagoWebhookResource.MercadoPagoWebhookData("123456789"),
+                null
+        );
+
+        ResponseEntity<Void> response = controllerWithoutSecret.handleWebhook("ts=1,v1=abc", "req-1", body, null, null, null, null);
+
+        assertEquals(HttpStatus.SERVICE_UNAVAILABLE, response.getStatusCode());
         verify(paymentCommandService, never()).getPaymentStatus(any());
     }
 }

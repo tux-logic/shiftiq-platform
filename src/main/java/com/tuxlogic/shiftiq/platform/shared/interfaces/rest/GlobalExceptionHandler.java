@@ -159,12 +159,12 @@ public class GlobalExceptionHandler {
     /**
      * Handles transaction rollback exceptions caused by commit-time constraint violations.
      *
-     * @param ex the transaction exception
+     * @param ex the unexpected rollback exception
      * @return error response with CONFLICT status
      */
-    @ExceptionHandler(org.springframework.transaction.TransactionException.class)
-    public ResponseEntity<?> handleTransactionException(org.springframework.transaction.TransactionException ex) {
-        LOGGER.warn("Transaction exception / constraint violation: {}", ex.getMessage());
+    @ExceptionHandler(org.springframework.transaction.UnexpectedRollbackException.class)
+    public ResponseEntity<?> handleUnexpectedRollbackException(org.springframework.transaction.UnexpectedRollbackException ex) {
+        LOGGER.warn("Unexpected rollback exception / commit conflict: {}", ex.getMessage());
         var applicationError = ApplicationError.conflict(
                 "resource",
                 resolveMessageOrDefault("error.conflict.integrity", "The change conflicts with an existing record and was not applied.")

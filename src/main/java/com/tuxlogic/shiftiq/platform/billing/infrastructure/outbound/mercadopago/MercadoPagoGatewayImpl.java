@@ -39,17 +39,6 @@ public class MercadoPagoGatewayImpl implements MercadoPagoGateway {
     }
 
     @Override
-    public Optional<PaymentIntentResult> createPaymentIntent(BigDecimal amount, String currency, String description) {
-        return createPreference(amount, currency, description, null).map(pref -> new PaymentIntentResult(
-                pref.preferenceId(),
-                pref.externalReference(),
-                pref.amount(),
-                pref.currency(),
-                "created"
-        ));
-    }
-
-    @Override
     public Optional<PaymentIntentResult> getPaymentIntent(String paymentIntentId) {
         try {
             Long paymentId = Long.parseLong(paymentIntentId);

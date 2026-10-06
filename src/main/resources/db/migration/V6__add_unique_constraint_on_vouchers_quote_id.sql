@@ -1,17 +1,17 @@
--- Deduplicate any historical vouchers with duplicate quote_id (keeping the latest voucher)
-DELETE FROM payments
-WHERE voucher_id IN (
-    SELECT v1.id FROM vouchers v1
-    JOIN vouchers v2 ON v1.quote_id = v2.quote_id AND (v1.created_at < v2.created_at OR (v1.created_at = v2.created_at AND v1.id < v2.id))
-);
-
-DELETE FROM vouchers v1
-USING vouchers v2
-WHERE v1.quote_id = v2.quote_id AND (v1.created_at < v2.created_at OR (v1.created_at = v2.created_at AND v1.id < v2.id));
-
--- Add UNIQUE constraint on quote_id safely
+-- Verify no duplicate vouchers exist before applying UNIQUE constraint.
+-- Aborts migration if duplicate quote_id records are found to prevent silent deletion of fiscal/accounting documents.
 DO $$
+DECLARE
+    duplicate_count INT;
 BEGIN
+    SELECT COUNT(*) INTO duplicate_count FROM (
+        SELECT quote_id FROM vouchers GROUP BY quote_id HAVING COUNT(*) > 1
+    ) duplicates;
+
+    IF duplicate_count > 0 THEN
+        RAISE EXCEPTION 'Flyway migration V6 aborted: Detected % quotes with duplicate vouchers. Manual resolution/audit required before adding UNIQUE constraint.', duplicate_count;
+    END IF;
+
     IF NOT EXISTS (
         SELECT 1 FROM pg_constraint WHERE conname = 'uq_vouchers_quote_id'
     ) THEN

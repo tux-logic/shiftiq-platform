@@ -140,7 +140,12 @@ public class MercadoPagoPaymentsController {
             notificationType = type != null ? type : topic;
         }
 
-        if (webhookSecret != null && !webhookSecret.isBlank() && !isValidSignature(xSignature, xRequestId, paymentIdStr)) {
+        if (webhookSecret == null || webhookSecret.isBlank()) {
+            LOGGER.error("Mercado Pago webhook received but mercadopago.webhook.secret is not configured. Rejecting request (fail-closed).");
+            return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).build();
+        }
+
+        if (!isValidSignature(xSignature, xRequestId, paymentIdStr)) {
             LOGGER.warn("Rejecting Mercado Pago webhook due to invalid x-signature");
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         }
@@ -149,10 +154,14 @@ public class MercadoPagoPaymentsController {
             try {
                 Long paymentId = Long.parseLong(paymentIdStr);
                 var paymentStatusOpt = paymentCommandService.getPaymentStatus(paymentId);
-                paymentStatusOpt.ifPresent(status ->
-                        LOGGER.info("Processed Mercado Pago webhook for payment ID '{}' with status '{}' and detail '{}'",
-                                paymentId, status.status(), status.statusDetail())
-                );
+                if (paymentStatusOpt.isPresent()) {
+                    var status = paymentStatusOpt.get();
+                    LOGGER.info("Processed Mercado Pago webhook for payment ID '{}' with status '{}' and detail '{}'",
+                            paymentId, status.status(), status.statusDetail());
+                    if ("refunded".equalsIgnoreCase(status.status()) || "charged_back".equalsIgnoreCase(status.status())) {
+                        LOGGER.warn("Payment ID '{}' has been refunded or charged back. Immediate manual/system reconciliation required.", paymentId);
+                    }
+                }
             } catch (NumberFormatException e) {
                 LOGGER.warn("Invalid payment ID format in webhook: {}", paymentIdStr);
             }
@@ -162,7 +171,7 @@ public class MercadoPagoPaymentsController {
     }
 
     private boolean isValidSignature(String xSignature, String xRequestId, String dataId) {
-        if (xSignature == null || xSignature.isBlank()) {
+        if (xSignature == null || xSignature.isBlank() || webhookSecret == null || webhookSecret.isBlank()) {
             return false;
         }
         try {
@@ -190,7 +199,9 @@ public class MercadoPagoPaymentsController {
             for (byte b : rawHmac) {
                 hex.append(String.format("%02x", b));
             }
-            return hex.toString().equalsIgnoreCase(hash);
+            byte[] expectedHashBytes = hex.toString().toLowerCase().getBytes(StandardCharsets.UTF_8);
+            byte[] actualHashBytes = hash.toLowerCase().getBytes(StandardCharsets.UTF_8);
+            return java.security.MessageDigest.isEqual(expectedHashBytes, actualHashBytes);
         } catch (Exception e) {
             LOGGER.warn("Error calculating webhook HMAC signature: {}", e.getMessage());
             return false;
