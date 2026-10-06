@@ -101,6 +101,25 @@ public class Product extends AbstractAggregateRoot<Product> {
         this.imageUrl = imageUrl;
     }
 
+    public void addBatch(ProductBatch batch) {
+        this.batches.add(batch);
+        this.currentStock = this.currentStock.add(batch.getAvailableQuantity());
+        refreshLowStockAlert();
+    }
+
+    public Optional<ProductBatch> applyStockMovement(StockMovementQuantity quantity, Money acquisitionCost) {
+        if (quantity.isPositive()) {
+            var batch = new ProductBatch(UUID.randomUUID(), quantity.absoluteValue(), acquisitionCost);
+            addBatch(batch);
+            registerEvent(new StockMovementAppliedEvent(this, this.branchId, this.id, quantity.value(), this.currentStock.value()));
+            return Optional.of(batch);
+        }
+        reserveStock(quantity.absoluteValue());
+        registerEvent(new StockMovementAppliedEvent(this, this.branchId, this.id, quantity.value(), this.currentStock.value()));
+        return Optional.empty();
+    }
+
+
     public void updateDetails(ProductName name, ProductCategory category, Sku sku, Money currentSellingPrice, String description, Integer minimumStock, String imageUrl) {
         this.name = name;
         this.category = category;
