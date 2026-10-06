@@ -280,4 +280,35 @@ class ProcessMercadoPagoCheckoutTest {
         assertThat(result.isFailure()).isTrue();
         assertThat(result.failure().get()).isEqualTo(VoucherCommandFailure.INVALID_VOUCHER_DATA);
     }
+
+    @Test
+    @DisplayName("ProcessMercadoPagoCheckout succeeds idempotently when voucher already exists and was paid with the same externalPaymentId")
+    void processCheckoutSucceedsIdempotentlyWhenVoucherAlreadyIssuedWithSamePaymentId() {
+        UUID quoteId = UUID.randomUUID();
+        Quote quote = new Quote(quoteId, UUID.randomUUID(), new BranchId(UUID.randomUUID()), new Money(new BigDecimal("100.00")), 0.0, new Money(new BigDecimal("100.00")), QuoteStatus.APPROVED);
+
+        Voucher existingVoucher = new Voucher(quoteId, VoucherType.RECEIPT, "DNI", "12345678", "Juan Perez", quote.getTotalAmount(), null, null);
+        existingVoucher.recordPrepayment(quote.getTotalAmount(), PaymentMethod.CREDIT_CARD, quote.getBranchId().value(), "MERCADO_PAGO", "11223344");
+        existingVoucher.markEmissionSuccessful(UUID.randomUUID(), "http://pdf");
+
+        when(quoteRepository.findById(eq(quoteId))).thenReturn(Optional.of(quote));
+        when(voucherRepository.findByQuoteId(eq(quoteId))).thenReturn(Optional.of(existingVoucher));
+
+        ProcessMercadoPagoCheckoutCommand command = new ProcessMercadoPagoCheckoutCommand(
+                quoteId,
+                VoucherType.RECEIPT,
+                "DNI",
+                "12345678",
+                "Juan Perez",
+                "11223344"
+        );
+
+        Result<Voucher, VoucherCommandFailure> result = service.handle(command);
+
+        assertThat(result.isSuccess()).isTrue();
+        assertThat(result.success().get()).isSameAs(existingVoucher);
+        assertThat(result.success().get().getStatus()).isEqualTo(VoucherStatus.PAID);
+        verify(voucherRepository, never()).save(any());
+        verify(factosGateway, never()).issueVoucher(any(), any(), any(), any(), any(), any());
+    }
 }

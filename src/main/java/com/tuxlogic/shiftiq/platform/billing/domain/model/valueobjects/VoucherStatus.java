@@ -4,5 +4,6 @@ public enum VoucherStatus {
     PENDING,
     PARTIALLY_PAID,
     PAID,
-    CANCELED
+    CANCELED,
+    EMISSION_FAILED
 }

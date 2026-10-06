@@ -264,7 +264,6 @@ public class VoucherCommandServiceImpl implements VoucherCommandService {
     }
 
     @Override
-    @Transactional
     public Result<Voucher, VoucherCommandFailure> handle(com.tuxlogic.shiftiq.platform.billing.domain.model.commands.ProcessMercadoPagoCheckoutCommand command) {
         // 1. Validate Quote exists and is in APPROVED status FIRST (prevents info leakage/unauthorized replay probing)
         var quoteOpt = quoteRepository.findById(command.quoteId());
@@ -277,7 +276,16 @@ public class VoucherCommandServiceImpl implements VoucherCommandService {
         }
 
         // 2. Ensure a voucher has not already been issued for this quote
-        if (voucherRepository.findByQuoteId(command.quoteId()).isPresent()) {
+        var existingVoucherOpt = voucherRepository.findByQuoteId(command.quoteId());
+        if (existingVoucherOpt.isPresent()) {
+            var existingVoucher = existingVoucherOpt.get();
+            // Idempotent recovery: if this exact payment already created the voucher, return it directly
+            boolean paymentMatches = existingVoucher.getPayments().stream()
+                    .anyMatch(p -> command.paymentId().equals(p.getExternalPaymentId()));
+            if (paymentMatches && existingVoucher.getStatus() == VoucherStatus.PAID) {
+                log.info("Voucher for quote ID '{}' and payment ID '{}' already emitted. Returning existing voucher.", command.quoteId(), command.paymentId());
+                return Result.success(existingVoucher);
+            }
             log.warn("Quote ID '{}' has already been invoiced", command.quoteId());
             return Result.failure(VoucherCommandFailure.QUOTE_ALREADY_INVOICED);
         }
@@ -324,7 +332,34 @@ public class VoucherCommandServiceImpl implements VoucherCommandService {
         }
         String issuerRuc = workshopOpt.get().getTaxId().value();
 
-        // 6. Issue Voucher via Factos (SUNAT)
+        // 6. Step 1: Reserve Voucher in PENDING status and record payment locally
+        Voucher pendingVoucher;
+        try {
+            var voucher = new Voucher(
+                    command.quoteId(),
+                    command.type(),
+                    command.customerDocumentType(),
+                    command.customerDocumentNumber(),
+                    command.customerName(),
+                    quote.getTotalAmount(),
+                    null,
+                    null
+            );
+
+            voucher.recordPrepayment(
+                    quote.getTotalAmount(),
+                    com.tuxlogic.shiftiq.platform.billing.domain.model.valueobjects.PaymentMethod.CREDIT_CARD,
+                    quote.getBranchId().value(),
+                    "MERCADO_PAGO",
+                    command.paymentId()
+            );
+
+            pendingVoucher = voucherRepository.save(voucher);
+        } catch (IllegalArgumentException | IllegalStateException e) {
+            return Result.failure(VoucherCommandFailure.INVALID_VOUCHER_DATA);
+        }
+
+        // 7. Step 2: Issue Voucher via Factos (SUNAT) outside local database transaction
         var invoiceResultOpt = factosGateway.issueVoucher(
                 issuerRuc,
                 command.type(),
@@ -334,39 +369,19 @@ public class VoucherCommandServiceImpl implements VoucherCommandService {
                 getDetailedBillingItems(quote)
         );
 
+        // 8. Step 3: Confirm issuance and transition to PAID or mark EMISSION_FAILED
         if (invoiceResultOpt.isEmpty()) {
+            pendingVoucher.markEmissionFailed();
+            voucherRepository.save(pendingVoucher);
             return Result.failure(VoucherCommandFailure.FACTOS_ISSUANCE_FAILED);
         }
 
         var invoiceResult = invoiceResultOpt.get();
         UUID externalInvoiceId = UUID.nameUUIDFromBytes((invoiceResult.series() + "-" + invoiceResult.correlative()).getBytes(StandardCharsets.UTF_8));
 
-        // 7. Create Voucher Aggregate and record Mercado Pago payment with external payment ID
-        try {
-            var voucher = new Voucher(
-                    command.quoteId(),
-                    command.type(),
-                    command.customerDocumentType(),
-                    command.customerDocumentNumber(),
-                    command.customerName(),
-                    quote.getTotalAmount(),
-                    externalInvoiceId,
-                    invoiceResult.pdfUrl()
-            );
-
-            voucher.addPayment(
-                    quote.getTotalAmount(),
-                    com.tuxlogic.shiftiq.platform.billing.domain.model.valueobjects.PaymentMethod.CREDIT_CARD,
-                    quote.getBranchId().value(),
-                    "MERCADO_PAGO",
-                    command.paymentId()
-            );
-
-            var savedVoucher = voucherRepository.save(voucher);
-            return Result.success(savedVoucher);
-        } catch (IllegalArgumentException | IllegalStateException e) {
-            return Result.failure(VoucherCommandFailure.INVALID_VOUCHER_DATA);
-        }
+        pendingVoucher.markEmissionSuccessful(externalInvoiceId, invoiceResult.pdfUrl());
+        var savedVoucher = voucherRepository.save(pendingVoucher);
+        return Result.success(savedVoucher);
     }
 
 

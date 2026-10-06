@@ -143,6 +143,17 @@ public class Voucher extends AbstractDomainAggregateRoot<Voucher> {
         }
     }
 
+    /**
+     * Records an authorized payment against a voucher that is pending electronic invoice emission.
+     * The voucher remains in PENDING status until {@link #markEmissionSuccessful(UUID, String)} is called.
+     */
+    public void recordPrepayment(Money amount, PaymentMethod method, UUID branchId, String paymentProvider, String externalPaymentId) {
+        if (this.status == VoucherStatus.CANCELED) {
+            throw new IllegalStateException("billing.error.voucher.cannotAddPaymentCanceled");
+        }
+        this.payments.add(new Payment(amount, method, branchId, paymentProvider, externalPaymentId));
+    }
+
 
     /**
      * Removes a previously recorded payment from this voucher.
@@ -186,5 +197,26 @@ public class Voucher extends AbstractDomainAggregateRoot<Voucher> {
         }
         this.status = VoucherStatus.CANCELED;
     }
+
+    /**
+     * Marks the electronic voucher as successfully emitted by the external invoicing authority (Factos/SUNAT).
+     * Transitions to PAID if payments match the total amount and registers the VoucherPaidEvent.
+     */
+    public void markEmissionSuccessful(UUID externalInvoiceId, String pdfUrl) {
+        this.externalInvoiceId = externalInvoiceId;
+        this.pdfUrl = pdfUrl;
+        if (getTotalPaidAmount().compareTo(this.totalAmount.amount()) >= 0) {
+            this.status = VoucherStatus.PAID;
+            this.registerDomainEvent(new VoucherPaidEvent(this, this.id, this.quoteId));
+        }
+    }
+
+    /**
+     * Marks the electronic voucher emission as failed following an external gateway error or timeout.
+     */
+    public void markEmissionFailed() {
+        this.status = VoucherStatus.EMISSION_FAILED;
+    }
 }
+
 

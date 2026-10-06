@@ -2,6 +2,7 @@ package com.tuxlogic.shiftiq.platform.billing.infrastructure.outbound.factos;
 
 import com.tuxlogic.shiftiq.platform.billing.application.outboundservices.FactosGateway;
 import com.tuxlogic.shiftiq.platform.billing.domain.model.valueobjects.VoucherType;
+import com.tuxlogic.shiftiq.platform.billing.application.outboundservices.FiscalCorrelativeService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -24,6 +25,9 @@ class FactosGatewayImplTest {
     @Mock
     private RestTemplate restTemplate;
 
+    @Mock
+    private FiscalCorrelativeService fiscalCorrelativeService;
+
     private FactosGatewayImpl factosGateway;
 
     private static final String API_URL = "https://factos-reva.onrender.com";
@@ -31,7 +35,7 @@ class FactosGatewayImplTest {
 
     @BeforeEach
     void setUp() {
-        factosGateway = new FactosGatewayImpl(API_URL, API_KEY, restTemplate);
+        factosGateway = new FactosGatewayImpl(API_URL, API_KEY, restTemplate, fiscalCorrelativeService);
     }
 
     @Test
@@ -54,6 +58,7 @@ class FactosGatewayImplTest {
                 List.of()
         );
 
+        when(fiscalCorrelativeService.nextCorrelative("F001")).thenReturn("00000001");
         when(restTemplate.postForObject(
                 eq(API_URL + "/api/v1/documents"),
                 any(HttpEntity.class),
@@ -85,6 +90,7 @@ class FactosGatewayImplTest {
     @Test
     void issueVoucher_WhenApiFails_ShouldReturnEmpty() {
         // Arrange
+        when(fiscalCorrelativeService.nextCorrelative("F001")).thenReturn("00000001");
         when(restTemplate.postForObject(
                 anyString(),
                 any(HttpEntity.class),

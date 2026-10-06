@@ -1,11 +1,14 @@
 package com.tuxlogic.shiftiq.platform.billing.interfaces.rest;
 
 import com.tuxlogic.shiftiq.platform.billing.application.commandservices.MercadoPagoPaymentCommandService;
+import com.tuxlogic.shiftiq.platform.billing.application.commandservices.VoucherCommandService;
 import com.tuxlogic.shiftiq.platform.billing.application.queryservices.QuoteQueryService;
 import com.tuxlogic.shiftiq.platform.billing.application.queryservices.VoucherQueryService;
+import com.tuxlogic.shiftiq.platform.billing.domain.model.commands.ProcessMercadoPagoCheckoutCommand;
 import com.tuxlogic.shiftiq.platform.billing.domain.model.queries.GetQuoteByIdQuery;
 import com.tuxlogic.shiftiq.platform.billing.domain.model.queries.GetVoucherByQuoteIdQuery;
 import com.tuxlogic.shiftiq.platform.billing.domain.model.valueobjects.QuoteStatus;
+import com.tuxlogic.shiftiq.platform.billing.domain.model.valueobjects.VoucherType;
 import com.tuxlogic.shiftiq.platform.billing.interfaces.rest.resources.CreateMercadoPagoPreferenceResource;
 import com.tuxlogic.shiftiq.platform.billing.interfaces.rest.resources.MercadoPagoPreferenceResource;
 import com.tuxlogic.shiftiq.platform.billing.interfaces.rest.resources.MercadoPagoWebhookResource;
@@ -26,11 +29,13 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.nio.charset.StandardCharsets;
+import java.time.Instant;
+import java.util.UUID;
 
 /**
  * REST Controller for processing payments via Mercado Pago.
  * Exposes endpoints to create Payment Preferences derived from server-validated Quotes,
- * as well as webhook notifications for asynchronous payment state reconciliations.
+ * as well as webhook notifications for asynchronous payment state reconciliations and autonomous voucher issuance.
  */
 @RestController
 @RequestMapping(value = "/api/v1/payments/mercadopago", produces = "application/json")
@@ -40,6 +45,7 @@ public class MercadoPagoPaymentsController {
     private static final Logger LOGGER = LoggerFactory.getLogger(MercadoPagoPaymentsController.class);
 
     private final MercadoPagoPaymentCommandService paymentCommandService;
+    private final VoucherCommandService voucherCommandService;
     private final QuoteQueryService quoteQueryService;
     private final VoucherQueryService voucherQueryService;
     private final MultiTenancySecurityService multiTenancySecurityService;
@@ -48,12 +54,14 @@ public class MercadoPagoPaymentsController {
 
     public MercadoPagoPaymentsController(
             MercadoPagoPaymentCommandService paymentCommandService,
+            VoucherCommandService voucherCommandService,
             QuoteQueryService quoteQueryService,
             VoucherQueryService voucherQueryService,
             MultiTenancySecurityService multiTenancySecurityService,
             MessageSource messageSource,
             @Value("${mercadopago.webhook.secret:}") String webhookSecret) {
         this.paymentCommandService = paymentCommandService;
+        this.voucherCommandService = voucherCommandService;
         this.quoteQueryService = quoteQueryService;
         this.voucherQueryService = voucherQueryService;
         this.multiTenancySecurityService = multiTenancySecurityService;
@@ -83,6 +91,16 @@ public class MercadoPagoPaymentsController {
             String message = messageSource.getMessage("billing.error.quote.alreadyInvoiced", null, LocaleContextHolder.getLocale());
             return ErrorResponseAssembler.toErrorResponseFromApplicationError(ApplicationError.conflict("preference", message));
         }
+
+        // Persist payment intent with customer tax data so webhook can autonomously issue voucher if client leaves
+        paymentCommandService.registerPaymentIntent(
+                quote.getId(),
+                resource.type() != null ? resource.type() : "RECEIPT",
+                resource.customerDocumentType() != null ? resource.customerDocumentType() : "DNI",
+                resource.customerDocumentNumber() != null ? resource.customerDocumentNumber() : "00000000",
+                resource.customerName() != null ? resource.customerName() : "Cliente General",
+                quote.getTotalAmount().amount()
+        );
 
         var resultOpt = paymentCommandService.createPreference(
                 quote.getTotalAmount().amount(),
@@ -115,28 +133,26 @@ public class MercadoPagoPaymentsController {
     public ResponseEntity<Void> handleWebhook(
             @RequestHeader(value = "x-signature", required = false) String xSignature,
             @RequestHeader(value = "x-request-id", required = false) String xRequestId,
-            @RequestBody(required = false) MercadoPagoWebhookResource body,
-            @RequestParam(name = "type", required = false) String type,
-            @RequestParam(name = "topic", required = false) String topic,
-            @RequestParam(name = "id", required = false) String id,
-            @RequestParam(name = "data.id", required = false) String dataId) {
-
+            @RequestParam(value = "id", required = false) String idParam,
+            @RequestParam(value = "data.id", required = false) String dataIdParam,
+            @RequestParam(value = "type", required = false) String type,
+            @RequestParam(value = "topic", required = false) String topic,
+            @RequestBody(required = false) MercadoPagoWebhookResource bodyResource
+    ) {
         String paymentIdStr = null;
         String notificationType = null;
 
-        if (body != null) {
-            if (body.data() != null && body.data().id() != null) {
-                paymentIdStr = body.data().id();
-            } else if (body.id() != null) {
-                paymentIdStr = body.id().toString();
+        if (bodyResource != null) {
+            if (bodyResource.data() != null && bodyResource.data().id() != null) {
+                paymentIdStr = bodyResource.data().id();
+            } else if (bodyResource.id() != null) {
+                paymentIdStr = String.valueOf(bodyResource.id());
             }
-            notificationType = body.type() != null ? body.type() : body.action();
+            notificationType = bodyResource.type();
         }
 
         if (paymentIdStr == null) {
-            paymentIdStr = dataId != null ? dataId : id;
-        }
-        if (notificationType == null) {
+            paymentIdStr = dataIdParam != null ? dataIdParam : idParam;
             notificationType = type != null ? type : topic;
         }
 
@@ -158,7 +174,47 @@ public class MercadoPagoPaymentsController {
                     var status = paymentStatusOpt.get();
                     LOGGER.info("Processed Mercado Pago webhook for payment ID '{}' with status '{}' and detail '{}'",
                             paymentId, status.status(), status.statusDetail());
-                    if ("refunded".equalsIgnoreCase(status.status()) || "charged_back".equalsIgnoreCase(status.status())) {
+
+                    if ("approved".equalsIgnoreCase(status.status()) || "succeeded".equalsIgnoreCase(status.status())) {
+                        String externalRef = status.externalReference();
+                        if (externalRef != null && !externalRef.isBlank()) {
+                            try {
+                                UUID quoteId = UUID.fromString(externalRef);
+                                // Check if voucher already exists for this quote (e.g. issued by frontend)
+                                if (voucherQueryService.handle(new GetVoucherByQuoteIdQuery(quoteId)).isEmpty()) {
+                                    // Autonomous issuance via stored PaymentIntent
+                                    var intentOpt = paymentCommandService.getPaymentIntent(quoteId);
+                                    if (intentOpt.isPresent()) {
+                                        var intent = intentOpt.get();
+                                        VoucherType voucherType = "INVOICE".equalsIgnoreCase(intent.getVoucherType())
+                                                ? VoucherType.INVOICE : VoucherType.RECEIPT;
+                                        var checkoutCmd = new ProcessMercadoPagoCheckoutCommand(
+                                                quoteId,
+                                                voucherType,
+                                                intent.getCustomerDocumentType(),
+                                                intent.getCustomerDocumentNumber(),
+                                                intent.getCustomerName(),
+                                                paymentIdStr
+                                        );
+                                        var checkoutResult = voucherCommandService.handle(checkoutCmd);
+                                        if (checkoutResult.isSuccess()) {
+                                            LOGGER.info("Autonomously issued voucher via webhook for quote ID '{}' and payment ID '{}'",
+                                                    quoteId, paymentIdStr);
+                                        } else {
+                                            LOGGER.warn("Webhook autonomous checkout failed for quote ID '{}': {}",
+                                                    quoteId, checkoutResult.failure().get());
+                                        }
+                                    } else {
+                                        LOGGER.warn("Payment intent not found for quote ID '{}'. Awaiting client checkout.", quoteId);
+                                    }
+                                } else {
+                                    LOGGER.info("Voucher already exists for quote ID '{}'. Webhook confirmed.", quoteId);
+                                }
+                            } catch (IllegalArgumentException e) {
+                                LOGGER.warn("Invalid externalReference UUID in payment: {}", externalRef);
+                            }
+                        }
+                    } else if ("refunded".equalsIgnoreCase(status.status()) || "charged_back".equalsIgnoreCase(status.status())) {
                         LOGGER.warn("Payment ID '{}' has been refunded or charged back. Immediate manual/system reconciliation required.", paymentId);
                     }
                 }
@@ -191,6 +247,20 @@ public class MercadoPagoPaymentsController {
             if (ts == null || hash == null) {
                 return false;
             }
+
+            // Freshness verification: Reject timestamps older than 5 minutes or in future
+            try {
+                long tsSeconds = Long.parseLong(ts);
+                long currentSeconds = Instant.now().getEpochSecond();
+                if (Math.abs(currentSeconds - tsSeconds) > 300) {
+                    LOGGER.warn("Rejecting Mercado Pago webhook: timestamp is stale or in the future (ts={}, now={})", tsSeconds, currentSeconds);
+                    return false;
+                }
+            } catch (NumberFormatException e) {
+                LOGGER.warn("Rejecting Mercado Pago webhook: invalid ts timestamp format '{}'", ts);
+                return false;
+            }
+
             String manifest = String.format("id:%s;request-id:%s;ts:%s;", dataId != null ? dataId : "", xRequestId != null ? xRequestId : "", ts);
             javax.crypto.Mac mac = javax.crypto.Mac.getInstance("HmacSHA256");
             mac.init(new javax.crypto.spec.SecretKeySpec(webhookSecret.getBytes(StandardCharsets.UTF_8), "HmacSHA256"));
