@@ -1,6 +1,7 @@
 # Bounded Context Software Architecture & Domain Dictionary — Billing (Quotes, Vouchers & Payments)
 
-El **Bounded Context `Billing`** gestiona el ciclo de vida financiero posterior a la prestación de servicios en el taller automotriz. Comprende la cotización preliminar de órdenes de trabajo (`Quote`), la emisión de comprobantes de pago electrónicos autorizados por SUNAT (`Voucher`: Facturas/Boletas) mediante la integración con la API externa **Factos**, el registro y amortización de pagos multicanal (`Payment`), la integración de cobros con tarjeta mediante **Stripe**, y los flujos de facturación inmediata (*Checkout*).
+El **Bounded Context `Billing`** gestiona el ciclo de vida financiero posterior a la prestación de servicios en el taller automotriz. Comprende la cotización preliminar de órdenes de trabajo (`Quote`), la emisión de comprobantes de pago electrónicos autorizados por SUNAT (`Voucher`: Facturas/Boletas) mediante la integración con la API externa **Factos**, el registro y amortización de pagos multicanal (`Payment`), la integración de cobros mediante **Mercado Pago**, y los flujos de facturación inmediata (*Checkout*).
+
 
 ---
 
@@ -358,10 +359,10 @@ classDiagram
 
 #### 📌 `CheckoutsController` (`/api/v1/checkouts`)
 * `POST /api/v1/checkouts`: Ejecuta el flujo completo de checkout (generación de comprobante + pago total inmediato en una sola transacción).
-* `POST /api/v1/checkouts/stripe`: Verifica la confirmación del `paymentIntentId` en Stripe, emite la factura electrónica en SUNAT y registra el pago completo.
+* `POST /api/v1/checkouts/mercadopago`: Verifica la confirmación del `paymentId` en Mercado Pago, emite la factura electrónica en SUNAT y registra el pago completo.
 
-#### 📌 `StripePaymentsController` (`/api/v1/payments/stripe`)
-* `POST /api/v1/payments/stripe/payment-intents`: Genera un `PaymentIntent` y su `clientSecret` para procesamiento de cobro con tarjeta en clientes web/móvil.
+#### 📌 `MercadoPagoPaymentsController` (`/api/v1/payments/mercadopago`)
+* `POST /api/v1/payments/mercadopago/preferences`: Genera una preferencia de cobro (`preferenceId`, `initPoint`) para procesamiento de cobros en clientes web/móvil.
 
 #### 📌 Event Listener: `VoucherPaidListener`
 * Escucha `VoucherPaidEvent` para auditoría y eventual actualización de la Orden de Trabajo a estado completado/pagado.
@@ -370,7 +371,8 @@ classDiagram
 
 ## 4. Infrastructure Layer (Capa de Infraestructura)
 
-Mapeo relacional JPA a tablas PostgreSQL 16 e integración de clientes HTTP REST (`FactosGatewayImpl` y `StripeGatewayImpl`).
+Mapeo relacional JPA a tablas PostgreSQL 16 e integración de clientes HTTP REST (`FactosGatewayImpl` y `MercadoPagoGatewayImpl`).
+
 
 ```mermaid
 classDiagram
