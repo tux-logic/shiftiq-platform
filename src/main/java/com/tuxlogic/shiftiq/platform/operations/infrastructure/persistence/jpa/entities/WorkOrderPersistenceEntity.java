@@ -79,6 +79,14 @@ public class WorkOrderPersistenceEntity extends AuditableAbstractPersistenceEnti
     @JoinColumn(name = "work_order_id", nullable = false)
     private List<WorkOrderTaskPersistenceEntity> tasks = new ArrayList<>();
 
+    @ElementCollection(fetch = FetchType.EAGER)
+    @CollectionTable(
+            name = "work_order_entry_inspection_images",
+            joinColumns = @JoinColumn(name = "work_order_id")
+    )
+    @Column(name = "image_url")
+    private List<String> entryInspectionImages = new ArrayList<>();
+
     @Column(name = "deleted_at")
     private Instant deletedAt;
 

@@ -45,6 +45,7 @@ public final class WorkOrderResourceFromAggregateAssembler {
                 workOrder.getMileageIn().value(),
                 workOrder.getTotalAmount().amount(),
                 taskResources,
+                workOrder.getEntryInspectionImages(),
                 workOrder.getCreatedAt(),
                 workOrder.getUpdatedAt()
         );
@@ -75,6 +76,7 @@ public final class WorkOrderResourceFromAggregateAssembler {
                 task.getStartedAt(),
                 task.getCompletedAt(),
                 productResources,
+                task.getEvidenceImages(),
                 task.getCreatedAt()
         );
     }

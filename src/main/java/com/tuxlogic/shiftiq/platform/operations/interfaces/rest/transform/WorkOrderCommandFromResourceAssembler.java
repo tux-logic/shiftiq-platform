@@ -27,7 +27,8 @@ public final class WorkOrderCommandFromResourceAssembler {
                 new VehicleId(resource.vehicleId()),
                 new CustomerId(resource.customerId()),
                 new DiagnosticSummary(resource.diagnosticSummary()),
-                new Mileage(resource.mileageIn())
+                new Mileage(resource.mileageIn()),
+                resource.entryInspectionImages()
         );
     }
 
@@ -41,7 +42,8 @@ public final class WorkOrderCommandFromResourceAssembler {
         return new UpdateWorkOrderDetailsCommand(
                 new WorkOrderId(workOrderId),
                 new DiagnosticSummary(resource.diagnosticSummary()),
-                new Mileage(resource.mileageIn())
+                new Mileage(resource.mileageIn()),
+                resource.entryInspectionImages()
         );
     }
 
@@ -56,7 +58,8 @@ public final class WorkOrderCommandFromResourceAssembler {
                 new WorkOrderId(workOrderId),
                 new ServiceId(resource.serviceId()),
                 new MechanicId(resource.assignedMechanicId()),
-                new TaskDescription(resource.description())
+                new TaskDescription(resource.description()),
+                resource.evidenceImages()
         );
     }
 
@@ -89,7 +92,8 @@ public final class WorkOrderCommandFromResourceAssembler {
                 new WorkOrderTaskId(taskId),
                 new ServiceId(resource.serviceId()),
                 new MechanicId(resource.assignedMechanicId()),
-                new TaskDescription(resource.description())
+                new TaskDescription(resource.description()),
+                resource.evidenceImages()
         );
     }
 

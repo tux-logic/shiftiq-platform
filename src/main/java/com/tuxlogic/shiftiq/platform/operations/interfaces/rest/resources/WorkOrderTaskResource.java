@@ -31,5 +31,6 @@ public record WorkOrderTaskResource(
         Instant startedAt,
         Instant completedAt,
         List<WorkOrderTaskProductResource> products, // Repuestos anidados en esta tarea
+        List<String> evidenceImages,
         Instant createdAt
 ) {}

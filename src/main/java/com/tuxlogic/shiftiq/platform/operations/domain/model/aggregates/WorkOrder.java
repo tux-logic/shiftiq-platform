@@ -38,6 +38,7 @@ public class WorkOrder extends AbstractDomainAggregateRoot<WorkOrder> {
     private Mileage mileageIn;
     private Money totalAmount;
     private List<WorkOrderTask> tasks;
+    private List<String> entryInspectionImages;
     private Instant createdAt;
     private Instant updatedAt;
     private Instant deletedAt;
@@ -47,7 +48,7 @@ public class WorkOrder extends AbstractDomainAggregateRoot<WorkOrder> {
 
     public WorkOrder() {}
 
-    public WorkOrder(WorkOrderId id, AppointmentId appointmentId, BranchId branchId, VehicleId vehicleId, CustomerId customerId, Integer internalNumber, WorkOrderStatus status, DiagnosticSummary diagnosticSummary, Mileage mileageIn, Money totalAmount, List<WorkOrderTask> tasks, Instant createdAt, Instant updatedAt, Instant deletedAt, UUID createdBy, UUID updatedBy, Long version) {
+    public WorkOrder(WorkOrderId id, AppointmentId appointmentId, BranchId branchId, VehicleId vehicleId, CustomerId customerId, Integer internalNumber, WorkOrderStatus status, DiagnosticSummary diagnosticSummary, Mileage mileageIn, Money totalAmount, List<WorkOrderTask> tasks, List<String> entryInspectionImages, Instant createdAt, Instant updatedAt, Instant deletedAt, UUID createdBy, UUID updatedBy, Long version) {
         this.id = id;
         this.appointmentId = appointmentId;
         this.branchId = branchId;
@@ -59,6 +60,7 @@ public class WorkOrder extends AbstractDomainAggregateRoot<WorkOrder> {
         this.mileageIn = mileageIn;
         this.totalAmount = totalAmount;
         this.tasks = tasks;
+        this.entryInspectionImages = entryInspectionImages != null ? new ArrayList<>(entryInspectionImages) : new ArrayList<>();
         this.createdAt = createdAt;
         this.updatedAt = updatedAt;
         this.deletedAt = deletedAt;
@@ -68,6 +70,10 @@ public class WorkOrder extends AbstractDomainAggregateRoot<WorkOrder> {
     }
 
     public WorkOrder(AppointmentId appointmentId, BranchId branchId, VehicleId vehicleId, CustomerId customerId, Integer internalNumber, DiagnosticSummary diagnosticSummary, Mileage mileageIn) {
+        this(appointmentId, branchId, vehicleId, customerId, internalNumber, diagnosticSummary, mileageIn, new ArrayList<>());
+    }
+
+    public WorkOrder(AppointmentId appointmentId, BranchId branchId, VehicleId vehicleId, CustomerId customerId, Integer internalNumber, DiagnosticSummary diagnosticSummary, Mileage mileageIn, List<String> entryInspectionImages) {
         this.id = new WorkOrderId(UUID.randomUUID());
         this.appointmentId = appointmentId;
         this.branchId = branchId;
@@ -79,6 +85,7 @@ public class WorkOrder extends AbstractDomainAggregateRoot<WorkOrder> {
         this.status = WorkOrderStatus.PENDING;
         this.totalAmount = Money.ZERO;
         this.tasks = new ArrayList<>();
+        this.entryInspectionImages = entryInspectionImages != null ? new ArrayList<>(entryInspectionImages) : new ArrayList<>();
     }
 
     private void verifyOrderNotClosed() {
@@ -88,8 +95,12 @@ public class WorkOrder extends AbstractDomainAggregateRoot<WorkOrder> {
     }
 
     public void addTask(ServiceId serviceId, MechanicId mechanicId, TaskDescription description, Money laborPrice) {
+        addTask(serviceId, mechanicId, description, laborPrice, new ArrayList<>());
+    }
+
+    public void addTask(ServiceId serviceId, MechanicId mechanicId, TaskDescription description, Money laborPrice, List<String> evidenceImages) {
         verifyOrderNotClosed();
-        WorkOrderTask task = new WorkOrderTask(serviceId, this.branchId, mechanicId, description, laborPrice);
+        WorkOrderTask task = new WorkOrderTask(serviceId, this.branchId, mechanicId, description, laborPrice, evidenceImages);
         this.tasks.add(task);
         recalculateTotalAmount();
     }
@@ -241,15 +252,26 @@ public class WorkOrder extends AbstractDomainAggregateRoot<WorkOrder> {
     }
 
     public void updateDetails(DiagnosticSummary diagnosticSummary, Mileage mileageIn) {
+        updateDetails(diagnosticSummary, mileageIn, this.entryInspectionImages);
+    }
+
+    public void updateDetails(DiagnosticSummary diagnosticSummary, Mileage mileageIn, List<String> entryInspectionImages) {
         verifyOrderNotClosed();
         this.diagnosticSummary = diagnosticSummary;
         this.mileageIn = mileageIn;
+        if (entryInspectionImages != null) {
+            this.entryInspectionImages = new ArrayList<>(entryInspectionImages);
+        }
     }
 
     public void updateTaskDetails(WorkOrderTaskId taskId, ServiceId serviceId, MechanicId mechanicId, TaskDescription description, Money newLaborPrice) {
+        updateTaskDetails(taskId, serviceId, mechanicId, description, newLaborPrice, null);
+    }
+
+    public void updateTaskDetails(WorkOrderTaskId taskId, ServiceId serviceId, MechanicId mechanicId, TaskDescription description, Money newLaborPrice, List<String> evidenceImages) {
         verifyOrderNotClosed();
         WorkOrderTask task = findTaskOrThrow(taskId);
-        task.updateDetails(serviceId, mechanicId, description, newLaborPrice);
+        task.updateDetails(serviceId, mechanicId, description, newLaborPrice, evidenceImages);
         recalculateTotalAmount();
     }
 
@@ -276,5 +298,9 @@ public class WorkOrder extends AbstractDomainAggregateRoot<WorkOrder> {
 
     public List<WorkOrderTask> getTasks() {
         return this.tasks != null ? Collections.unmodifiableList(this.tasks) : Collections.emptyList();
+    }
+
+    public List<String> getEntryInspectionImages() {
+        return this.entryInspectionImages != null ? Collections.unmodifiableList(this.entryInspectionImages) : Collections.emptyList();
     }
 }
