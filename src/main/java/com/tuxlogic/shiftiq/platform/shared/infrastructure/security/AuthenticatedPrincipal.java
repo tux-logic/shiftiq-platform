@@ -1,5 +1,6 @@
 package com.tuxlogic.shiftiq.platform.shared.infrastructure.security;
 
+import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -28,4 +29,9 @@ public interface AuthenticatedPrincipal {
      * @return true when the principal is a member of the given branch
      */
     boolean hasBranch(UUID branchId);
+
+    /**
+     * @return the identifiers of the branches the principal is a member of, never null
+     */
+    Set<UUID> getBranchIds();
 }

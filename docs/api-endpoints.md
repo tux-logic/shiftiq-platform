@@ -1403,7 +1403,7 @@ Cuando una petición falla (`400 Bad Request`, `404 Not Found`, `409 Conflict`, 
 ## 📊 10. Analytics — Métricas, KPIs y Dashboards
 
 ### `GET /api/v1/analytics/branches/{branchId}/summary` — Resumen Ejecutivo del Día
-* **Seguridad:** Requiere Token (`Bearer JWT`). Rol `ADMIN`, `OWNER`, o personal asignado a la sede validado por `MultiTenancySecurityService`.
+* **Seguridad:** Requiere Token (`Bearer JWT`). Rol `ADMIN` (cualquier sede), `OWNER` (solo las sedes de sus propios talleres) o personal asignado a la sede, validado por `MultiTenancySecurityService`. Fallo → `403`.
 * **Descripción:** Devuelve los KPIs acumulados del día para la sede seleccionada. Al estar optimizado con el aggregate `BranchAnalyticsSnapshot`, responde en menos de 50ms.
 * **Path Variables:**
   * `branchId`: UUID de la sede (obligatorio).
@@ -1425,7 +1425,7 @@ Cuando una petición falla (`400 Bad Request`, `404 Not Found`, `409 Conflict`, 
 ---
 
 ### `GET /api/v1/analytics/branches/{branchId}/financial` — Analítica Financiera e Histórica por Rango
-* **Seguridad:** Requiere Token (`Bearer JWT`). Acceso autorizado a la sede.
+* **Seguridad:** Requiere Token (`Bearer JWT`). Acceso autorizado a la sede: `ADMIN` (cualquier sede), `OWNER` (solo las sedes de sus propios talleres) o personal asignado a la sede.
 * **Descripción:** Devuelve la serie histórica de snapshots diarios de la sede en el rango de fechas indicado. Ideal para renderizar gráficos de barras y líneas de ingresos y volumen de trabajo en el frontend.
 * **Path Variables:**
   * `branchId`: UUID de la sede (obligatorio).
@@ -1463,8 +1463,8 @@ Cuando una petición falla (`400 Bad Request`, `404 Not Found`, `409 Conflict`, 
 ---
 
 ### `GET /api/v1/analytics/network/summary` — Resumen Consolidado de Red Multisede
-* **Seguridad:** Requiere Token (`ROLE_ADMIN` o `ROLE_OWNER`).
-* **Descripción:** Consolida métricas de rendimiento en tiempo real de todas las sedes activas de la red de talleres del dueño.
+* **Seguridad:** Requiere Token. Rol `ROLE_ADMIN` (toda la red) o `ROLE_OWNER` (aislado por tenant: solo sus propias sedes); otros roles → `403`.
+* **Descripción:** Consolida los KPIs del día de las sedes visibles para el usuario autenticado: `ADMIN` agrega toda la red de talleres, `OWNER` agrega únicamente las sedes de sus talleres. Un dueño sin talleres responde todo en ceros.
 * **Respuesta Exitosa (`200 OK`):**
 ```json
 {

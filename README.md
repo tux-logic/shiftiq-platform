@@ -67,6 +67,7 @@ La arquitectura sigue principios de **Domain-Driven Design (DDD)** con **Context
 - **AuthenticatedPrincipal** port en `shared` rompe la dependencia circular `shared ↔ iam`
 - `UserDetailsImpl` ahora implementa `AuthenticatedPrincipal` con métodos `getId()`, `hasRole(String)`, `hasBranch(UUID)`
 - **Valores nulos denegados por defecto**: `isAuthorizedForBranch(null)` → false, `isAuthorizedForUser(null)` → false
+- **Aislamiento SaaS multi-dueño (modelo de negocio: plataforma con dueños independientes)**: `ROLE_OWNER` solo accede a las sedes de sus propios talleres, resueltas por `TenantScopeResolver` (puerto en `shared`, implementación en `core`: usuario → owner → talleres → sedes). `ROLE_ADMIN` conserva acceso total; `/api/v1/analytics/network/summary` agrega únicamente las sedes del dueño autenticado
 - **Controladores**: `BranchesController`, `AppointmentsController`, `CustomerRegistrationsController`, `EmployeeRegistrationsController` usan la sobrecarga `isAuthorizedForBranch(BranchId)` que es nula-safe
 
 ### Testing (55 tests verdes)

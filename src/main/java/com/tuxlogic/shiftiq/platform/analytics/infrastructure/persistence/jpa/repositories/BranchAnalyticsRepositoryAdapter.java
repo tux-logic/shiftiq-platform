@@ -8,8 +8,10 @@ import com.tuxlogic.shiftiq.platform.shared.domain.model.valueobjects.BranchId;
 import org.springframework.stereotype.Component;
 
 import java.time.LocalDate;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 @Component
 public class BranchAnalyticsRepositoryAdapter implements BranchAnalyticsRepository {
@@ -48,6 +50,14 @@ public class BranchAnalyticsRepositoryAdapter implements BranchAnalyticsReposito
     @Override
     public List<BranchAnalyticsSnapshot> findBySnapshotDate(LocalDate date) {
         return jpaRepository.findBySnapshotDate(date)
+                .stream()
+                .map(this::toDomain)
+                .toList();
+    }
+
+    @Override
+    public List<BranchAnalyticsSnapshot> findBySnapshotDateAndBranchIdIn(LocalDate date, Collection<UUID> branchIds) {
+        return jpaRepository.findBySnapshotDateAndBranchIdIn(date, branchIds)
                 .stream()
                 .map(this::toDomain)
                 .toList();

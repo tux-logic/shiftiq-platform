@@ -5,6 +5,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
 import java.time.LocalDate;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -14,4 +15,5 @@ public interface JpaBranchAnalyticsSnapshotRepository extends JpaRepository<Bran
     Optional<BranchAnalyticsSnapshotPersistenceEntity> findByBranchIdAndSnapshotDate(UUID branchId, LocalDate date);
     List<BranchAnalyticsSnapshotPersistenceEntity> findByBranchIdAndSnapshotDateBetween(UUID branchId, LocalDate startDate, LocalDate endDate);
     List<BranchAnalyticsSnapshotPersistenceEntity> findBySnapshotDate(LocalDate date);
+    List<BranchAnalyticsSnapshotPersistenceEntity> findBySnapshotDateAndBranchIdIn(LocalDate date, Collection<UUID> branchIds);
 }

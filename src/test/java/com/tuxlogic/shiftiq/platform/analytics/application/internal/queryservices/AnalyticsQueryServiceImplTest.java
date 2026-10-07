@@ -15,6 +15,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -101,12 +102,44 @@ class AnalyticsQueryServiceImplTest {
         when(repository.findBySnapshotDate(any(LocalDate.class)))
                 .thenReturn(List.of(b1, b2));
 
-        var result = queryService.handle(new GetNetworkAnalyticsOverviewQuery());
+        var result = queryService.handle(new GetNetworkAnalyticsOverviewQuery(null));
 
         assertThat(result.isSuccess()).isTrue();
         var overview = result.success().get();
         assertThat(overview.totalActiveBranchesCount()).isEqualTo(2);
         assertThat(overview.totalNetworkRevenue()).isEqualTo(new BigDecimal("500.00"));
         assertThat(overview.totalNetworkCompletedWorkOrders()).isEqualTo(2);
+    }
+
+    @Test
+    @DisplayName("handle GetNetworkAnalyticsOverviewQuery only aggregates the caller branch scope")
+    void handleNetworkOverviewScopedToBranchIds() {
+        var allowedBranch = new BranchId(UUID.randomUUID());
+        var blockedBranch = new BranchId(UUID.randomUUID());
+
+        var allowed = new BranchAnalyticsSnapshot(allowedBranch, LocalDate.now());
+        allowed.addRevenue(new BigDecimal("150.00"));
+
+        when(repository.findBySnapshotDateAndBranchIdIn(any(LocalDate.class), any()))
+                .thenReturn(List.of(allowed));
+
+        var result = queryService.handle(new GetNetworkAnalyticsOverviewQuery(Set.of(allowedBranch.value())));
+
+        assertThat(result.isSuccess()).isTrue();
+        var overview = result.success().get();
+        assertThat(overview.totalActiveBranchesCount()).isEqualTo(1);
+        assertThat(overview.totalNetworkRevenue()).isEqualTo(new BigDecimal("150.00"));
+    }
+
+    @Test
+    @DisplayName("handle GetNetworkAnalyticsOverviewQuery returns zeros when the scope is empty")
+    void handleNetworkOverviewWithEmptyScopeDoesNotQuery() {
+        var result = queryService.handle(new GetNetworkAnalyticsOverviewQuery(Set.of()));
+
+        assertThat(result.isSuccess()).isTrue();
+        var overview = result.success().get();
+        assertThat(overview.totalActiveBranchesCount()).isZero();
+        assertThat(overview.totalNetworkRevenue()).isZero();
+        Mockito.verifyNoInteractions(repository);
     }
 }

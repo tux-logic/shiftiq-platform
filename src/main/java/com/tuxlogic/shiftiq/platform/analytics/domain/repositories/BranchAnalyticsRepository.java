@@ -5,8 +5,10 @@ import com.tuxlogic.shiftiq.platform.analytics.domain.model.valueobjects.Snapsho
 import com.tuxlogic.shiftiq.platform.shared.domain.model.valueobjects.BranchId;
 
 import java.time.LocalDate;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 public interface BranchAnalyticsRepository {
     BranchAnalyticsSnapshot save(BranchAnalyticsSnapshot snapshot);
@@ -14,4 +16,5 @@ public interface BranchAnalyticsRepository {
     Optional<BranchAnalyticsSnapshot> findByBranchIdAndSnapshotDate(BranchId branchId, LocalDate date);
     List<BranchAnalyticsSnapshot> findByBranchIdAndSnapshotDateBetween(BranchId branchId, LocalDate startDate, LocalDate endDate);
     List<BranchAnalyticsSnapshot> findBySnapshotDate(LocalDate date);
+    List<BranchAnalyticsSnapshot> findBySnapshotDateAndBranchIdIn(LocalDate date, Collection<UUID> branchIds);
 }

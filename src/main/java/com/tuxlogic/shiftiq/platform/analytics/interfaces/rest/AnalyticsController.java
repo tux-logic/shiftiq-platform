@@ -93,7 +93,8 @@ public class AnalyticsController {
     @Operation(summary = "Get network analytics overview", description = "Retrieves consolidated multi-branch analytics overview across the workshop network")
     @PreAuthorize("hasRole('ADMIN') or hasRole('OWNER')")
     public ResponseEntity<?> getNetworkOverview() {
-        var query = new GetNetworkAnalyticsOverviewQuery();
+        var branchScope = multiTenancySecurityService.resolveNetworkAccessibleBranchIds();
+        var query = new GetNetworkAnalyticsOverviewQuery(branchScope);
         var result = queryService.handle(query);
         if (result.isFailure()) {
             return ResponseEntity.badRequest().body(result.failure().get());

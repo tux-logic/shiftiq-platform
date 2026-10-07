@@ -8,6 +8,8 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 
+import java.util.HashSet;
+import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -16,11 +18,22 @@ import java.util.UUID;
  * <p>All checks are <b>fail closed</b>: a missing identifier (null) is denied instead of
  * allowed, so omitting {@code branchId}/{@code userId} from a payload can never bypass
  * tenant isolation.</p>
+ *
+ * <p>{@code ROLE_ADMIN} is the platform operator and keeps unrestricted access.
+ * {@code ROLE_OWNER} is scoped to the workshops it owns (resolved through
+ * {@link TenantScopeResolver}) plus the branches explicitly assigned to it, so a SaaS
+ * deployment with several independent workshop owners never reads another tenant's data.</p>
  */
 @Service("multiTenancySecurityService")
 public class MultiTenancySecurityService {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(MultiTenancySecurityService.class);
+
+    private final TenantScopeResolver tenantScopeResolver;
+
+    public MultiTenancySecurityService(TenantScopeResolver tenantScopeResolver) {
+        this.tenantScopeResolver = tenantScopeResolver;
+    }
 
     public boolean isAuthorizedForBranch(UUID branchId) {
         if (branchId == null) {
@@ -33,8 +46,12 @@ public class MultiTenancySecurityService {
         }
         Object principal = authentication.getPrincipal();
         if (principal instanceof AuthenticatedPrincipal authenticatedPrincipal) {
-            if (authenticatedPrincipal.hasRole("ROLE_ADMIN") || authenticatedPrincipal.hasRole("ROLE_OWNER")) {
+            if (authenticatedPrincipal.hasRole("ROLE_ADMIN")) {
                 return true;
+            }
+            if (authenticatedPrincipal.hasRole("ROLE_OWNER")) {
+                return authenticatedPrincipal.hasBranch(branchId)
+                        || tenantScopeResolver.findBranchIdsForUser(authenticatedPrincipal.getId()).contains(branchId);
             }
             return authenticatedPrincipal.hasBranch(branchId);
         }
@@ -91,7 +108,13 @@ public class MultiTenancySecurityService {
         }
         Object principal = authentication.getPrincipal();
         if (principal instanceof AuthenticatedPrincipal authenticatedPrincipal) {
-            return authenticatedPrincipal.hasRole("ROLE_ADMIN") || authenticatedPrincipal.hasRole("ROLE_OWNER");
+            if (authenticatedPrincipal.hasRole("ROLE_ADMIN")) {
+                return true;
+            }
+            if (authenticatedPrincipal.hasRole("ROLE_OWNER")) {
+                return tenantScopeResolver.findWorkshopIdsForUser(authenticatedPrincipal.getId()).contains(workshopId);
+            }
+            return false;
         }
         return false;
     }
@@ -100,5 +123,31 @@ public class MultiTenancySecurityService {
         if (!isAuthorizedForWorkshop(workshopId)) {
             throw new AccessDeniedException("Unauthorized access for requested workshop identifier: " + workshopId);
         }
+    }
+
+    /**
+     * Resolves the branch scope a caller may aggregate over in network-wide metrics.
+     *
+     * @return {@code null} when the caller has unrestricted access ({@code ROLE_ADMIN}),
+     * otherwise the set of branch ids the caller may see; never {@code null} for
+     * non-admin callers, so an empty set means "no branch at all"
+     */
+    public Set<UUID> resolveNetworkAccessibleBranchIds() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null || !authentication.isAuthenticated()) {
+            return Set.of();
+        }
+        Object principal = authentication.getPrincipal();
+        if (!(principal instanceof AuthenticatedPrincipal authenticatedPrincipal)) {
+            return Set.of();
+        }
+        if (authenticatedPrincipal.hasRole("ROLE_ADMIN")) {
+            return null;
+        }
+        Set<UUID> accessible = new HashSet<>(authenticatedPrincipal.getBranchIds());
+        if (authenticatedPrincipal.hasRole("ROLE_OWNER")) {
+            accessible.addAll(tenantScopeResolver.findBranchIdsForUser(authenticatedPrincipal.getId()));
+        }
+        return accessible;
     }
 }

@@ -66,7 +66,14 @@ public class AnalyticsQueryServiceImpl implements AnalyticsQueryService {
     public Result<NetworkAnalyticsOverview, String> handle(GetNetworkAnalyticsOverviewQuery query) {
         try {
             var today = LocalDate.now();
-            var snapshots = repository.findBySnapshotDate(today);
+            List<BranchAnalyticsSnapshot> snapshots;
+            if (query.branchIds() == null) {
+                snapshots = repository.findBySnapshotDate(today);
+            } else if (query.branchIds().isEmpty()) {
+                snapshots = List.of();
+            } else {
+                snapshots = repository.findBySnapshotDateAndBranchIdIn(today, query.branchIds());
+            }
 
             var totalRevenue = snapshots.stream()
                     .map(BranchAnalyticsSnapshot::getTotalRevenue)

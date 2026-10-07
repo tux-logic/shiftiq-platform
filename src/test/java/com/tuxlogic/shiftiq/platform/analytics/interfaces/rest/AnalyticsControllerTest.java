@@ -22,10 +22,12 @@ import org.springframework.http.ResponseEntity;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 
 class AnalyticsControllerTest {
@@ -88,8 +90,10 @@ class AnalyticsControllerTest {
     }
 
     @Test
-    @DisplayName("getNetworkOverview returns 200 OK with overview resource")
+    @DisplayName("getNetworkOverview returns 200 OK with overview resource scoped to the caller branches")
     void getNetworkOverviewSuccess() {
+        var scope = Set.of(UUID.randomUUID(), UUID.randomUUID());
+        when(securityService.resolveNetworkAccessibleBranchIds()).thenReturn(scope);
         var overview = new NetworkAnalyticsOverview(3, new BigDecimal("5000.00"), 15, 20, 2);
         when(queryService.handle(any(GetNetworkAnalyticsOverviewQuery.class)))
                 .thenReturn(Result.success(overview));
@@ -98,5 +102,20 @@ class AnalyticsControllerTest {
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat(response.getBody()).isInstanceOf(NetworkAnalyticsOverviewResource.class);
+        Mockito.verify(queryService).handle(eq(new GetNetworkAnalyticsOverviewQuery(scope)));
+    }
+
+    @Test
+    @DisplayName("getNetworkOverview passes an unrestricted scope for platform admins")
+    void getNetworkOverviewUnrestrictedScopeForAdmins() {
+        when(securityService.resolveNetworkAccessibleBranchIds()).thenReturn(null);
+        var overview = new NetworkAnalyticsOverview(3, new BigDecimal("5000.00"), 15, 20, 2);
+        when(queryService.handle(any(GetNetworkAnalyticsOverviewQuery.class)))
+                .thenReturn(Result.success(overview));
+
+        ResponseEntity<?> response = controller.getNetworkOverview();
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+        Mockito.verify(queryService).handle(eq(new GetNetworkAnalyticsOverviewQuery(null)));
     }
 }
