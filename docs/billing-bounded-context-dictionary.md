@@ -1,6 +1,7 @@
 # Bounded Context Software Architecture & Domain Dictionary — Billing (Quotes, Vouchers & Payments)
 
-El **Bounded Context `Billing`** gestiona el ciclo de vida financiero posterior a la prestación de servicios en el taller automotriz. Comprende la cotización preliminar de órdenes de trabajo (`Quote`), la emisión de comprobantes de pago electrónicos autorizados por SUNAT (`Voucher`: Facturas/Boletas) mediante la integración con la API externa **Factos**, el registro y amortización de pagos multicanal (`Payment`), la integración de cobros con tarjeta mediante **Stripe**, y los flujos de facturación inmediata (*Checkout*).
+El **Bounded Context `Billing`** gestiona el ciclo de vida financiero posterior a la prestación de servicios en el taller automotriz. Comprende la cotización preliminar de órdenes de trabajo (`Quote`), la emisión de comprobantes de pago electrónicos autorizados por SUNAT (`Voucher`: Facturas/Boletas) mediante la integración con la API externa **Factos**, el registro y amortización de pagos multicanal (`Payment`), la integración de cobros mediante **Mercado Pago**, y los flujos de facturación inmediata (*Checkout*).
+
 
 ---
 
@@ -204,7 +205,7 @@ classDiagram
 
 ## 2. Application Layer (Capa de Aplicación)
 
-La Capa de Aplicación expone la ejecución de casos de uso mediante servicios de comando (`QuoteCommandService`, `VoucherCommandService`, `StripePaymentCommandService`) y servicios de consulta (`QuoteQueryService`, `VoucherQueryService`).
+La Capa de Aplicación expone la ejecución de casos de uso mediante servicios de comando (`QuoteCommandService`, `VoucherCommandService`, `MercadoPagoPaymentCommandService`) y servicios de consulta (`QuoteQueryService`, `VoucherQueryService`).
 
 ```mermaid
 classDiagram
@@ -230,7 +231,7 @@ classDiagram
         +handle(AddPaymentCommand) Result~Voucher, VoucherCommandFailure~
         +handle(RemovePaymentCommand) Result~Voucher, VoucherCommandFailure~
         +handle(ProcessCheckoutCommand) Result~Voucher, VoucherCommandFailure~
-        +handle(ProcessStripeCheckoutCommand) Result~Voucher, VoucherCommandFailure~
+        +handle(ProcessMercadoPagoCheckoutCommand) Result~Voucher, VoucherCommandFailure~
     }
 
     class VoucherQueryService {
@@ -239,20 +240,20 @@ classDiagram
         +handle(GetVouchersByBranchIdQuery) List~Voucher~
     }
 
-    class StripePaymentCommandService {
+    class MercadoPagoPaymentCommandService {
         <<Interface>>
-        +createPaymentIntent(BigDecimal, String, String) Optional~StripePaymentIntentResult~
-        +getPaymentIntent(String) Optional~StripePaymentIntentResult~
+        +createPreference(BigDecimal, String, String, String) Optional~MercadoPagoPreferenceResult~
+        +getPaymentStatus(Long) Optional~MercadoPagoPaymentResult~
     }
 
     QuoteCommandServiceImpl ..|> QuoteCommandService
     QuoteQueryServiceImpl ..|> QuoteQueryService
     VoucherCommandServiceImpl ..|> VoucherCommandService
     VoucherQueryServiceImpl ..|> VoucherQueryService
-    StripePaymentCommandServiceImpl ..|> StripePaymentCommandService
+    MercadoPagoPaymentCommandServiceImpl ..|> MercadoPagoPaymentCommandService
 
     VoucherCommandServiceImpl --> FactosGateway
-    StripePaymentCommandServiceImpl --> StripeGateway
+    MercadoPagoPaymentCommandServiceImpl --> MercadoPagoGateway
 ```
 
 ---
@@ -268,13 +269,14 @@ classDiagram
 * 🟦 **`AddPaymentCommand(UUID voucherId, Money amount, PaymentMethod method)`**
 * 🟦 **`RemovePaymentCommand(UUID voucherId, UUID paymentId)`**
 * 🟦 **`ProcessCheckoutCommand(UUID quoteId, VoucherType type, String customerDocumentType, String customerDocumentNumber, String customerName, PaymentMethod method)`**
-* 🟦 **`ProcessStripeCheckoutCommand(UUID quoteId, VoucherType type, String customerDocumentType, String customerDocumentNumber, String customerName, String paymentIntentId)`**
+* 🟦 **`ProcessMercadoPagoCheckoutCommand(UUID quoteId, VoucherType type, String customerDocumentType, String customerDocumentNumber, String customerName, String paymentId)`**
 
 #### Queries
 * 🟩 **`GetQuoteByIdQuery(UUID quoteId)`**
 * 🟩 **`GetQuotesByBranchIdQuery(BranchId branchId)`**
 * 🟩 **`GetVoucherByIdQuery(UUID voucherId)`**
 * 🟩 **`GetVouchersByBranchIdQuery(BranchId branchId)`**
+* 🟩 **`GetVoucherByQuoteIdQuery(UUID quoteId)`**
 
 ---
 
@@ -283,11 +285,10 @@ classDiagram
 * `FactosGateway`:
   - `Optional<FactosInvoiceResult> issueVoucher(String issuerRuc, VoucherType documentType, String customerDocumentType, String customerDocumentNumber, String customerName, List<FactosItem> items)`
 * `PaymentGateway`:
-  - `Optional<PaymentIntentResult> createPaymentIntent(BigDecimal amount, String currency, String description)`
-  - `Optional<PaymentIntentResult> getPaymentIntent(String paymentIntentId)`
-* `StripeGateway` (extends `PaymentGateway`):
-  - `Optional<StripePaymentIntentResult> createStripePaymentIntent(BigDecimal amount, String currency, String description)`
-  - `Optional<StripePaymentIntentResult> getStripePaymentIntent(String paymentIntentId)`
+  - `Optional<PaymentResult> getPaymentStatusByExternalId(String externalPaymentId)`
+* `MercadoPagoGateway`:
+  - `Optional<MercadoPagoPreferenceResult> createPreference(BigDecimal amount, String currency, String title, String externalReference)`
+  - `Optional<MercadoPagoPaymentResult> getPaymentStatus(Long paymentId)`
 
 ---
 
@@ -318,11 +319,12 @@ classDiagram
 
     class CheckoutsController {
         +checkout(ProcessCheckoutResource) ResponseEntity~?~
-        +stripeCheckout(ProcessStripeCheckoutResource) ResponseEntity~?~
+        +mercadopagoCheckout(ProcessMercadoPagoCheckoutResource) ResponseEntity~?~
     }
 
-    class StripePaymentsController {
-        +createPaymentIntent(CreatePaymentIntentResource) ResponseEntity~PaymentIntentResource~
+    class MercadoPagoPaymentsController {
+        +createPreference(CreateMercadoPagoPreferenceResource) ResponseEntity~?~
+        +handleWebhook(String, String, MercadoPagoWebhookResource, String, String, String, String) ResponseEntity~Void~
     }
 
     class VoucherPaidListener {
@@ -334,7 +336,8 @@ classDiagram
     VouchersController --> VoucherCommandService
     VouchersController --> VoucherQueryService
     CheckoutsController --> VoucherCommandService
-    StripePaymentsController --> StripePaymentCommandService
+    MercadoPagoPaymentsController --> MercadoPagoPaymentCommandService
+    MercadoPagoPaymentsController --> VoucherQueryService
 ```
 
 ---
@@ -358,10 +361,10 @@ classDiagram
 
 #### 📌 `CheckoutsController` (`/api/v1/checkouts`)
 * `POST /api/v1/checkouts`: Ejecuta el flujo completo de checkout (generación de comprobante + pago total inmediato en una sola transacción).
-* `POST /api/v1/checkouts/stripe`: Verifica la confirmación del `paymentIntentId` en Stripe, emite la factura electrónica en SUNAT y registra el pago completo.
+* `POST /api/v1/checkouts/mercadopago`: Verifica la confirmación del `paymentId` en Mercado Pago, emite la factura electrónica en SUNAT y registra el pago completo.
 
-#### 📌 `StripePaymentsController` (`/api/v1/payments/stripe`)
-* `POST /api/v1/payments/stripe/payment-intents`: Genera un `PaymentIntent` y su `clientSecret` para procesamiento de cobro con tarjeta en clientes web/móvil.
+#### 📌 `MercadoPagoPaymentsController` (`/api/v1/payments/mercadopago`)
+* `POST /api/v1/payments/mercadopago/preferences`: Genera una preferencia de cobro (`preferenceId`, `initPoint`) para procesamiento de cobros en clientes web/móvil.
 
 #### 📌 Event Listener: `VoucherPaidListener`
 * Escucha `VoucherPaidEvent` para auditoría y eventual actualización de la Orden de Trabajo a estado completado/pagado.
@@ -370,7 +373,8 @@ classDiagram
 
 ## 4. Infrastructure Layer (Capa de Infraestructura)
 
-Mapeo relacional JPA a tablas PostgreSQL 16 e integración de clientes HTTP REST (`FactosGatewayImpl` y `StripeGatewayImpl`).
+Mapeo relacional JPA a tablas PostgreSQL 16 e integración de clientes HTTP REST (`FactosGatewayImpl` y `MercadoPagoGatewayImpl`).
+
 
 ```mermaid
 classDiagram
@@ -459,12 +463,12 @@ Descomposición del Container API en sus componentes principales para el Bounded
 ```mermaid
 graph TB
     subgraph Client_Tier ["Frontend / Mobile Clients Tier"]
-        ClientApp["ShiftIQ WebApp / Mobile Client<br><i>[TypeScript / Flutter]</i><br>Pasarela de pago en caja, emisión de comprobantes y cobros Stripe."]
+        ClientApp["ShiftIQ WebApp / Mobile Client<br><i>[TypeScript / Flutter]</i><br>Pasarela de pago en caja, emisión de comprobantes y cobros Mercado Pago."]
     end
 
     subgraph External_Services ["External Services Tier"]
         FactosAPI["Factos Electronic Invoicing API<br><i>[REST Service]</i><br>Proveedor autorizado SUNAT para emisión de comprobantes CPE."]
-        StripeAPI["Stripe Payments API<br><i>[REST Service]</i><br>Pasarela de procesamientos de tarjetas de crédito/débito."]
+        MercadoPagoAPI["Mercado Pago API<br><i>[REST Service]</i><br>Pasarela de procesamiento de cobros y tarjetas."]
     end
 
     subgraph External_DB ["Database Tier"]
@@ -475,16 +479,16 @@ graph TB
         QuotesCtrl["QuotesController<br><b>[Spring REST Controller]</b><br>Endpoints para gestión de cotizaciones y aprobaciones."]
         VouchersCtrl["VouchersController<br><b>[Spring REST Controller]</b><br>Endpoints para generación de comprobantes y pagos."]
         CheckoutsCtrl["CheckoutsController<br><b>[Spring REST Controller]</b><br>Flujos completos de checkout inmediato."]
-        StripePaymentsCtrl["StripePaymentsController<br><b>[Spring REST Controller]</b><br>Generación de PaymentIntents de tarjeta."]
+        MercadoPagoCtrl["MercadoPagoPaymentsController<br><b>[Spring REST Controller]</b><br>Generación de preferencias de pago y webhooks."]
 
         VoucherListener["VoucherPaidListener<br><b>[Domain Event Listener]</b><br>Escucha pagos completos de comprobantes."]
 
         QuoteCmdService["QuoteCommandService<br><b>[Application Service]</b><br>Gestión de cotizaciones y descuentos."]
         VoucherCmdService["VoucherCommandService<br><b>[Application Service]</b><br>Generación de comprobantes, abonos y checkouts."]
-        StripePaymentCmdService["StripePaymentCommandService<br><b>[Application Service]</b><br>Creación y verificación de cobros en Stripe."]
+        MercadoPagoCmdService["MercadoPagoPaymentCommandService<br><b>[Application Service]</b><br>Creación y verificación de cobros en Mercado Pago."]
 
         FactosClient["FactosGatewayImpl<br><b>[Outbound ACL Adapter]</b><br>Emisión electrónica de facturas F001 / boletas B001 en SUNAT."]
-        StripeClient["StripeGatewayImpl<br><b>[Outbound ACL Adapter]</b><br>Cliente API oficial de Stripe."]
+        MercadoPagoClient["MercadoPagoGatewayImpl<br><b>[Outbound ACL Adapter]</b><br>Cliente API oficial de Mercado Pago."]
 
         QuoteRepoAdapter["QuoteRepositoryImpl<br><b>[Infrastructure Adapter]</b>"]
         VoucherRepoAdapter["VoucherRepositoryImpl<br><b>[Infrastructure Adapter]</b>"]
@@ -493,18 +497,18 @@ graph TB
     ClientApp -->|"HTTPS / REST"| QuotesCtrl
     ClientApp -->|"HTTPS / REST"| VouchersCtrl
     ClientApp -->|"HTTPS / REST"| CheckoutsCtrl
-    ClientApp -->|"HTTPS / REST"| StripePaymentsCtrl
+    ClientApp -->|"HTTPS / REST"| MercadoPagoCtrl
 
     QuotesCtrl --> QuoteCmdService
     VouchersCtrl --> VoucherCmdService
     CheckoutsCtrl --> VoucherCmdService
-    StripePaymentsCtrl --> StripePaymentCmdService
+    MercadoPagoCtrl --> MercadoPagoCmdService
 
     VoucherCmdService --> FactosClient
-    StripePaymentCmdService --> StripeClient
+    MercadoPagoCmdService --> MercadoPagoClient
 
     FactosClient -->|"HTTP REST / JSON"| FactosAPI
-    StripeClient -->|"HTTPS REST / Stripe API"| StripeAPI
+    MercadoPagoClient -->|"HTTPS REST / Mercado Pago API"| MercadoPagoAPI
 
     QuoteCmdService --> QuoteRepoAdapter
     VoucherCmdService --> VoucherRepoAdapter

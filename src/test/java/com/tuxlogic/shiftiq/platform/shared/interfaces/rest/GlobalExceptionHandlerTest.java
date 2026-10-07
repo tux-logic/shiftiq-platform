@@ -53,6 +53,14 @@ class GlobalExceptionHandlerTest {
     }
 
     @Test
+    void unexpectedRollbackExceptionReturnsConflict() {
+        var response = handler.handleUnexpectedRollbackException(
+                new org.springframework.transaction.UnexpectedRollbackException("Transaction rolled back"));
+
+        assertErrorResponse(response, HttpStatus.CONFLICT, "RESOURCE_CONFLICT");
+    }
+
+    @Test
     void entityNotFoundReturnsNotFound() {
         var response = handler.handleEntityNotFound(new EntityNotFoundException("Product 123"));
 

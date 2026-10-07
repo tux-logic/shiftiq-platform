@@ -6,9 +6,9 @@ import jakarta.validation.constraints.NotNull;
 import java.util.UUID;
 
 /**
- * REST payload resource for processing a Stripe checkout with an existing PaymentIntent ID.
+ * REST payload resource for processing a Mercado Pago checkout with an existing Payment ID.
  */
-public record ProcessStripeCheckoutResource(
+public record ProcessMercadoPagoCheckoutResource(
         @NotNull(message = "billing.error.resource.quoteId.required")
         UUID quoteId,
         @NotBlank(message = "billing.error.resource.type.required")
@@ -19,6 +19,6 @@ public record ProcessStripeCheckoutResource(
         String customerDocumentNumber,
         @NotBlank(message = "billing.error.resource.customerName.required")
         String customerName,
-        @NotBlank(message = "billing.error.resource.paymentIntentId.required")
-        String paymentIntentId
+        @NotBlank(message = "billing.error.resource.paymentId.required")
+        String paymentId
 ) {}

@@ -30,6 +30,12 @@ public interface QuoteRepository {
     Optional<Quote> findById(UUID id);
 
     /**
+     * Finds a Quote by its unique identifier and acquires a pessimistic write lock
+     * to serialize checkout operations and prevent race conditions.
+     */
+    Optional<Quote> findByIdForUpdate(UUID id);
+
+    /**
      * Finds all Quotes associated with a specific branch.
      * 
      * @param branchId The Value Object representing the branch identifier.

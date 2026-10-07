@@ -22,6 +22,10 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 import java.util.Arrays;
 import java.util.List;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.tuxlogic.shiftiq.platform.billing.infrastructure.security.MercadoPagoRateLimitingFilter;
+import org.springframework.boot.web.servlet.FilterRegistrationBean;
+import org.springframework.context.MessageSource;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 
 @Configuration
@@ -41,6 +45,18 @@ public class WebSecurityConfiguration {
         this.authorizationRequestFilter = authorizationRequestFilter;
         this.unauthorizedHandler = unauthorizedHandler;
         this.hashingService = hashingService;
+    }
+
+    @Bean
+    public MercadoPagoRateLimitingFilter mercadoPagoRateLimitingFilter(ObjectMapper objectMapper, MessageSource messageSource) {
+        return new MercadoPagoRateLimitingFilter(objectMapper, messageSource);
+    }
+
+    @Bean
+    public FilterRegistrationBean<MercadoPagoRateLimitingFilter> mercadoPagoRateLimitingFilterRegistration(MercadoPagoRateLimitingFilter filter) {
+        FilterRegistrationBean<MercadoPagoRateLimitingFilter> registration = new FilterRegistrationBean<>(filter);
+        registration.setEnabled(false);
+        return registration;
     }
 
     @Bean
@@ -66,13 +82,14 @@ public class WebSecurityConfiguration {
 
     @Bean
     @SuppressWarnings("RedundantThrows")
-    public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+    public SecurityFilterChain filterChain(HttpSecurity http, MercadoPagoRateLimitingFilter mercadoPagoRateLimitingFilter) throws Exception {
         http.cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .csrf(AbstractHttpConfigurer::disable)
                 .exceptionHandling(exception -> exception.authenticationEntryPoint(unauthorizedHandler))
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(org.springframework.http.HttpMethod.POST, "/api/v1/users").permitAll()
+                        .requestMatchers(org.springframework.http.HttpMethod.POST, "/api/v1/payments/mercadopago/webhooks").permitAll()
                         .requestMatchers(
                                 "/api/v1/authentication/**",
                                 "/v3/api-docs/**",
@@ -83,6 +100,7 @@ public class WebSecurityConfiguration {
                 );
 
         http.authenticationProvider(authenticationProvider());
+        http.addFilterBefore(mercadoPagoRateLimitingFilter, UsernamePasswordAuthenticationFilter.class);
         http.addFilterBefore(authorizationRequestFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
