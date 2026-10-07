@@ -52,6 +52,7 @@ Cuando una petición falla (`400 Bad Request`, `404 Not Found`, `409 Conflict`, 
 6. [Inventory — Productos, Repuestos y Lotes](#-7-inventory--inventario-y-repuestos)
 7. [Operations — Catálogo de Servicios y Órdenes de Trabajo](#-8-operations--servicios-y-órdenes-de-trabajo)
 8. [Billing — Cotizaciones, Facturación SUNAT y Mercado Pago](#-9-billing--cotizaciones-facturación-sunat-y-mercado-pago)
+9. [Analytics — Métricas, KPIs y Dashboards](#-10-analytics--métricas-kpis-y-dashboards)
 
 ---
 
@@ -1396,6 +1397,86 @@ Cuando una petición falla (`400 Bad Request`, `404 Not Found`, `409 Conflict`, 
 * **Descripción:** Recibe notificaciones asíncronas de Mercado Pago cuando un cliente completa un pago sin regresar a la aplicación web o móvil. Emite el comprobante y concilia el cobro automáticamente.
 * **Respuesta Exitosa (`200 OK`):** Responde con **cuerpo vacío**. Mercado Pago considera la notificación atendida.
 * **Otras respuestas:** `400 Bad Request` (monto distinto al de la `PaymentIntent`), `401 Unauthorized` (firma HMAC inválida o desfase > 5 min) y `503 Service Unavailable` (sin secreto HMAC, sin `PaymentIntent` o emisión fallida → Mercado Pago reintenta). Ver detalle en [`billing-endpoints.md`](./billing-endpoints.md).
+
+---
+
+## 📊 10. Analytics — Métricas, KPIs y Dashboards
+
+### `GET /api/v1/analytics/branches/{branchId}/summary` — Resumen Ejecutivo del Día
+* **Seguridad:** Requiere Token (`Bearer JWT`). Rol `ADMIN`, `OWNER`, o personal asignado a la sede validado por `MultiTenancySecurityService`.
+* **Descripción:** Devuelve los KPIs acumulados del día para la sede seleccionada. Al estar optimizado con el aggregate `BranchAnalyticsSnapshot`, responde en menos de 50ms.
+* **Path Variables:**
+  * `branchId`: UUID de la sede (obligatorio).
+* **Respuesta Exitosa (`200 OK`):**
+```json
+{
+  "branchId": "c3d4e5f6-3333-4444-5555-666677778888",
+  "totalRevenue": 1250.00,
+  "completedWorkOrdersCount": 4,
+  "totalAppointmentsCount": 7,
+  "lowStockAlertsCount": 2,
+  "dtcAlertsCount": 1
+}
+```
+* **Errores:**
+  * `403 Forbidden`: Si el usuario autenticado no pertenece a la sede solicitada.
+  * `400 Bad Request`: Si el `branchId` es inválido.
+
+---
+
+### `GET /api/v1/analytics/branches/{branchId}/financial` — Analítica Financiera e Histórica por Rango
+* **Seguridad:** Requiere Token (`Bearer JWT`). Acceso autorizado a la sede.
+* **Descripción:** Devuelve la serie histórica de snapshots diarios de la sede en el rango de fechas indicado. Ideal para renderizar gráficos de barras y líneas de ingresos y volumen de trabajo en el frontend.
+* **Path Variables:**
+  * `branchId`: UUID de la sede (obligatorio).
+* **Query Params:**
+  * `startDate` (opcional, formato ISO `YYYY-MM-DD`, default: 30 días atrás).
+  * `endDate` (opcional, formato ISO `YYYY-MM-DD`, default: hoy).
+* **Respuesta Exitosa (`200 OK`):**
+```json
+[
+  {
+    "id": "a1b2c3d4-1111-2222-3333-444455556666",
+    "branchId": "c3d4e5f6-3333-4444-5555-666677778888",
+    "snapshotDate": "2026-10-06",
+    "totalRevenue": 950.00,
+    "completedWorkOrdersCount": 3,
+    "totalAppointmentsCount": 5,
+    "lowStockAlertsCount": 2,
+    "dtcAlertsCount": 0
+  },
+  {
+    "id": "b2c3d4e5-2222-3333-4444-555566667777",
+    "branchId": "c3d4e5f6-3333-4444-5555-666677778888",
+    "snapshotDate": "2026-10-07",
+    "totalRevenue": 1250.00,
+    "completedWorkOrdersCount": 4,
+    "totalAppointmentsCount": 7,
+    "lowStockAlertsCount": 2,
+    "dtcAlertsCount": 1
+  }
+]
+```
+* **Errores:**
+  * `403 Forbidden`: Usuario no autorizado para la sede.
+
+---
+
+### `GET /api/v1/analytics/network/summary` — Resumen Consolidado de Red Multisede
+* **Seguridad:** Requiere Token (`ROLE_ADMIN` o `ROLE_OWNER`).
+* **Descripción:** Consolida métricas de rendimiento en tiempo real de todas las sedes activas de la red de talleres del dueño.
+* **Respuesta Exitosa (`200 OK`):**
+```json
+{
+  "totalActiveBranchesCount": 3,
+  "totalNetworkRevenue": 4850.00,
+  "totalNetworkCompletedWorkOrders": 14,
+  "totalNetworkAppointments": 22,
+  "totalNetworkDtcAlerts": 3
+}
+```
+* **Errores:**
+  * `403 Forbidden`: Si el usuario no tiene rol `ADMIN` ni `OWNER`.
 
 ---
 
