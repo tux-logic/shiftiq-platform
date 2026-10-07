@@ -80,7 +80,6 @@ class ProcessMercadoPagoCheckoutTest {
                 branchQueryService,
                 workshopQueryService,
                 factosGateway,
-                paymentGateway,
                 workOrderQueryService,
                 null,
                 voucherExecutionService,

@@ -40,7 +40,6 @@ import java.util.UUID;
  * and with the Factos external service to emit documents to the tax authority.
  */
 import lombok.extern.slf4j.Slf4j;
-import com.tuxlogic.shiftiq.platform.billing.application.outboundservices.PaymentGateway;
 
 import com.tuxlogic.shiftiq.platform.billing.infrastructure.persistence.jpa.repositories.PaymentIntentJpaRepository;
 import java.time.LocalDateTime;
@@ -54,7 +53,6 @@ public class VoucherCommandServiceImpl implements VoucherCommandService {
     private final BranchQueryService branchQueryService;
     private final WorkshopQueryService workshopQueryService;
     private final FactosGateway factosGateway;
-    private final PaymentGateway paymentGateway;
     private final WorkOrderQueryService workOrderQueryService;
     private final ProductQueryService productQueryService;
     private final VoucherExecutionService voucherExecutionService;
@@ -67,7 +65,6 @@ public class VoucherCommandServiceImpl implements VoucherCommandService {
             BranchQueryService branchQueryService,
             WorkshopQueryService workshopQueryService,
             FactosGateway factosGateway,
-            PaymentGateway paymentGateway,
             WorkOrderQueryService workOrderQueryService,
             ProductQueryService productQueryService,
             VoucherExecutionService voucherExecutionService,
@@ -77,7 +74,6 @@ public class VoucherCommandServiceImpl implements VoucherCommandService {
         this.branchQueryService = branchQueryService;
         this.workshopQueryService = workshopQueryService;
         this.factosGateway = factosGateway;
-        this.paymentGateway = paymentGateway;
         this.workOrderQueryService = workOrderQueryService;
         this.productQueryService = productQueryService;
         this.voucherExecutionService = voucherExecutionService;
