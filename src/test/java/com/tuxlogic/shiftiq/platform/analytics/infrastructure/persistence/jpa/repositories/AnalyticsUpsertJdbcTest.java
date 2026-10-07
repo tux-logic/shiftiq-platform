@@ -96,8 +96,8 @@ class AnalyticsUpsertJdbcTest {
             applyDelta(conn, branch, day, "100.00", 1, 2, 3);
             applyDelta(conn, branch, day, "50.50", 1, 1, 1);
 
-            var row = read(conn, branch, day);
-            assertThat(row.revenue()).isEqualByComparingTo("150.50");
+            SnapshotRow row = read(conn, branch, day);
+            assertThat((BigDecimal) row.revenue()).isEqualByComparingTo(new BigDecimal("150.50"));
             assertThat(row.workOrders()).isEqualTo(2);
             assertThat(row.appointments()).isEqualTo(3);
             assertThat(row.dtcAlerts()).isEqualTo(4);
@@ -114,7 +114,7 @@ class AnalyticsUpsertJdbcTest {
             applyDelta(conn, branch, day, "10.00", 1, 0, 0);
             applyDelta(conn, branch, day, "-9999.00", -7, -1, -1);
 
-            var row = read(conn, branch, day);
+            SnapshotRow row = read(conn, branch, day);
             assertThat(row.revenue().signum()).isZero();
             assertThat(row.workOrders()).isZero();
             assertThat(row.appointments()).isZero();
@@ -169,9 +169,9 @@ class AnalyticsUpsertJdbcTest {
         }
 
         try (Connection conn = open()) {
-            var row = read(conn, branch, day);
+            SnapshotRow row = read(conn, branch, day);
             assertThat(errors.get()).isZero();
-            assertThat(row.revenue()).isEqualByComparingTo(BigDecimal.valueOf(expected));
+            assertThat((BigDecimal) row.revenue()).isEqualByComparingTo(BigDecimal.valueOf(expected));
             assertThat(row.workOrders()).isEqualTo(expected);
             assertThat(row.appointments()).isEqualTo(expected);
         }
@@ -215,8 +215,8 @@ class AnalyticsUpsertJdbcTest {
         }
     }
 
-    private record SnapshotRow(BigDecimal revenue, int workOrders, int appointments,
-                               int lowStockAlerts, int dtcAlerts) {}
+    record SnapshotRow(BigDecimal revenue, int workOrders, int appointments,
+                       int lowStockAlerts, int dtcAlerts) {}
 
     private static SnapshotRow read(Connection conn, UUID branch, LocalDate day) throws Exception {
         try (PreparedStatement ps = conn.prepareStatement(

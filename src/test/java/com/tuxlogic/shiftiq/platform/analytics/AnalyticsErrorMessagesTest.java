@@ -42,7 +42,7 @@ class AnalyticsErrorMessagesTest {
     @Test
     @DisplayName("every analytics error key exists in the spanish bundle")
     void keysExistInSpanishBundle() {
-        var bundle = ResourceBundle.getBundle("messages", new Locale("es"));
+        var bundle = ResourceBundle.getBundle("messages", Locale.of("es"));
 
         assertThat(ANALYTICS_KEYS).allSatisfy(key ->
                 assertThat(bundle.containsKey(key))
@@ -53,7 +53,7 @@ class AnalyticsErrorMessagesTest {
     @Test
     @DisplayName("keys resolve to a non blank message in both locales")
     void keysResolveToNonBlankMessages() {
-        for (var locale : List.of(Locale.ENGLISH, new Locale("es"))) {
+        for (var locale : List.of(Locale.ENGLISH, Locale.of("es"))) {
             var bundle = ResourceBundle.getBundle("messages", locale);
             for (var key : ANALYTICS_KEYS) {
                 assertThat(bundle.getString(key)).as("%s in %s", key, locale).isNotBlank();
