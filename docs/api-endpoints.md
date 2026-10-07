@@ -312,6 +312,83 @@ Cuando una petición falla (`400 Bad Request`, `404 Not Found`, `409 Conflict`, 
 
 ---
 
+### 🔧 Especialidades del Taller (Workshop Specialties)
+Cada taller dispone de un catálogo dinámico y configurable de especialidades técnicas (ej. Mecánica General, Electricidad Automotriz, Planchado y Pintura, etc.) que los asistentes y gerentes utilizan al dar de alta al personal técnico.
+
+#### `POST /api/v1/workshops/{workshopId}/specialties` — Crear Especialidad
+* **Seguridad:** Requiere Token (`ROLE_OWNER` del taller o `ROLE_ADMIN`)
+* **Request Body:**
+```json
+{
+  "name": "Inyección Electrónica y Calibración",
+  "code": "INYECCION_ELECTRONICA",
+  "description": "Limpieza y diagnóstico de inyectores, sensores MAF/MAP y cuerpos de aceleración"
+}
+```
+* **Respuesta Exitosa (`201 CREATED`):**
+```json
+{
+  "id": "e4f5a6b7-8888-9999-0000-111122223333",
+  "workshopId": "b2c3d4e5-2222-3333-4444-555566667777",
+  "name": "Inyección Electrónica y Calibración",
+  "code": "INYECCION_ELECTRONICA",
+  "description": "Limpieza y diagnóstico de inyectores, sensores MAF/MAP y cuerpos de aceleración",
+  "active": true,
+  "createdAt": "2026-10-07T12:00:00Z",
+  "updatedAt": "2026-10-07T12:00:00Z"
+}
+```
+
+#### `GET /api/v1/workshops/{workshopId}/specialties` — Listar Especialidades del Taller
+* **Seguridad:** Requiere Token (Dueño, Gerente o Asistente del taller)
+* **Query Params:** `activeOnly` (booleano opcional, por defecto `true`)
+* **Respuesta Exitosa (`200 OK`):**
+```json
+[
+  {
+    "id": "e4f5a6b7-8888-9999-0000-111122223333",
+    "workshopId": "b2c3d4e5-2222-3333-4444-555566667777",
+    "name": "Mecánica General",
+    "code": "GENERAL_MECHANIC",
+    "description": "Mantenimiento preventivo, correctivo y reparación de motores",
+    "active": true,
+    "createdAt": "2026-10-07T12:00:00Z",
+    "updatedAt": "2026-10-07T12:00:00Z"
+  },
+  {
+    "id": "f5a6b7c8-9999-0000-1111-222233334444",
+    "workshopId": "b2c3d4e5-2222-3333-4444-555566667777",
+    "name": "Electricidad y Electrónica",
+    "code": "ELECTRICIAN",
+    "description": "Diagnóstico de circuitos, cableado y alternadores",
+    "active": true,
+    "createdAt": "2026-10-07T12:00:00Z",
+    "updatedAt": "2026-10-07T12:00:00Z"
+  }
+]
+```
+
+#### `GET /api/v1/workshops/{workshopId}/specialties/{specialtyId}` — Obtener Detalle de Especialidad
+* **Seguridad:** Requiere Token con acceso al taller
+* **Respuesta Exitosa (`200 OK`):** Retorna `WorkshopSpecialtyResource`.
+
+#### `PUT /api/v1/workshops/{workshopId}/specialties/{specialtyId}` — Actualizar Especialidad
+* **Seguridad:** Requiere Token (`ROLE_OWNER` o `ROLE_ADMIN`)
+* **Request Body:**
+```json
+{
+  "name": "Mecánica General y Motores",
+  "description": "Reparación y mantenimiento integral de motores de combustión e híbridos"
+}
+```
+* **Respuesta Exitosa (`200 OK`):** Retorna `WorkshopSpecialtyResource` actualizado.
+
+#### `DELETE /api/v1/workshops/{workshopId}/specialties/{specialtyId}` — Desactivar Especialidad
+* **Seguridad:** Requiere Token (`ROLE_OWNER` o `ROLE_ADMIN`)
+* **Respuesta Exitosa (`204 NO CONTENT`)**
+
+---
+
 ### 📍 Sedes (Branches)
 
 #### `POST /api/v1/branches` — Crear Sede para un Taller
@@ -528,19 +605,25 @@ Cuando una petición falla (`400 Bad Request`, `404 Not Found`, `409 Conflict`, 
 
 ### 👷 Flujo de Solicitud y Contratación de Mecánicos (Employee Registrations)
 
-#### `POST /api/v1/employee-registrations` — Crear Registro de Empleado en Sede
-* **Seguridad:** Requiere Token (Administrador o con acceso a la sede)
-* **Descripción:** Crea directamente un registro de empleado en una sede (alta manual), sin pasar por el flujo de `request-join` + aprobación. El registro nace en estado `ACTIVE`.
+#### `POST /api/v1/employee-registrations` — Crear Registro de Personal en Sede (Onboarding Jerárquico)
+* **Seguridad:** Requiere Token según la **Matriz Jerárquica del Taller**:
+  - `ROLE_OWNER`: En talleres multisede, asigna primero al Gerente de Sede (`BRANCH_MANAGER`). En talleres de sede única, el dueño actúa como gerente y asigna al Asistente (`ASSISTANT`) o técnicos directamente.
+  - `ROLE_BRANCH_MANAGER`: Asigna a su Asistente (`ASSISTANT`) y al personal técnico (`EMPLOYEE`) en su sede.
+  - `ROLE_ASSISTANT`: Asigna al personal técnico operativo (`EMPLOYEE`: mecánicos, electricistas, planchadores, etc.) en su sede.
+  - `ROLE_ADMIN`: Acceso irrestricto.
+* **Descripción:** Da de alta a un miembro del personal en la sede. El registro nace en estado `ACTIVE`.
 * **Request Body:**
 ```json
 {
   "employeeId": "a2b3c4d5-6666-7777-8888-999900001111",
   "branchId": "c3d4e5f6-3333-4444-5555-666677778888",
-  "speciality": "MOTOR_DIESEL",
-  "specialityName": "Especialista en Motores Diésel e Inyección",
-  "salary": 2500.00
+  "speciality": "GENERAL_MECHANIC",
+  "specialityName": "Mecánica General",
+  "salary": 2500.00,
+  "role": "ROLE_EMPLOYEE"
 }
 ```
+* *Nota sobre `role`:* Opcional (`ROLE_BRANCH_MANAGER`, `ROLE_ASSISTANT`, `ROLE_EMPLOYEE`). Por defecto `ROLE_EMPLOYEE`.
 * **Respuesta Exitosa (`201 CREATED`):** Retorna `EmployeeRegistrationResource`.
 
 #### `POST /api/v1/employee-registrations/request-join` — Mecánico Solicita Unirse a Sede
