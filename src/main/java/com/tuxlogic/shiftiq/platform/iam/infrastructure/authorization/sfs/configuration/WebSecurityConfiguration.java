@@ -96,6 +96,8 @@ public class WebSecurityConfiguration {
                         .requestMatchers(org.springframework.http.HttpMethod.POST, "/api/v1/users").permitAll()
                         .requestMatchers(org.springframework.http.HttpMethod.POST, "/api/v1/payments/mercadopago/webhooks").permitAll()
                         .requestMatchers(
+                                "/",
+                                "/health",
                                 "/api/v1/authentication/**",
                                 "/v3/api-docs/**",
                                 "/swagger-ui/**",
