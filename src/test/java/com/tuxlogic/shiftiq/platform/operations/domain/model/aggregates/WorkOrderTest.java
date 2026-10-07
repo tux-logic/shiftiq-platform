@@ -80,6 +80,48 @@ class WorkOrderTest {
         assertThat(workOrder.getStatus()).isEqualTo(WorkOrderStatus.PENDING);
     }
 
+    @Test
+    @DisplayName("Reopening a completed order registers WorkOrderReopenedEvent and reverts it to IN_PROGRESS")
+    void reopeningCompletedOrderRegistersWorkOrderReopenedEvent() {
+        var taskId = workOrder.getTasks().get(0).getId();
+        workOrder.startTask(taskId);
+        workOrder.completeTask(taskId);
+        workOrder.clearDomainEvents();
+
+        workOrder.reopenTask(taskId);
+
+        assertThat(workOrder.getStatus()).isEqualTo(WorkOrderStatus.IN_PROGRESS);
+        assertThat(reopenedEvents()).hasSize(1);
+        assertThat(completedEvents()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("Reopening a task of an order that is still in progress does not register WorkOrderReopenedEvent")
+    void reopeningTaskOfUncompletedOrderDoesNotRegisterReopenedEvent() {
+        workOrder.addTask(
+                new ServiceId(UUID.randomUUID()),
+                new MechanicId(UUID.randomUUID()),
+                new TaskDescription("Rotacion de llantas"),
+                new Money(new BigDecimal("50.00"))
+        );
+        var firstTask = workOrder.getTasks().get(0).getId();
+        workOrder.startTask(firstTask);
+        workOrder.completeTask(firstTask);
+        assertThat(workOrder.getStatus()).isEqualTo(WorkOrderStatus.IN_PROGRESS);
+        workOrder.clearDomainEvents();
+
+        workOrder.reopenTask(firstTask);
+
+        assertThat(workOrder.getStatus()).isEqualTo(WorkOrderStatus.IN_PROGRESS);
+        assertThat(reopenedEvents()).isEmpty();
+    }
+
+    private List<Object> reopenedEvents() {
+        return workOrder.domainEvents().stream()
+                .filter(com.tuxlogic.shiftiq.platform.operations.domain.model.events.WorkOrderReopenedEvent.class::isInstance)
+                .toList();
+    }
+
     private List<Object> completedEvents() {
         return workOrder.domainEvents().stream()
                 .filter(WorkOrderCompletedEvent.class::isInstance)

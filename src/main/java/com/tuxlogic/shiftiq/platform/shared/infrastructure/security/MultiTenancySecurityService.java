@@ -72,6 +72,14 @@ public class MultiTenancySecurityService {
         }
     }
 
+    /**
+     * Broad check for resources keyed by a user id where no tenant scoping exists in the
+     * data model (customer and employee profiles are global records with no branch or
+     * workshop owner). Allows the caller itself, {@code ROLE_ADMIN} and, because those
+     * profiles are created by the workshop during onboarding, {@code ROLE_OWNER}.
+     * For owner profiles or tenant scoped data use {@link #isAuthorizedForOwnerProfile(UUID)}
+     * or {@link #isAuthorizedForSelf(UUID)} instead.
+     */
     public boolean isAuthorizedForUser(UUID userId) {
         if (userId == null) {
             LOGGER.warn("User access denied: no user identifier was provided");
@@ -93,6 +101,67 @@ public class MultiTenancySecurityService {
 
     public void validateUserAccess(UUID userId) {
         if (!isAuthorizedForUser(userId)) {
+            throw new AccessDeniedException("Unauthorized access for requested user identifier: " + userId);
+        }
+    }
+
+    /**
+     * Authorization for operations over an owner profile (tenant onboarding data).
+     * Unlike {@link #isAuthorizedForUser(UUID)} it does not let {@code ROLE_OWNER}
+     * cross tenants: only {@code ROLE_ADMIN} or the owner whose user matches the
+     * profile may proceed.
+     */
+    public boolean isAuthorizedForOwnerProfile(UUID ownerId) {
+        if (ownerId == null) {
+            LOGGER.warn("Owner profile access denied: no owner identifier was provided");
+            return false;
+        }
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null || !authentication.isAuthenticated()) {
+            return false;
+        }
+        Object principal = authentication.getPrincipal();
+        if (principal instanceof AuthenticatedPrincipal authenticatedPrincipal) {
+            if (authenticatedPrincipal.hasRole("ROLE_ADMIN")) {
+                return true;
+            }
+            return ownerId.equals(tenantScopeResolver.findOwnerProfileIdForUser(authenticatedPrincipal.getId()));
+        }
+        return false;
+    }
+
+    public void validateOwnerProfileAccess(UUID ownerId) {
+        if (!isAuthorizedForOwnerProfile(ownerId)) {
+            throw new AccessDeniedException("Unauthorized access for requested owner identifier: " + ownerId);
+        }
+    }
+
+    /**
+     * Authorization restricted to the caller itself (or a platform admin). Intended for
+     * resources keyed by the authenticated user, where the {@code ROLE_OWNER} bypass of
+     * {@link #isAuthorizedForUser(UUID)} would allow crossing tenants.
+     */
+    public boolean isAuthorizedForSelf(UUID userId) {
+        if (userId == null) {
+            LOGGER.warn("Self access denied: no user identifier was provided");
+            return false;
+        }
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null || !authentication.isAuthenticated()) {
+            return false;
+        }
+        Object principal = authentication.getPrincipal();
+        if (principal instanceof AuthenticatedPrincipal authenticatedPrincipal) {
+            if (authenticatedPrincipal.hasRole("ROLE_ADMIN")) {
+                return true;
+            }
+            return authenticatedPrincipal.getId().equals(userId);
+        }
+        return false;
+    }
+
+    public void validateSelfAccess(UUID userId) {
+        if (!isAuthorizedForSelf(userId)) {
             throw new AccessDeniedException("Unauthorized access for requested user identifier: " + userId);
         }
     }
@@ -128,9 +197,12 @@ public class MultiTenancySecurityService {
     /**
      * Resolves the branch scope a caller may aggregate over in network-wide metrics.
      *
-     * @return {@code null} when the caller has unrestricted access ({@code ROLE_ADMIN}),
-     * otherwise the set of branch ids the caller may see; never {@code null} for
-     * non-admin callers, so an empty set means "no branch at all"
+     * <p>The returned set is never {@code null}: {@code ROLE_ADMIN} resolves to every
+     * branch of the platform, other callers resolve to the branches they may access, and
+     * an unauthenticated caller (or a caller without any branch) resolves to an empty set
+     * so aggregation always runs over an explicit scope.</p>
+     *
+     * @return the branch ids the caller may see, empty when the caller may see none
      */
     public Set<UUID> resolveNetworkAccessibleBranchIds() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
@@ -142,12 +214,20 @@ public class MultiTenancySecurityService {
             return Set.of();
         }
         if (authenticatedPrincipal.hasRole("ROLE_ADMIN")) {
-            return null;
+            return tenantScopeResolver.findAllBranchIds();
         }
         Set<UUID> accessible = new HashSet<>(authenticatedPrincipal.getBranchIds());
         if (authenticatedPrincipal.hasRole("ROLE_OWNER")) {
             accessible.addAll(tenantScopeResolver.findBranchIdsForUser(authenticatedPrincipal.getId()));
         }
         return accessible;
+    }
+
+    /**
+     * Checks that a branch exists (and is not soft deleted) regardless of who calls.
+     * Used to answer {@code 404} for unknown branches after the access check passed.
+     */
+    public boolean branchExists(UUID branchId) {
+        return branchId != null && tenantScopeResolver.branchExists(branchId);
     }
 }

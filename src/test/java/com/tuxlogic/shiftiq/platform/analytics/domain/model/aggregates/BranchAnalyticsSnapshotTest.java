@@ -47,6 +47,60 @@ class BranchAnalyticsSnapshotTest {
     }
 
     @Test
+    @DisplayName("full constructor rejects null identifiers and timestamps")
+    void fullConstructorValidation() {
+        var valid = new BranchAnalyticsSnapshot(new BranchId(UUID.randomUUID()), LocalDate.now());
+        var instant = java.time.Instant.now();
+
+        assertThatThrownBy(() -> new BranchAnalyticsSnapshot(
+                null, valid.getBranchId(), valid.getSnapshotDate(),
+                BigDecimal.ZERO, 0, 0, 0, 0, instant, instant))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("analytics.error.snapshotId.required");
+
+        assertThatThrownBy(() -> new BranchAnalyticsSnapshot(
+                valid.getId(), null, valid.getSnapshotDate(),
+                BigDecimal.ZERO, 0, 0, 0, 0, instant, instant))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("analytics.error.branchId.required");
+
+        assertThatThrownBy(() -> new BranchAnalyticsSnapshot(
+                valid.getId(), valid.getBranchId(), null,
+                BigDecimal.ZERO, 0, 0, 0, 0, instant, instant))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("analytics.error.snapshotDate.required");
+
+        assertThatThrownBy(() -> new BranchAnalyticsSnapshot(
+                valid.getId(), valid.getBranchId(), valid.getSnapshotDate(),
+                BigDecimal.ZERO, 0, 0, 0, 0, null, instant))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("analytics.error.snapshotTimestamps.required");
+
+        assertThatThrownBy(() -> new BranchAnalyticsSnapshot(
+                valid.getId(), valid.getBranchId(), valid.getSnapshotDate(),
+                BigDecimal.ZERO, 0, 0, 0, 0, instant, null))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("analytics.error.snapshotTimestamps.required");
+    }
+
+    @Test
+    @DisplayName("full constructor defaults null metric columns to zero")
+    void fullConstructorDefaultsNullMetrics() {
+        var branchId = new BranchId(UUID.randomUUID());
+        var instant = java.time.Instant.now();
+
+        var snapshot = new BranchAnalyticsSnapshot(
+                new com.tuxlogic.shiftiq.platform.analytics.domain.model.valueobjects.SnapshotId(UUID.randomUUID()),
+                branchId, LocalDate.now(), null, null, null, null, null, instant, instant);
+
+        assertThat(snapshot.getTotalRevenue()).isEqualTo(BigDecimal.ZERO);
+        assertThat(snapshot.getCompletedWorkOrdersCount()).isZero();
+        assertThat(snapshot.getTotalAppointmentsCount()).isZero();
+        assertThat(snapshot.getLowStockAlertsCount()).isZero();
+        assertThat(snapshot.getDtcAlertsCount()).isZero();
+    }
+
+    @Test
     @DisplayName("addRevenue increments revenue correctly")
     void addRevenueIncrements() {
         var snapshot = new BranchAnalyticsSnapshot(new BranchId(UUID.randomUUID()), LocalDate.now());

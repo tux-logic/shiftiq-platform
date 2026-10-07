@@ -1404,7 +1404,9 @@ Cuando una petición falla (`400 Bad Request`, `404 Not Found`, `409 Conflict`, 
 
 ### `GET /api/v1/analytics/branches/{branchId}/summary` — Resumen Ejecutivo del Día
 * **Seguridad:** Requiere Token (`Bearer JWT`). Rol `ADMIN` (cualquier sede), `OWNER` (solo las sedes de sus propios talleres) o personal asignado a la sede, validado por `MultiTenancySecurityService`. Fallo → `403`.
-* **Descripción:** Devuelve los KPIs acumulados del día para la sede seleccionada. Al estar optimizado con el aggregate `BranchAnalyticsSnapshot`, responde en menos de 50ms.
+* **Descripción:** Devuelve los KPIs acumulados del día para la sede seleccionada. El "día" se calcula con la zona horaria configurada en `analytics.zone-id` (default `America/Lima`), por lo que un evento de madrugada pertenece al día calendario del negocio, no al del servidor.
+* **Semántica de `totalRevenue`:** ingreso **reconocido** al completarse la orden de trabajo (no al cobrarse). Reabrir una orden completa revierte el ingreso y el contador de órdenes completadas; los valores nunca quedan negativos.
+* **Consistencia:** cada evento escribe con un `UPSERT` atómico por (sede, día); si la base no está disponible el cambio se encola en `branch_analytics_pending_deltas` y un job programado lo reproduce (máx. `analytics.replay-deltas.max-attempts`, default 10) sin duplicar registros.
 * **Path Variables:**
   * `branchId`: UUID de la sede (obligatorio).
 * **Respuesta Exitosa (`200 OK`):**
@@ -1418,9 +1420,11 @@ Cuando una petición falla (`400 Bad Request`, `404 Not Found`, `409 Conflict`, 
   "dtcAlertsCount": 1
 }
 ```
-* **Errores:**
-  * `403 Forbidden`: Si el usuario autenticado no pertenece a la sede solicitada.
-  * `400 Bad Request`: Si el `branchId` es inválido.
+* **Errores** (envelope estándar `{code, message, details}`):
+  * `400 Bad Request`: Si el `branchId` no es un UUID válido.
+  * `403 Forbidden` (`ACCESS_DENIED`): Si el usuario autenticado no puede leer la sede.
+  * `404 Not Found` (`BRANCH_NOT_FOUND`): Si la sede no existe (o fue eliminada).
+  * `500 Internal Server Error` (`UNEXPECTED_ERROR`): Si la consulta falla (el detalle se registra en el log).
 
 ---
 
@@ -1457,14 +1461,17 @@ Cuando una petición falla (`400 Bad Request`, `404 Not Found`, `409 Conflict`, 
   }
 ]
 ```
-* **Errores:**
-  * `403 Forbidden`: Usuario no autorizado para la sede.
+* **Errores** (envelope estándar `{code, message, details}`):
+  * `400 Bad Request`: Si `startDate` es posterior a `endDate`, si el rango supera 365 días o si alguna fecha no es ISO `YYYY-MM-DD`.
+  * `403 Forbidden` (`ACCESS_DENIED`): Usuario no autorizado para la sede.
+  * `404 Not Found` (`BRANCH_NOT_FOUND`): Si la sede no existe.
+  * `500 Internal Server Error` (`UNEXPECTED_ERROR`): Si la consulta falla.
 
 ---
 
 ### `GET /api/v1/analytics/network/summary` — Resumen Consolidado de Red Multisede
 * **Seguridad:** Requiere Token. Rol `ROLE_ADMIN` (toda la red) o `ROLE_OWNER` (aislado por tenant: solo sus propias sedes); otros roles → `403`.
-* **Descripción:** Consolida los KPIs del día de las sedes visibles para el usuario autenticado: `ADMIN` agrega toda la red de talleres, `OWNER` agrega únicamente las sedes de sus talleres. Un dueño sin talleres responde todo en ceros.
+* **Descripción:** Consolida los KPIs del día de las sedes visibles para el usuario autenticado: `ADMIN` agrega toda la red de talleres, `OWNER` agrega únicamente las sedes de sus talleres. Un dueño sin talleres responde todo en ceros. `totalActiveBranchesCount` cuenta las **sedes del alcance del usuario** (no dadas de baja), incluidas las que aún no tienen actividad registrada hoy; los demás campos suman únicamente los snapshots del día.
 * **Respuesta Exitosa (`200 OK`):**
 ```json
 {
@@ -1476,7 +1483,8 @@ Cuando una petición falla (`400 Bad Request`, `404 Not Found`, `409 Conflict`, 
 }
 ```
 * **Errores:**
-  * `403 Forbidden`: Si el usuario no tiene rol `ADMIN` ni `OWNER`.
+  * `403 Forbidden` (`ACCESS_DENIED`): Si el usuario no tiene rol `ADMIN` ni `OWNER`.
+  * `500 Internal Server Error` (`UNEXPECTED_ERROR`): Si la consulta falla.
 
 ---
 

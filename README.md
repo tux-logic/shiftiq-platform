@@ -63,12 +63,20 @@ La arquitectura sigue principios de **Domain-Driven Design (DDD)** con **Context
 - Evento de integración con UUIDs planos (sin depender de value objects de contexto)
 - Publicado por Fleet, consumido por IAM para otorgar acceso a la rama
 
+### Analytics (KPIs por sede y red)
+- `BranchAnalyticsSnapshot` por (sede, día): escrituras con `UPSERT` atómico `ON CONFLICT (branch_id, snapshot_date)` (sin read-modify-write, sin carrera por el índice único) y valores clampados ≥ 0; el día de negocio se resuelve con `analytics.zone-id` (default `America/Lima`)
+- Los eventos de dominio (`AppointmentCreated`, `WorkOrderCompleted`, `WorkOrderReopened`, `DtcAlertTriggered`, `LowStockAlert*`) pasan por `AnalyticsDeltaDispatcher`: si la escritura falla, el cambio se encola en `branch_analytics_pending_deltas` y `ReplayPendingAnalyticsDeltasJob` (cron `analytics.replay-deltas.cron`, default cada 5 min, tope `analytics.replay-deltas.max-attempts`) lo reproduce aplicando y borrando en la misma transacción
+- `lowStockAlertsCount` se recalcula desde inventario en cada alerta (no se incrementa); `totalRevenue` reconoce el ingreso al completar la orden y se revierte (con clamp) al reabrirla
+- Los 3 endpoints responden con el envelope de error estándar: `403 ACCESS_DENIED`, `404 BRANCH_NOT_FOUND`, `400` por rango de fechas inválido o mayor a 365 días y `500 UNEXPECTED_ERROR`
+- Migración `V13__align_branch_analytics_schema.sql`: elimina el índice redundante `idx_branch_analytics_branch_date` y crea la cola de deltas pendientes
+
 ### Capa de seguridad y multi-tenancy (commits 8, 14)
 - **AuthenticatedPrincipal** port en `shared` rompe la dependencia circular `shared ↔ iam`
 - `UserDetailsImpl` ahora implementa `AuthenticatedPrincipal` con métodos `getId()`, `hasRole(String)`, `hasBranch(UUID)`
 - **Valores nulos denegados por defecto**: `isAuthorizedForBranch(null)` → false, `isAuthorizedForUser(null)` → false
 - **Aislamiento SaaS multi-dueño (modelo de negocio: plataforma con dueños independientes)**: `ROLE_OWNER` solo accede a las sedes de sus propios talleres, resueltas por `TenantScopeResolver` (puerto en `shared`, implementación en `core`: usuario → owner → talleres → sedes). `ROLE_ADMIN` conserva acceso total; `/api/v1/analytics/network/summary` agrega únicamente las sedes del dueño autenticado
 - **Controladores**: `BranchesController`, `AppointmentsController`, `CustomerRegistrationsController`, `EmployeeRegistrationsController` usan la sobrecarga `isAuthorizedForBranch(BranchId)` que es nula-safe
+- **Perfiles de dueño y talleres acotados**: `POST/PUT/GET /owners` usa `isAuthorizedForSelf` y `POST/PUT/GET /workshops` usa `isAuthorizedForOwnerProfile` (ambos vía `TenantScopeResolver.findOwnerProfileIdForUser`); no aplican el bypass de `ROLE_OWNER` de `isAuthorizedForUser`, que se conserva solo para clientes/empleados (perfiles globales sin sucursal en el modelo de datos actual)
 
 ### Testing (55 tests verdes)
 - `GlobalExceptionHandlerTest`: 8 tests cubriendo los nuevos handlers y el comportamiento "no leak"

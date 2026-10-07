@@ -31,6 +31,8 @@ class MultiTenancySecurityServiceTest {
     private final UUID otherBranchId = UUID.randomUUID();
     private final UUID ownWorkshopId = UUID.randomUUID();
     private final UUID otherWorkshopId = UUID.randomUUID();
+    private final UUID ownOwnerProfileId = UUID.randomUUID();
+    private final UUID otherOwnerProfileId = UUID.randomUUID();
 
     @BeforeEach
     void setUp() {
@@ -60,10 +62,73 @@ class MultiTenancySecurityServiceTest {
     @Test
     @DisplayName("platform admin keeps unrestricted branch access")
     void adminHasUnrestrictedBranchAccess() {
+        when(tenantScopeResolver.findAllBranchIds()).thenReturn(Set.of(ownBranchId, otherBranchId));
         authenticate(principal(true, false, Set.of()));
 
         assertThat(service.isAuthorizedForBranch(otherBranchId)).isTrue();
-        assertThat(service.resolveNetworkAccessibleBranchIds()).isNull();
+        assertThat(service.resolveNetworkAccessibleBranchIds())
+                .containsExactlyInAnyOrder(ownBranchId, otherBranchId);
+    }
+
+    @Test
+    @DisplayName("branch existence is delegated to the scope resolver and fails closed on null")
+    void branchExistsDelegatesToResolver() {
+        when(tenantScopeResolver.branchExists(ownBranchId)).thenReturn(true);
+        when(tenantScopeResolver.branchExists(otherBranchId)).thenReturn(false);
+
+        assertThat(service.branchExists(ownBranchId)).isTrue();
+        assertThat(service.branchExists(otherBranchId)).isFalse();
+        assertThat(service.branchExists(null)).isFalse();
+        Mockito.verify(tenantScopeResolver, Mockito.never()).branchExists(null);
+    }
+
+    @Test
+    @DisplayName("owner only reaches its own owner profile, never another tenant's profile")
+    void ownerProfileAccessIsScopedToOwnProfile() {
+        when(tenantScopeResolver.findOwnerProfileIdForUser(userId)).thenReturn(ownOwnerProfileId);
+        authenticate(principal(false, true, Set.of()));
+
+        assertThat(service.isAuthorizedForOwnerProfile(ownOwnerProfileId)).isTrue();
+        assertThat(service.isAuthorizedForOwnerProfile(otherOwnerProfileId)).isFalse();
+        assertThat(service.isAuthorizedForOwnerProfile(null)).isFalse();
+    }
+
+    @Test
+    @DisplayName("admin reaches any owner profile")
+    void adminReachesAnyOwnerProfile() {
+        authenticate(principal(true, false, Set.of()));
+
+        assertThat(service.isAuthorizedForOwnerProfile(otherOwnerProfileId)).isTrue();
+    }
+
+    @Test
+    @DisplayName("a user without an owner profile is denied even when the resolver knows another profile")
+    void userWithoutOwnerProfileIsDenied() {
+        when(tenantScopeResolver.findOwnerProfileIdForUser(userId)).thenReturn(null);
+        authenticate(principal(false, false, Set.of()));
+
+        assertThat(service.isAuthorizedForOwnerProfile(ownOwnerProfileId)).isFalse();
+    }
+
+    @Test
+    @DisplayName("self access ignores the owner bypass: an owner cannot act for another user")
+    void selfAccessDoesNotApplyOwnerBypass() {
+        authenticate(principal(false, true, Set.of()));
+
+        assertThat(service.isAuthorizedForSelf(userId)).isTrue();
+        assertThat(service.isAuthorizedForSelf(otherOwnerProfileId)).isFalse();
+        assertThat(service.isAuthorizedForSelf(null)).isFalse();
+
+        authenticate(principal(true, false, Set.of()));
+        assertThat(service.isAuthorizedForSelf(otherOwnerProfileId)).isTrue();
+    }
+
+    @Test
+    @DisplayName("owner profile and self access fail closed without authentication")
+    void ownerProfileAndSelfFailClosedWithoutAuthentication() {
+        assertThat(service.isAuthorizedForOwnerProfile(ownOwnerProfileId)).isFalse();
+        assertThat(service.isAuthorizedForSelf(userId)).isFalse();
+        Mockito.verifyNoInteractions(tenantScopeResolver);
     }
 
     @Test

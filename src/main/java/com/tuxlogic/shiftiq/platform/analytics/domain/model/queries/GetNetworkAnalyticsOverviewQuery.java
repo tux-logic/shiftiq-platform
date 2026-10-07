@@ -6,7 +6,13 @@ import java.util.UUID;
 /**
  * Network-wide aggregation query.
  *
- * @param branchIds branch scope for the aggregation: {@code null} means unrestricted
- *                  (platform admin), an empty set means the caller may not see any branch
+ * @param branchIds branch scope for the aggregation: must be an explicit, non-null set;
+ *                  an empty set means the caller may not see any branch
  */
-public record GetNetworkAnalyticsOverviewQuery(Set<UUID> branchIds) {}
+public record GetNetworkAnalyticsOverviewQuery(Set<UUID> branchIds) {
+    public GetNetworkAnalyticsOverviewQuery {
+        if (branchIds == null) {
+            throw new IllegalArgumentException("analytics.error.branchScope.required");
+        }
+    }
+}

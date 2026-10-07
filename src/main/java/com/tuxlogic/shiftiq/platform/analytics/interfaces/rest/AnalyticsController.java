@@ -1,5 +1,6 @@
 package com.tuxlogic.shiftiq.platform.analytics.interfaces.rest;
 
+import com.tuxlogic.shiftiq.platform.analytics.application.internal.support.AnalyticsClock;
 import com.tuxlogic.shiftiq.platform.analytics.application.queryservices.AnalyticsQueryService;
 import com.tuxlogic.shiftiq.platform.analytics.domain.model.queries.GetBranchAnalyticsByDateRangeQuery;
 import com.tuxlogic.shiftiq.platform.analytics.domain.model.queries.GetBranchAnalyticsSummaryQuery;
@@ -7,12 +8,13 @@ import com.tuxlogic.shiftiq.platform.analytics.domain.model.queries.GetNetworkAn
 import com.tuxlogic.shiftiq.platform.analytics.interfaces.rest.resources.BranchAnalyticsSnapshotResource;
 import com.tuxlogic.shiftiq.platform.analytics.interfaces.rest.resources.BranchAnalyticsSummaryResource;
 import com.tuxlogic.shiftiq.platform.analytics.interfaces.rest.resources.NetworkAnalyticsOverviewResource;
+import com.tuxlogic.shiftiq.platform.shared.application.result.ApplicationError;
 import com.tuxlogic.shiftiq.platform.shared.domain.model.valueobjects.BranchId;
 import com.tuxlogic.shiftiq.platform.shared.infrastructure.security.MultiTenancySecurityService;
+import com.tuxlogic.shiftiq.platform.shared.interfaces.rest.transform.ErrorResponseAssembler;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.format.annotation.DateTimeFormat;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
@@ -28,22 +30,27 @@ public class AnalyticsController {
 
     private final AnalyticsQueryService queryService;
     private final MultiTenancySecurityService multiTenancySecurityService;
+    private final AnalyticsClock clock;
 
-    public AnalyticsController(AnalyticsQueryService queryService, MultiTenancySecurityService multiTenancySecurityService) {
+    public AnalyticsController(AnalyticsQueryService queryService,
+                               MultiTenancySecurityService multiTenancySecurityService,
+                               AnalyticsClock clock) {
         this.queryService = queryService;
         this.multiTenancySecurityService = multiTenancySecurityService;
+        this.clock = clock;
     }
 
     @GetMapping("/branches/{branchId}/summary")
     @Operation(summary = "Get branch analytics summary", description = "Retrieves current day executive KPI summary for a specific branch")
     public ResponseEntity<?> getBranchSummary(@PathVariable UUID branchId) {
-        if (!multiTenancySecurityService.isAuthorizedForBranch(branchId)) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        var blocked = requireBranchAccess(branchId);
+        if (blocked != null) {
+            return blocked;
         }
         var query = new GetBranchAnalyticsSummaryQuery(new BranchId(branchId));
         var result = queryService.handle(query);
         if (result.isFailure()) {
-            return ResponseEntity.badRequest().body(result.failure().get());
+            return internalFailure("branch analytics summary", result.failure().get());
         }
         var summary = result.success().get();
         var resource = new BranchAnalyticsSummaryResource(
@@ -63,28 +70,20 @@ public class AnalyticsController {
             @PathVariable UUID branchId,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
-        if (!multiTenancySecurityService.isAuthorizedForBranch(branchId)) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        var blocked = requireBranchAccess(branchId);
+        if (blocked != null) {
+            return blocked;
         }
-        var start = startDate != null ? startDate : LocalDate.now().minusDays(30);
-        var end = endDate != null ? endDate : LocalDate.now();
+        var start = startDate != null ? startDate : clock.today().minusDays(30);
+        var end = endDate != null ? endDate : clock.today();
 
         var query = new GetBranchAnalyticsByDateRangeQuery(new BranchId(branchId), start, end);
         var result = queryService.handle(query);
         if (result.isFailure()) {
-            return ResponseEntity.badRequest().body(result.failure().get());
+            return internalFailure("branch analytics range", result.failure().get());
         }
         var list = result.success().get().stream()
-                .map(s -> new BranchAnalyticsSnapshotResource(
-                        s.getId().value(),
-                        s.getBranchId().value(),
-                        s.getSnapshotDate(),
-                        s.getTotalRevenue(),
-                        s.getCompletedWorkOrdersCount(),
-                        s.getTotalAppointmentsCount(),
-                        s.getLowStockAlertsCount(),
-                        s.getDtcAlertsCount()
-                ))
+                .map(BranchAnalyticsSnapshotResource::from)
                 .toList();
         return ResponseEntity.ok(list);
     }
@@ -97,7 +96,7 @@ public class AnalyticsController {
         var query = new GetNetworkAnalyticsOverviewQuery(branchScope);
         var result = queryService.handle(query);
         if (result.isFailure()) {
-            return ResponseEntity.badRequest().body(result.failure().get());
+            return internalFailure("network analytics overview", result.failure().get());
         }
         var overview = result.success().get();
         var resource = new NetworkAnalyticsOverviewResource(
@@ -108,5 +107,27 @@ public class AnalyticsController {
                 overview.totalNetworkDtcAlerts()
         );
         return ResponseEntity.ok(resource);
+    }
+
+    /**
+     * Access gate for branch-scoped analytics: answers {@code 403} when the caller may not
+     * read the branch and {@code 404} when the branch does not exist, both with the
+     * standard error envelope. Returns {@code null} when the caller may proceed.
+     */
+    private ResponseEntity<?> requireBranchAccess(UUID branchId) {
+        if (!multiTenancySecurityService.isAuthorizedForBranch(branchId)) {
+            return ErrorResponseAssembler.toErrorResponseFromApplicationError(
+                    new ApplicationError("ACCESS_DENIED", "Access denied: insufficient permissions"));
+        }
+        if (!multiTenancySecurityService.branchExists(branchId)) {
+            return ErrorResponseAssembler.toErrorResponseFromApplicationError(
+                    ApplicationError.notFound("branch", String.valueOf(branchId)));
+        }
+        return null;
+    }
+
+    private ResponseEntity<?> internalFailure(String context, String failureKey) {
+        return ErrorResponseAssembler.toErrorResponseFromApplicationError(
+                ApplicationError.unexpected(context, "Failed to process the analytics request"));
     }
 }

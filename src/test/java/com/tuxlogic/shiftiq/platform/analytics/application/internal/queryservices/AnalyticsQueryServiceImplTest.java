@@ -1,5 +1,7 @@
 package com.tuxlogic.shiftiq.platform.analytics.application.internal.queryservices;
 
+import com.tuxlogic.shiftiq.platform.analytics.application.internal.dto.DailyAnalyticsSnapshot;
+import com.tuxlogic.shiftiq.platform.analytics.application.internal.support.AnalyticsClock;
 import com.tuxlogic.shiftiq.platform.analytics.domain.model.aggregates.BranchAnalyticsSnapshot;
 import com.tuxlogic.shiftiq.platform.analytics.domain.model.queries.GetBranchAnalyticsByDateRangeQuery;
 import com.tuxlogic.shiftiq.platform.analytics.domain.model.queries.GetBranchAnalyticsSummaryQuery;
@@ -19,6 +21,7 @@ import java.util.Set;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
@@ -31,7 +34,7 @@ class AnalyticsQueryServiceImplTest {
     @BeforeEach
     void setUp() {
         repository = Mockito.mock(BranchAnalyticsRepository.class);
-        queryService = new AnalyticsQueryServiceImpl(repository);
+        queryService = new AnalyticsQueryServiceImpl(repository, new AnalyticsClock("America/Lima"));
     }
 
     @Test
@@ -72,20 +75,23 @@ class AnalyticsQueryServiceImplTest {
     }
 
     @Test
-    @DisplayName("handle GetBranchAnalyticsByDateRangeQuery returns list of snapshots")
+    @DisplayName("handle GetBranchAnalyticsByDateRangeQuery returns read model DTOs ordered by date")
     void handleDateRange() {
         var branchId = new BranchId(UUID.randomUUID());
         var start = LocalDate.now().minusDays(7);
         var end = LocalDate.now();
         var snapshot = new BranchAnalyticsSnapshot(branchId, end);
 
-        when(repository.findByBranchIdAndSnapshotDateBetween(eq(branchId), eq(start), eq(end)))
+        when(repository.findByBranchIdAndSnapshotDateBetweenOrderBySnapshotDateAsc(eq(branchId), eq(start), eq(end)))
                 .thenReturn(List.of(snapshot));
 
         var result = queryService.handle(new GetBranchAnalyticsByDateRangeQuery(branchId, start, end));
 
         assertThat(result.isSuccess()).isTrue();
-        assertThat(result.success().get()).hasSize(1);
+        var range = result.success().get();
+        assertThat(range).hasSize(1);
+        assertThat(range.get(0)).isInstanceOf(DailyAnalyticsSnapshot.class);
+        assertThat(range.get(0).branchId()).isEqualTo(branchId.value());
     }
 
     @Test
@@ -99,10 +105,11 @@ class AnalyticsQueryServiceImplTest {
         b2.addRevenue(new BigDecimal("200.00"));
         b2.incrementCompletedWorkOrders();
 
-        when(repository.findBySnapshotDate(any(LocalDate.class)))
+        var scope = Set.of(b1.getBranchId().value(), b2.getBranchId().value());
+        when(repository.findBySnapshotDateAndBranchIdIn(any(LocalDate.class), eq(scope)))
                 .thenReturn(List.of(b1, b2));
 
-        var result = queryService.handle(new GetNetworkAnalyticsOverviewQuery(null));
+        var result = queryService.handle(new GetNetworkAnalyticsOverviewQuery(scope));
 
         assertThat(result.isSuccess()).isTrue();
         var overview = result.success().get();
@@ -112,10 +119,30 @@ class AnalyticsQueryServiceImplTest {
     }
 
     @Test
+    @DisplayName("totalActiveBranchesCount counts every branch in scope, not only branches with a snapshot")
+    void networkOverviewCountsBranchesWithoutSnapshot() {
+        var activeBranch = new BranchId(UUID.randomUUID());
+        var withoutActivity = UUID.randomUUID();
+        var scope = Set.of(activeBranch.value(), withoutActivity, UUID.randomUUID());
+
+        var snapshot = new BranchAnalyticsSnapshot(activeBranch, LocalDate.now());
+        snapshot.addRevenue(new BigDecimal("90.00"));
+
+        when(repository.findBySnapshotDateAndBranchIdIn(any(LocalDate.class), eq(scope)))
+                .thenReturn(List.of(snapshot));
+
+        var result = queryService.handle(new GetNetworkAnalyticsOverviewQuery(scope));
+
+        assertThat(result.isSuccess()).isTrue();
+        var overview = result.success().get();
+        assertThat(overview.totalActiveBranchesCount()).isEqualTo(3);
+        assertThat(overview.totalNetworkRevenue()).isEqualTo(new BigDecimal("90.00"));
+    }
+
+    @Test
     @DisplayName("handle GetNetworkAnalyticsOverviewQuery only aggregates the caller branch scope")
     void handleNetworkOverviewScopedToBranchIds() {
         var allowedBranch = new BranchId(UUID.randomUUID());
-        var blockedBranch = new BranchId(UUID.randomUUID());
 
         var allowed = new BranchAnalyticsSnapshot(allowedBranch, LocalDate.now());
         allowed.addRevenue(new BigDecimal("150.00"));
@@ -141,5 +168,26 @@ class AnalyticsQueryServiceImplTest {
         assertThat(overview.totalActiveBranchesCount()).isZero();
         assertThat(overview.totalNetworkRevenue()).isZero();
         Mockito.verifyNoInteractions(repository);
+    }
+
+    @Test
+    @DisplayName("handle GetNetworkAnalyticsOverviewQuery rejects a null scope")
+    void handleNetworkOverviewRejectsNullScope() {
+        assertThatThrownBy(() -> new GetNetworkAnalyticsOverviewQuery(null))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("analytics.error.branchScope.required");
+    }
+
+    @Test
+    @DisplayName("handle returns failure when the repository raises an unexpected error")
+    void handleReturnsFailureOnRepositoryError() {
+        var branchId = new BranchId(UUID.randomUUID());
+        when(repository.findByBranchIdAndSnapshotDate(eq(branchId), any(LocalDate.class)))
+                .thenThrow(new RuntimeException("boom"));
+
+        var result = queryService.handle(new GetBranchAnalyticsSummaryQuery(branchId));
+
+        assertThat(result.isFailure()).isTrue();
+        assertThat(result.failure().get()).isEqualTo("analytics.error.retrievalFailed");
     }
 }

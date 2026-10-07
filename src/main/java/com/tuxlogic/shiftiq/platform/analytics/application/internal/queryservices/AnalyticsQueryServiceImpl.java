@@ -1,6 +1,8 @@
 package com.tuxlogic.shiftiq.platform.analytics.application.internal.queryservices;
 
 import com.tuxlogic.shiftiq.platform.analytics.application.queryservices.AnalyticsQueryService;
+import com.tuxlogic.shiftiq.platform.analytics.application.internal.dto.DailyAnalyticsSnapshot;
+import com.tuxlogic.shiftiq.platform.analytics.application.internal.support.AnalyticsClock;
 import com.tuxlogic.shiftiq.platform.analytics.domain.model.aggregates.BranchAnalyticsSnapshot;
 import com.tuxlogic.shiftiq.platform.analytics.domain.model.queries.BranchAnalyticsSummary;
 import com.tuxlogic.shiftiq.platform.analytics.domain.model.queries.GetBranchAnalyticsByDateRangeQuery;
@@ -13,7 +15,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
-import java.time.LocalDate;
 import java.util.List;
 
 @Slf4j
@@ -21,15 +22,17 @@ import java.util.List;
 public class AnalyticsQueryServiceImpl implements AnalyticsQueryService {
 
     private final BranchAnalyticsRepository repository;
+    private final AnalyticsClock clock;
 
-    public AnalyticsQueryServiceImpl(BranchAnalyticsRepository repository) {
+    public AnalyticsQueryServiceImpl(BranchAnalyticsRepository repository, AnalyticsClock clock) {
         this.repository = repository;
+        this.clock = clock;
     }
 
     @Override
     public Result<BranchAnalyticsSummary, String> handle(GetBranchAnalyticsSummaryQuery query) {
         try {
-            var today = LocalDate.now();
+            var today = clock.today();
             var snapshotOpt = repository.findByBranchIdAndSnapshotDate(query.branchId(), today);
             
             var summary = snapshotOpt.map(s -> new BranchAnalyticsSummary(
@@ -52,9 +55,12 @@ public class AnalyticsQueryServiceImpl implements AnalyticsQueryService {
     }
 
     @Override
-    public Result<List<BranchAnalyticsSnapshot>, String> handle(GetBranchAnalyticsByDateRangeQuery query) {
+    public Result<List<DailyAnalyticsSnapshot>, String> handle(GetBranchAnalyticsByDateRangeQuery query) {
         try {
-            var list = repository.findByBranchIdAndSnapshotDateBetween(query.branchId(), query.startDate(), query.endDate());
+            var list = repository.findByBranchIdAndSnapshotDateBetweenOrderBySnapshotDateAsc(query.branchId(), query.startDate(), query.endDate())
+                    .stream()
+                    .map(DailyAnalyticsSnapshot::from)
+                    .toList();
             return Result.success(list);
         } catch (Exception ex) {
             log.error("Error retrieving branch analytics range for branch {}: {}", query.branchId().value(), ex.getMessage());
@@ -65,15 +71,11 @@ public class AnalyticsQueryServiceImpl implements AnalyticsQueryService {
     @Override
     public Result<NetworkAnalyticsOverview, String> handle(GetNetworkAnalyticsOverviewQuery query) {
         try {
-            var today = LocalDate.now();
-            List<BranchAnalyticsSnapshot> snapshots;
-            if (query.branchIds() == null) {
-                snapshots = repository.findBySnapshotDate(today);
-            } else if (query.branchIds().isEmpty()) {
-                snapshots = List.of();
-            } else {
-                snapshots = repository.findBySnapshotDateAndBranchIdIn(today, query.branchIds());
+            if (query.branchIds().isEmpty()) {
+                return Result.success(new NetworkAnalyticsOverview(0, BigDecimal.ZERO, 0, 0, 0));
             }
+            var today = clock.today();
+            var snapshots = repository.findBySnapshotDateAndBranchIdIn(today, query.branchIds());
 
             var totalRevenue = snapshots.stream()
                     .map(BranchAnalyticsSnapshot::getTotalRevenue)
@@ -92,7 +94,7 @@ public class AnalyticsQueryServiceImpl implements AnalyticsQueryService {
                     .sum();
 
             var overview = new NetworkAnalyticsOverview(
-                    snapshots.size(),
+                    query.branchIds().size(),
                     totalRevenue,
                     totalWorkOrders,
                     totalAppointments,

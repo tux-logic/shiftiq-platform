@@ -7,6 +7,7 @@ import com.tuxlogic.shiftiq.platform.operations.domain.model.events.TaskReopened
 import com.tuxlogic.shiftiq.platform.operations.domain.model.events.TaskStartedEvent;
 import com.tuxlogic.shiftiq.platform.operations.domain.model.events.WorkOrderCompletedEvent;
 import com.tuxlogic.shiftiq.platform.operations.domain.model.events.WorkOrderPaidEvent;
+import com.tuxlogic.shiftiq.platform.operations.domain.model.events.WorkOrderReopenedEvent;
 import com.tuxlogic.shiftiq.platform.operations.domain.model.valueobjects.*;
 import com.tuxlogic.shiftiq.platform.shared.domain.model.events.ProductReservationCanceledEvent;
 import com.tuxlogic.shiftiq.platform.shared.domain.model.events.ProductReservedEvent;
@@ -195,6 +196,7 @@ public class WorkOrder extends AbstractDomainAggregateRoot<WorkOrder> {
         if (task.reopen()) {
             if (this.status == WorkOrderStatus.COMPLETED) {
                 this.status = WorkOrderStatus.IN_PROGRESS;
+                this.registerEvent(new WorkOrderReopenedEvent(this, this.branchId, this.id, this.appointmentId, this.totalAmount));
             }
             this.registerEvent(new TaskReopenedEvent(this, this.branchId, this.id, taskId));
         }

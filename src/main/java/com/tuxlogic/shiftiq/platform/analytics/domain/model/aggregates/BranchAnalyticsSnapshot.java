@@ -50,6 +50,18 @@ public class BranchAnalyticsSnapshot extends AbstractDomainAggregateRoot<BranchA
                                    BigDecimal totalRevenue, Integer completedWorkOrdersCount,
                                    Integer totalAppointmentsCount, Integer lowStockAlertsCount,
                                    Integer dtcAlertsCount, Instant createdAt, Instant updatedAt) {
+        if (id == null) {
+            throw new IllegalArgumentException("analytics.error.snapshotId.required");
+        }
+        if (branchId == null) {
+            throw new IllegalArgumentException("analytics.error.branchId.required");
+        }
+        if (snapshotDate == null) {
+            throw new IllegalArgumentException("analytics.error.snapshotDate.required");
+        }
+        if (createdAt == null || updatedAt == null) {
+            throw new IllegalArgumentException("analytics.error.snapshotTimestamps.required");
+        }
         this.id = id;
         this.branchId = branchId;
         this.snapshotDate = snapshotDate;
@@ -61,7 +73,6 @@ public class BranchAnalyticsSnapshot extends AbstractDomainAggregateRoot<BranchA
         this.createdAt = createdAt;
         this.updatedAt = updatedAt;
     }
-
     public void addRevenue(BigDecimal amount) {
         if (amount != null && amount.compareTo(BigDecimal.ZERO) > 0) {
             this.totalRevenue = this.totalRevenue.add(amount);

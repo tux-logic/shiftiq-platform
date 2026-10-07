@@ -53,4 +53,24 @@ public class CoreTenantScopeResolver implements TenantScopeResolver {
                 .map(BranchPersistenceEntity::getId)
                 .collect(Collectors.toSet());
     }
+
+    @Override
+    public UUID findOwnerProfileIdForUser(UUID userId) {
+        if (userId == null) {
+            return null;
+        }
+        return ownerRepository.findByUserId(userId).map(owner -> owner.getId()).orElse(null);
+    }
+
+    @Override
+    public Set<UUID> findAllBranchIds() {
+        return branchRepository.findAll().stream()
+                .map(BranchPersistenceEntity::getId)
+                .collect(Collectors.toSet());
+    }
+
+    @Override
+    public boolean branchExists(UUID branchId) {
+        return branchId != null && branchRepository.existsById(branchId);
+    }
 }

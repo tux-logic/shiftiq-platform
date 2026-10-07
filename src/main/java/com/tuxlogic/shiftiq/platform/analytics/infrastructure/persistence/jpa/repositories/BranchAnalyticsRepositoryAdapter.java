@@ -1,12 +1,14 @@
 package com.tuxlogic.shiftiq.platform.analytics.infrastructure.persistence.jpa.repositories;
 
 import com.tuxlogic.shiftiq.platform.analytics.domain.model.aggregates.BranchAnalyticsSnapshot;
+import com.tuxlogic.shiftiq.platform.analytics.domain.model.valueobjects.AnalyticsDelta;
 import com.tuxlogic.shiftiq.platform.analytics.domain.model.valueobjects.SnapshotId;
 import com.tuxlogic.shiftiq.platform.analytics.domain.repositories.BranchAnalyticsRepository;
 import com.tuxlogic.shiftiq.platform.analytics.infrastructure.persistence.jpa.entities.BranchAnalyticsSnapshotPersistenceEntity;
 import com.tuxlogic.shiftiq.platform.shared.domain.model.valueobjects.BranchId;
 import org.springframework.stereotype.Component;
 
+import java.time.Instant;
 import java.time.LocalDate;
 import java.util.Collection;
 import java.util.List;
@@ -40,8 +42,8 @@ public class BranchAnalyticsRepositoryAdapter implements BranchAnalyticsReposito
     }
 
     @Override
-    public List<BranchAnalyticsSnapshot> findByBranchIdAndSnapshotDateBetween(BranchId branchId, LocalDate startDate, LocalDate endDate) {
-        return jpaRepository.findByBranchIdAndSnapshotDateBetween(branchId.value(), startDate, endDate)
+    public List<BranchAnalyticsSnapshot> findByBranchIdAndSnapshotDateBetweenOrderBySnapshotDateAsc(BranchId branchId, LocalDate startDate, LocalDate endDate) {
+        return jpaRepository.findByBranchIdAndSnapshotDateBetweenOrderBySnapshotDateAsc(branchId.value(), startDate, endDate)
                 .stream()
                 .map(this::toDomain)
                 .toList();
@@ -61,6 +63,29 @@ public class BranchAnalyticsRepositoryAdapter implements BranchAnalyticsReposito
                 .stream()
                 .map(this::toDomain)
                 .toList();
+    }
+
+    @Override
+    public int applyDelta(BranchId branchId, LocalDate snapshotDate, AnalyticsDelta delta) {
+        return jpaRepository.applyDelta(
+                UUID.randomUUID(),
+                branchId.value(),
+                snapshotDate,
+                delta.revenue(),
+                delta.workOrders(),
+                delta.appointments(),
+                delta.dtcAlerts(),
+                Instant.now());
+    }
+
+    @Override
+    public int setLowStockAlertsCount(BranchId branchId, LocalDate snapshotDate, int lowStockCount) {
+        return jpaRepository.upsertLowStockAlertsCount(
+                UUID.randomUUID(),
+                branchId.value(),
+                snapshotDate,
+                lowStockCount,
+                Instant.now());
     }
 
     private BranchAnalyticsSnapshotPersistenceEntity toEntity(BranchAnalyticsSnapshot snapshot) {

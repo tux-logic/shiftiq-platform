@@ -25,4 +25,23 @@ public interface TenantScopeResolver {
      * @return the branch ids belonging to the workshops owned by the user, empty when none
      */
     Set<UUID> findBranchIdsForUser(UUID userId);
+
+    /**
+     * @param userId identifier of the authenticated user
+     * @return the owner profile identifier linked to the user, or {@code null} when the
+     *         user has no owner profile
+     */
+    UUID findOwnerProfileIdForUser(UUID userId);
+
+    /**
+     * @return the ids of every non-deleted branch of the platform (including branches
+     *         without an owner), used for unrestricted aggregation scopes
+     */
+    Set<UUID> findAllBranchIds();
+
+    /**
+     * @param branchId identifier of the branch to check
+     * @return {@code true} only when the branch exists and is not soft deleted
+     */
+    boolean branchExists(UUID branchId);
 }
