@@ -45,9 +45,9 @@ public class OwnersController {
 
     @Operation(summary = "Create a new owner profile", description = "Creates a new owner profile associated with a user ID")
     @PostMapping
-    @PreAuthorize("isAuthenticated() and @multiTenancySecurityService.isAuthorizedForUser(#resource.userId())")
+    @PreAuthorize("isAuthenticated() and @multiTenancySecurityService.isAuthorizedForSelf(#resource.userId())")
     public ResponseEntity<OwnerResource> createOwner(@Valid @RequestBody CreateOwnerResource resource) {
-        multiTenancySecurityService.validateUserAccess(resource.userId());
+        multiTenancySecurityService.validateSelfAccess(resource.userId());
         var command = CreateOwnerCommandFromResourceAssembler.toCommandFromResource(resource);
         var owner = ownerCommandService.handle(command);
         if (owner.isEmpty()) {
@@ -62,7 +62,7 @@ public class OwnersController {
     @PutMapping("/{ownerId}")
     public ResponseEntity<OwnerResource> updateOwner(@PathVariable UUID ownerId, @Valid @RequestBody UpdateOwnerResource resource) {
         var existing = ownerQueryService.handle(new GetOwnerByIdQuery(new OwnerId(ownerId)));
-        existing.ifPresent(o -> multiTenancySecurityService.validateUserAccess(o.getUserId().value()));
+        existing.ifPresent(o -> multiTenancySecurityService.validateSelfAccess(o.getUserId().value()));
 
         var command = UpdateOwnerCommandFromResourceAssembler.toCommandFromResource(ownerId, resource);
         var owner = ownerCommandService.handle(command);
@@ -83,7 +83,7 @@ public class OwnersController {
             return ResponseEntity.notFound().build();
         }
 
-        multiTenancySecurityService.validateUserAccess(owner.get().getUserId().value());
+        multiTenancySecurityService.validateSelfAccess(owner.get().getUserId().value());
         var ownerResource = OwnerResourceFromEntityAssembler.toResourceFromEntity(owner.get());
         return ResponseEntity.ok(ownerResource);
     }
@@ -91,7 +91,7 @@ public class OwnersController {
     @Operation(summary = "Get an owner profile by User ID", description = "Retrieves the details of a specific owner profile using the User ID")
     @GetMapping
     public ResponseEntity<OwnerResource> getOwnerByUserId(@RequestParam(name = "userId") UUID userId) {
-        multiTenancySecurityService.validateUserAccess(userId);
+        multiTenancySecurityService.validateSelfAccess(userId);
         var query = new GetOwnerByUserIdQuery(new UserId(userId));
         var owner = ownerQueryService.handle(query);
         if (owner.isEmpty()) {
@@ -106,7 +106,7 @@ public class OwnersController {
     @DeleteMapping("/{ownerId}")
     public ResponseEntity<?> deleteOwner(@PathVariable UUID ownerId) {
         var existing = ownerQueryService.handle(new GetOwnerByIdQuery(new OwnerId(ownerId)));
-        existing.ifPresent(o -> multiTenancySecurityService.validateUserAccess(o.getUserId().value()));
+        existing.ifPresent(o -> multiTenancySecurityService.validateSelfAccess(o.getUserId().value()));
 
         var command = new DeleteOwnerCommand(new OwnerId(ownerId));
         ownerCommandService.handle(command);

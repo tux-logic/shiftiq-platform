@@ -92,7 +92,7 @@ public class TokenServiceImpl implements BearerTokenService {
         }
         try {
             var claims = extractAllClaims(token);
-            if (!REFRESH_TOKEN_AUDIENCE.equals(claims.getAudience())) {
+            if (claims.getAudience() == null || !claims.getAudience().contains(REFRESH_TOKEN_AUDIENCE)) {
                 return Optional.empty();
             }
             return Optional.of(new RefreshTokenClaims(claims.getSubject(), claims.getExpiration().toInstant()));
@@ -127,7 +127,7 @@ public class TokenServiceImpl implements BearerTokenService {
     public boolean validateToken(String token) {
         try {
             var claims = extractAllClaims(token);
-            return ACCESS_TOKEN_AUDIENCE.equals(claims.getAudience());
+            return claims.getAudience() != null && claims.getAudience().contains(ACCESS_TOKEN_AUDIENCE);
         } catch (Exception e) {
             return false;
         }

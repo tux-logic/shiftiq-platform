@@ -7,6 +7,7 @@ import com.tuxlogic.shiftiq.platform.inventory.infrastructure.persistence.jpa.en
 import com.tuxlogic.shiftiq.platform.inventory.infrastructure.persistence.jpa.entities.ProductJpaEntity;
 import com.tuxlogic.shiftiq.platform.inventory.infrastructure.persistence.jpa.repositories.ProductJpaRepository;
 import com.tuxlogic.shiftiq.platform.shared.domain.model.valueobjects.BranchId;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -24,9 +25,12 @@ import java.util.UUID;
 @Transactional(readOnly = true)
 public class ProductRepositoryAdapter implements ProductRepository {
     private final ProductJpaRepository jpaRepository;
+    private final ApplicationEventPublisher eventPublisher;
 
-    public ProductRepositoryAdapter(ProductJpaRepository jpaRepository) {
+    public ProductRepositoryAdapter(ProductJpaRepository jpaRepository,
+                                    ApplicationEventPublisher eventPublisher) {
         this.jpaRepository = jpaRepository;
+        this.eventPublisher = eventPublisher;
     }
 
     @Override
@@ -40,6 +44,8 @@ public class ProductRepositoryAdapter implements ProductRepository {
         }
         ProductEntityAssembler.toEntity(product, entity);
         var savedEntity = jpaRepository.save(entity);
+        product.domainEvents().forEach(eventPublisher::publishEvent);
+        product.clearDomainEvents();
         return ProductEntityAssembler.toAggregate(savedEntity);
     }
 
