@@ -73,4 +73,22 @@ public class CoreTenantScopeResolver implements TenantScopeResolver {
     public boolean branchExists(UUID branchId) {
         return branchId != null && branchRepository.existsById(branchId);
     }
+
+    @Override
+    public UUID findWorkshopIdForBranch(UUID branchId) {
+        if (branchId == null) {
+            return null;
+        }
+        return branchRepository.findById(branchId)
+                .map(BranchPersistenceEntity::getWorkshopId)
+                .orElse(null);
+    }
+
+    @Override
+    public int countBranchesForWorkshop(UUID workshopId) {
+        if (workshopId == null) {
+            return 0;
+        }
+        return branchRepository.findAllByWorkshopId(workshopId).size();
+    }
 }

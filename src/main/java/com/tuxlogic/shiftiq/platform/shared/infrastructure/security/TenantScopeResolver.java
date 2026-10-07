@@ -44,4 +44,16 @@ public interface TenantScopeResolver {
      * @return {@code true} only when the branch exists and is not soft deleted
      */
     boolean branchExists(UUID branchId);
+
+    /**
+     * @param branchId identifier of the branch
+     * @return the workshop id that owns this branch, or null if branch not found
+     */
+    UUID findWorkshopIdForBranch(UUID branchId);
+
+    /**
+     * @param workshopId identifier of the workshop
+     * @return the number of non-deleted branches belonging to the workshop
+     */
+    int countBranchesForWorkshop(UUID workshopId);
 }

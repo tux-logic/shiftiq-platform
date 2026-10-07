@@ -94,7 +94,10 @@ public class MultiTenancySecurityService {
             if (authenticatedPrincipal.getId().equals(userId)) {
                 return true;
             }
-            return authenticatedPrincipal.hasRole("ROLE_ADMIN") || authenticatedPrincipal.hasRole("ROLE_OWNER");
+            return authenticatedPrincipal.hasRole("ROLE_ADMIN")
+                    || authenticatedPrincipal.hasRole("ROLE_OWNER")
+                    || authenticatedPrincipal.hasRole("ROLE_BRANCH_MANAGER")
+                    || authenticatedPrincipal.hasRole("ROLE_ASSISTANT");
         }
         return false;
     }
@@ -183,6 +186,13 @@ public class MultiTenancySecurityService {
             if (authenticatedPrincipal.hasRole("ROLE_OWNER")) {
                 return tenantScopeResolver.findWorkshopIdsForUser(authenticatedPrincipal.getId()).contains(workshopId);
             }
+            if (authenticatedPrincipal.hasRole("ROLE_BRANCH_MANAGER") || authenticatedPrincipal.hasRole("ROLE_ASSISTANT")) {
+                for (UUID assignedBranchId : authenticatedPrincipal.getBranchIds()) {
+                    if (workshopId.equals(tenantScopeResolver.findWorkshopIdForBranch(assignedBranchId))) {
+                        return true;
+                    }
+                }
+            }
             return false;
         }
         return false;
@@ -191,6 +201,86 @@ public class MultiTenancySecurityService {
     public void validateWorkshopAccess(UUID workshopId) {
         if (!isAuthorizedForWorkshop(workshopId)) {
             throw new AccessDeniedException("Unauthorized access for requested workshop identifier: " + workshopId);
+        }
+    }
+
+    /**
+     * Enforces the hierarchical onboarding and staff management rules for a branch:
+     * - ADMIN: can manage any staff role.
+     * - OWNER:
+     *     - Must own the branch.
+     *     - Can assign ROLE_BRANCH_MANAGER.
+     *     - In single-branch workshops (branch count &lt;= 1), the owner acts as manager
+     *       and can assign ROLE_ASSISTANT (or ROLE_EMPLOYEE directly).
+     *     - In multi-branch workshops, delegation is enforced: OWNER assigns the BRANCH_MANAGER,
+     *       who in turn manages branch staff.
+     * - BRANCH_MANAGER:
+     *     - Must be assigned to the branch.
+     *     - Can assign ROLE_ASSISTANT and ROLE_EMPLOYEE.
+     * - ASSISTANT:
+     *     - Must be assigned to the branch.
+     *     - Can assign technical/operational staff (ROLE_EMPLOYEE: mechanics, electricians, etc.).
+     * - EMPLOYEE:
+     *     - Cannot manage or assign other staff.
+     *
+     * @param targetRoleName role to be assigned to the employee
+     * @param branchId branch where the staff is being registered
+     * @return true if permitted by hierarchy, false otherwise
+     */
+    public boolean canManageStaff(String targetRoleName, UUID branchId) {
+        if (targetRoleName == null || branchId == null) {
+            return false;
+        }
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null || !authentication.isAuthenticated()) {
+            return false;
+        }
+        Object principal = authentication.getPrincipal();
+        if (!(principal instanceof AuthenticatedPrincipal authenticatedPrincipal)) {
+            return false;
+        }
+        if (authenticatedPrincipal.hasRole("ROLE_ADMIN")) {
+            return true;
+        }
+        if (!isAuthorizedForBranch(branchId)) {
+            return false;
+        }
+
+        String normalizedTarget = targetRoleName.toUpperCase().trim();
+        if (!normalizedTarget.startsWith("ROLE_")) {
+            normalizedTarget = "ROLE_" + normalizedTarget;
+        }
+
+        UUID workshopId = tenantScopeResolver.findWorkshopIdForBranch(branchId);
+        int branchCount = workshopId != null ? tenantScopeResolver.countBranchesForWorkshop(workshopId) : 1;
+        boolean isSingleBranchWorkshop = branchCount <= 1;
+
+        if (authenticatedPrincipal.hasRole("ROLE_OWNER")) {
+            if ("ROLE_BRANCH_MANAGER".equals(normalizedTarget)) {
+                return true;
+            }
+            if (isSingleBranchWorkshop) {
+                return "ROLE_ASSISTANT".equals(normalizedTarget) || "ROLE_EMPLOYEE".equals(normalizedTarget);
+            }
+            return false;
+        }
+
+        if (authenticatedPrincipal.hasRole("ROLE_BRANCH_MANAGER")) {
+            return "ROLE_ASSISTANT".equals(normalizedTarget) || "ROLE_EMPLOYEE".equals(normalizedTarget);
+        }
+
+        if (authenticatedPrincipal.hasRole("ROLE_ASSISTANT")) {
+            return "ROLE_EMPLOYEE".equals(normalizedTarget);
+        }
+
+        return false;
+    }
+
+    public void validateStaffManagement(String targetRoleName, UUID branchId) {
+        if (!canManageStaff(targetRoleName, branchId)) {
+            throw new AccessDeniedException(String.format(
+                    "Unauthorized to manage staff with role '%s' for branch '%s' under workshop hierarchy",
+                    targetRoleName, branchId));
         }
     }
 

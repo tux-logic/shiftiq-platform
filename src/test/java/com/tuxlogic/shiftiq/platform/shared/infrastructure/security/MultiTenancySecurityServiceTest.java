@@ -198,6 +198,66 @@ class MultiTenancySecurityServiceTest {
         assertThat(service.resolveNetworkAccessibleBranchIds()).isNotNull().isEmpty();
     }
 
+    @Test
+    @DisplayName("owner can assign branch manager, and in single branch workshop can assign assistant and employee")
+    void ownerStaffManagementHierarchy() {
+        authenticate(principal(false, true, Set.of(ownBranchId)));
+        when(tenantScopeResolver.findWorkshopIdForBranch(ownBranchId)).thenReturn(ownWorkshopId);
+        when(tenantScopeResolver.countBranchesForWorkshop(ownWorkshopId)).thenReturn(1);
+
+        assertThat(service.canManageStaff("ROLE_BRANCH_MANAGER", ownBranchId)).isTrue();
+        assertThat(service.canManageStaff("ROLE_ASSISTANT", ownBranchId)).isTrue();
+        assertThat(service.canManageStaff("ROLE_EMPLOYEE", ownBranchId)).isTrue();
+
+        // Multi branch workshop: owner must delegate and can only assign branch manager
+        when(tenantScopeResolver.countBranchesForWorkshop(ownWorkshopId)).thenReturn(3);
+        assertThat(service.canManageStaff("ROLE_BRANCH_MANAGER", ownBranchId)).isTrue();
+        assertThat(service.canManageStaff("ROLE_ASSISTANT", ownBranchId)).isFalse();
+        assertThat(service.canManageStaff("ROLE_EMPLOYEE", ownBranchId)).isFalse();
+    }
+
+    @Test
+    @DisplayName("branch manager can assign assistant and employee, but not manager")
+    void branchManagerStaffManagementHierarchy() {
+        var mgrPrincipal = Mockito.mock(AuthenticatedPrincipal.class);
+        Mockito.lenient().when(mgrPrincipal.getId()).thenReturn(userId);
+        Mockito.lenient().when(mgrPrincipal.hasRole("ROLE_ADMIN")).thenReturn(false);
+        Mockito.lenient().when(mgrPrincipal.hasRole("ROLE_OWNER")).thenReturn(false);
+        Mockito.lenient().when(mgrPrincipal.hasRole("ROLE_BRANCH_MANAGER")).thenReturn(true);
+        Mockito.lenient().when(mgrPrincipal.hasRole("ROLE_ASSISTANT")).thenReturn(false);
+        Mockito.lenient().when(mgrPrincipal.getBranchIds()).thenReturn(Set.of(ownBranchId));
+        Mockito.lenient().when(mgrPrincipal.hasBranch(ownBranchId)).thenReturn(true);
+        authenticate(mgrPrincipal);
+
+        when(tenantScopeResolver.findWorkshopIdForBranch(ownBranchId)).thenReturn(ownWorkshopId);
+        when(tenantScopeResolver.countBranchesForWorkshop(ownWorkshopId)).thenReturn(2);
+
+        assertThat(service.canManageStaff("ROLE_BRANCH_MANAGER", ownBranchId)).isFalse();
+        assertThat(service.canManageStaff("ROLE_ASSISTANT", ownBranchId)).isTrue();
+        assertThat(service.canManageStaff("ROLE_EMPLOYEE", ownBranchId)).isTrue();
+    }
+
+    @Test
+    @DisplayName("assistant can only assign employee")
+    void assistantStaffManagementHierarchy() {
+        var asstPrincipal = Mockito.mock(AuthenticatedPrincipal.class);
+        Mockito.lenient().when(asstPrincipal.getId()).thenReturn(userId);
+        Mockito.lenient().when(asstPrincipal.hasRole("ROLE_ADMIN")).thenReturn(false);
+        Mockito.lenient().when(asstPrincipal.hasRole("ROLE_OWNER")).thenReturn(false);
+        Mockito.lenient().when(asstPrincipal.hasRole("ROLE_BRANCH_MANAGER")).thenReturn(false);
+        Mockito.lenient().when(asstPrincipal.hasRole("ROLE_ASSISTANT")).thenReturn(true);
+        Mockito.lenient().when(asstPrincipal.getBranchIds()).thenReturn(Set.of(ownBranchId));
+        Mockito.lenient().when(asstPrincipal.hasBranch(ownBranchId)).thenReturn(true);
+        authenticate(asstPrincipal);
+
+        when(tenantScopeResolver.findWorkshopIdForBranch(ownBranchId)).thenReturn(ownWorkshopId);
+        when(tenantScopeResolver.countBranchesForWorkshop(ownWorkshopId)).thenReturn(2);
+
+        assertThat(service.canManageStaff("ROLE_BRANCH_MANAGER", ownBranchId)).isFalse();
+        assertThat(service.canManageStaff("ROLE_ASSISTANT", ownBranchId)).isFalse();
+        assertThat(service.canManageStaff("ROLE_EMPLOYEE", ownBranchId)).isTrue();
+    }
+
     private AuthenticatedPrincipal principal(boolean admin, boolean owner, Set<UUID> memberships) {
         var principal = Mockito.mock(AuthenticatedPrincipal.class);
         Mockito.lenient().when(principal.getId()).thenReturn(userId);

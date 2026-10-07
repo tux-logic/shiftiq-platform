@@ -7,5 +7,7 @@ public enum Roles {
     ROLE_USER,
     ROLE_ADMIN,
     ROLE_EMPLOYEE,
-    ROLE_OWNER
+    ROLE_OWNER,
+    ROLE_BRANCH_MANAGER,
+    ROLE_ASSISTANT
 }
