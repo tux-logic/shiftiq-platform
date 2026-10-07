@@ -92,8 +92,7 @@ Cuando una petición falla (`400 Bad Request`, `404 Not Found`, `409 Conflict`, 
 * **Respuesta Exitosa (`201 CREATED`):**
 ```json
 {
-  "url": "https://res.cloudinary.com/shiftiq/image/upload/v1728329482/vehicles/sample-photo.jpg",
-  "message": "File uploaded successfully"
+  "url": "https://res.cloudinary.com/shiftiq/image/upload/v1728329482/vehicles/sample-photo.jpg"
 }
 ```
 
@@ -119,7 +118,7 @@ Cuando una petición falla (`400 Bad Request`, `404 Not Found`, `409 Conflict`, 
   "role": "ROLE_EMPLOYEE",
   "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
   "refreshToken": "d8c7b6a5-4321-4f9e-8d2a-112233445566",
-  "accessTokenExpiresInSeconds": 86400
+  "accessTokenExpiresInSeconds": 900
 }
 ```
 
@@ -505,6 +504,11 @@ Cuando una petición falla (`400 Bad Request`, `404 Not Found`, `409 Conflict`, 
   * `customerId` (opcional): UUID del cliente.
 * **Respuesta Exitosa (`200 OK`):** Retorna `List<CustomerRegistrationResource>`.
 
+#### `GET /api/v1/customer-registrations/{registrationId}` — Detalle de Vinculación
+* **Seguridad:** Requiere Token
+* **Descripción:** Devuelve el detalle de una vinculación cliente↔sede por su ID.
+* **Respuesta Exitosa (`200 OK`):** Retorna `CustomerRegistrationResource`.
+
 #### `PUT /api/v1/customer-registrations/{registrationId}` — Cambiar Estado
 * **Request Body:**
 ```json
@@ -520,6 +524,21 @@ Cuando una petición falla (`400 Bad Request`, `404 Not Found`, `409 Conflict`, 
 ---
 
 ### 👷 Flujo de Solicitud y Contratación de Mecánicos (Employee Registrations)
+
+#### `POST /api/v1/employee-registrations` — Crear Registro de Empleado en Sede
+* **Seguridad:** Requiere Token (Administrador o con acceso a la sede)
+* **Descripción:** Crea directamente un registro de empleado en una sede (alta manual), sin pasar por el flujo de `request-join` + aprobación. El registro nace en estado `ACTIVE`.
+* **Request Body:**
+```json
+{
+  "employeeId": "a2b3c4d5-6666-7777-8888-999900001111",
+  "branchId": "c3d4e5f6-3333-4444-5555-666677778888",
+  "speciality": "MOTOR_DIESEL",
+  "specialityName": "Especialista en Motores Diésel e Inyección",
+  "salary": 2500.00
+}
+```
+* **Respuesta Exitosa (`201 CREATED`):** Retorna `EmployeeRegistrationResource`.
 
 #### `POST /api/v1/employee-registrations/request-join` — Mecánico Solicita Unirse a Sede
 * **Seguridad:** Requiere Token (`ROLE_EMPLOYEE`)
@@ -568,6 +587,11 @@ Cuando una petición falla (`400 Bad Request`, `404 Not Found`, `409 Conflict`, 
   * `status` (opcional): `ACTIVE`, `PENDING_APPROVAL`, `REJECTED`, `INACTIVE`.
   * `employeeId` (opcional): UUID del empleado.
 * **Respuesta Exitosa (`200 OK`):** Retorna `List<EmployeeRegistrationResource>`.
+
+#### `GET /api/v1/employee-registrations/{id}` — Detalle de Registro de Empleado
+* **Seguridad:** Requiere Token
+* **Descripción:** Devuelve el detalle de un registro de empleado en una sede por su ID.
+* **Respuesta Exitosa (`200 OK`):** Retorna `EmployeeRegistrationResource`.
 
 #### `PUT /api/v1/employee-registrations/{id}` — Actualizar Especialidad / Salario
 * **Request Body:**
@@ -675,6 +699,14 @@ Cuando una petición falla (`400 Bad Request`, `404 Not Found`, `409 Conflict`, 
 }
 ```
 
+#### `GET /api/v1/vehicles?branchId={branchId}&status={status}` — Listar Vehículos por Sede
+* **Seguridad:** Requiere Token (acceso a la sede)
+* **Descripción:** Lista los vehículos de una sede. Único valor soportado para `status` hoy: `available-for-linking` (vehículos listos para vincular a un escáner OBD2); cualquier otro valor responde `422 Unprocessable Content`.
+* **Query Params:**
+  * `branchId`: UUID de la sede (obligatorio).
+  * `status`: `available-for-linking` (obligatorio).
+* **Respuesta Exitosa (`200 OK`):** Retorna `List<VehicleResource>`.
+
 #### `GET /api/v1/customers/{customerId}/vehicles` — Listar Vehículos de un Cliente
 * **Respuesta Exitosa (`200 OK`):** Retorna `List<VehicleResource>`.
 
@@ -737,6 +769,25 @@ Cuando una petición falla (`400 Bad Request`, `404 Not Found`, `409 Conflict`, 
   * `status`: `available` (opcional, para listar solo los escáneres listos para vincular)
 * **Respuesta Exitosa (`200 OK`):** Retorna `List<Obd2DeviceResource>`.
 
+#### `GET /api/v1/obd2-devices/{id}` — Detalle de Dispositivo OBD2
+* **Respuesta Exitosa (`200 OK`):** Retorna `Obd2DeviceResource`.
+* **Errores:** `404 Not Found` si el dispositivo no existe.
+
+#### `PUT /api/v1/obd2-devices/{id}` — Actualizar Dispositivo OBD2
+* **Descripción:** Actualiza los datos del escáner (por ejemplo la dirección MAC).
+* **Request Body:**
+```json
+{
+  "macAddress": "00:1B:44:11:3A:B8"
+}
+```
+* **Respuesta Exitosa (`200 OK`):** Retorna `Obd2DeviceResource` actualizado.
+
+#### `DELETE /api/v1/obd2-devices/{id}` — Eliminar Dispositivo OBD2 (Soft Delete)
+* **Descripción:** Realiza una eliminación lógica del escáner.
+* **Respuesta Exitosa (`204 NO CONTENT`)**
+* **Errores:** `400 Bad Request` (estado inválido), `409 Conflict` (duplicado).
+
 #### `GET /api/v1/obd2-devices/{deviceId}/telemetry-snapshots/latest` — Última Lectura en Vivo
 * **Descripción:** Endpoint clave para la pantalla de "Dashboard en Vivo" del vehículo en la app móvil.
 * **Respuesta Exitosa (`200 OK`):**
@@ -753,6 +804,13 @@ Cuando una petición falla (`400 Bad Request`, `404 Not Found`, `409 Conflict`, 
   "createdAt": "2026-10-07T12:15:30Z"
 }
 ```
+
+#### `GET /api/v1/obd2-devices/{deviceId}/telemetry-snapshots` — Historial de Telemetría del Dispositivo
+* **Descripción:** Devuelve todo el historial de lecturas del escáner OBD2, ordenado de más reciente a más antiguo.
+* **Query Params:**
+  * `page` (opcional, default `0`): número de página.
+  * `size` (opcional, default `20`): tamaño de página.
+* **Respuesta Exitosa (`200 OK`):** Retorna `List<TelemetrySnapshotResource>`.
 
 ---
 
@@ -777,6 +835,24 @@ Cuando una petición falla (`400 Bad Request`, `404 Not Found`, `409 Conflict`, 
 }
 ```
 * **Respuesta Exitosa (`200 OK`):** Retorna `Obd2DeviceRegistrationResource`.
+
+#### `GET /api/v1/obd2-device-registrations?branchId={branchId}&status={status}` — Listar Vinculaciones
+* **Seguridad:** Requiere Token (acceso a la sede)
+* **Descripción:** Lista las vinculaciones escáner↔vehículo de una sede filtradas por estado.
+* **Query Params:**
+  * `branchId`: UUID de la sede (obligatorio).
+  * `status`: estado de la vinculación, ej. `ACTIVE`, `INACTIVE` (obligatorio).
+* **Respuesta Exitosa (`200 OK`):** Retorna `List<Obd2DeviceRegistrationResource>`.
+
+#### `GET /api/v1/obd2-device-registrations/{id}/telemetry-snapshots` — Telemetría de la Vinculación
+* **Descripción:** Lecturas capturadas bajo esa vinculación escáner↔vehículo.
+* **Query Params:** `page` (default `0`), `size` (default `20`).
+* **Respuesta Exitosa (`200 OK`):** Retorna `List<TelemetrySnapshotResource>`.
+
+#### `GET /api/v1/obd2-device-registrations/{id}/dtc-alerts` — Alertas DTC de la Vinculación
+* **Descripción:** Códigos de falla (DTC) detectados en el vehículo durante esa vinculación.
+* **Query Params:** `page` (default `0`), `size` (default `20`).
+* **Respuesta Exitosa (`200 OK`):** Retorna `List<DtcAlertResource>`.
 
 ---
 
@@ -1066,6 +1142,22 @@ Cuando una petición falla (`400 Bad Request`, `404 Not Found`, `409 Conflict`, 
 ```
 * **Respuesta Exitosa (`201 CREATED`):** Retorna `WorkOrderTaskResource` con `status: "PENDING"`.
 
+#### `PUT /api/v1/work-orders/{id}/tasks/{taskId}` — Actualizar Detalles de la Tarea
+* **Seguridad:** Requiere Token
+* **Descripción:** Actualiza los datos técnicos de una tarea dentro de la orden: servicio asociado, mecánico responsable, descripción y fotos de evidencia.
+* **Request Body:**
+```json
+{
+  "serviceId": "s1s2s3s4-1111-2222-3333-444455556666",
+  "assignedMechanicId": "a2b3c4d5-6666-7777-8888-999900001111",
+  "description": "Rectificado de discos y cambio de pastillas delanteras",
+  "evidenceImages": [
+    "https://res.cloudinary.com/shiftiq/image/upload/v1/tasks/disco-desgastado.jpg"
+  ]
+}
+```
+* **Respuesta Exitosa (`200 OK`):** Retorna `WorkOrderTaskResource`.
+
 #### `POST /api/v1/work-order-tasks/{taskId}/assign-mechanic` — Asignar Mecánico Responsable
 * **Descripción:** Asigna al empleado que ejecutará la tarea técnica.
 * **Query Params:** `mechanicId` (UUID)
@@ -1204,7 +1296,7 @@ Cuando una petición falla (`400 Bad Request`, `404 Not Found`, `409 Conflict`, 
   "customerDocumentNumber": "48765432",
   "customerName": "María Fernández",
   "totalAmount": 225.00,
-  "status": "ISSUED",
+  "status": "PENDING",
   "externalInvoiceId": "fct-05b7e3a9-1111-2222-3333-444455556666",
   "pdfUrl": "https://factos-gi5r.onrender.com/v1/invoices/fct-05b7e3a9/pdf",
   "payments": [],
@@ -1229,6 +1321,12 @@ Cuando una petición falla (`400 Bad Request`, `404 Not Found`, `409 Conflict`, 
 }
 ```
 * **Respuesta Exitosa (`201 CREATED`):** Retorna `VoucherResource` actualizado con `status: "PAID"`.
+
+#### `DELETE /api/v1/vouchers/{voucherId}/payments/{paymentId}` — Eliminar Pago de un Comprobante
+* **Seguridad:** Requiere Token
+* **Descripción:** Elimina un pago registrado previamente y recalcula el saldo y el estado del comprobante (`PAID` → `PARTIALLY_PAID` → `PENDING`).
+* **Respuesta Exitosa (`204 NO CONTENT`)**
+* **Errores:** `404 Not Found` si el pago no existe, `409 Conflict` si el comprobante está `CANCELED`.
 
 ---
 
@@ -1274,7 +1372,7 @@ Cuando una petición falla (`400 Bad Request`, `404 Not Found`, `409 Conflict`, 
   "sandboxInitPoint": "https://sandbox.mercadopago.com.pe/checkout/v1/redirect?pref_id=123456789-abcdef-1234",
   "amount": 225.00,
   "currency": "PEN",
-  "externalReference": "QUOTE:q1q2q3q4-1234-5678-90ab-cdef12345678"
+  "externalReference": "q1q2q3q4-1234-5678-90ab-cdef12345678"
 }
 ```
 
@@ -1296,12 +1394,8 @@ Cuando una petición falla (`400 Bad Request`, `404 Not Found`, `409 Conflict`, 
 #### `POST /api/v1/payments/mercadopago/webhooks` — Webhook Oficial de Mercado Pago
 * **Seguridad:** Público (con validación de cabecera criptográfica HMAC `x-signature` y Rate Limiter de 60 req/min).
 * **Descripción:** Recibe notificaciones asíncronas de Mercado Pago cuando un cliente completa un pago sin regresar a la aplicación web o móvil. Emite el comprobante y concilia el cobro automáticamente.
-* **Respuesta Exitosa (`200 OK`):**
-```json
-{
-  "status": "PROCESSED"
-}
-```
+* **Respuesta Exitosa (`200 OK`):** Responde con **cuerpo vacío**. Mercado Pago considera la notificación atendida.
+* **Otras respuestas:** `400 Bad Request` (monto distinto al de la `PaymentIntent`), `401 Unauthorized` (firma HMAC inválida o desfase > 5 min) y `503 Service Unavailable` (sin secreto HMAC, sin `PaymentIntent` o emisión fallida → Mercado Pago reintenta). Ver detalle en [`billing-endpoints.md`](./billing-endpoints.md).
 
 ---
 
