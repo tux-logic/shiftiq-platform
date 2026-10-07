@@ -7,6 +7,7 @@ import com.tuxlogic.shiftiq.platform.shared.domain.model.valueobjects.BranchId;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 
 public interface EmployeeRegistrationRepository {
@@ -16,4 +17,5 @@ public interface EmployeeRegistrationRepository {
     List<EmployeeRegistration> findByBranchId(BranchId branchId);
     List<EmployeeRegistration> findByBranchIdAndStatus(BranchId branchId, EmployeeRegistrationStatus status);
     boolean existsByEmployeeIdAndBranchId(UUID employeeId, UUID branchId);
+    Set<UUID> findActiveBranchIdsByEmployeeId(UUID employeeId);
 }

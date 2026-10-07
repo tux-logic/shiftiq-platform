@@ -5,6 +5,7 @@ import com.tuxlogic.shiftiq.platform.core.domain.model.aggregates.WorkshopSpecia
 import com.tuxlogic.shiftiq.platform.core.domain.model.commands.CreateWorkshopSpecialtyCommand;
 import com.tuxlogic.shiftiq.platform.core.domain.model.commands.DeactivateWorkshopSpecialtyCommand;
 import com.tuxlogic.shiftiq.platform.core.domain.model.commands.UpdateWorkshopSpecialtyCommand;
+import com.tuxlogic.shiftiq.platform.core.domain.model.valueobjects.WorkshopId;
 import com.tuxlogic.shiftiq.platform.core.domain.repositories.WorkshopRepository;
 import com.tuxlogic.shiftiq.platform.core.domain.repositories.WorkshopSpecialtyRepository;
 import org.slf4j.Logger;
@@ -12,6 +13,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
 import java.util.Optional;
 
 @Service
@@ -84,4 +86,33 @@ public class WorkshopSpecialtyCommandServiceImpl implements WorkshopSpecialtyCom
         log.info("Deactivated specialty id {}", command.specialtyId().value());
         return true;
     }
+
+    @Override
+    public void seedDefaultSpecialties(WorkshopId workshopId) {
+        if (workshopId == null) {
+            return;
+        }
+        for (var defaultSpecialty : DEFAULT_SPECIALTIES) {
+            if (specialtyRepository.existsByWorkshopIdAndCode(workshopId, defaultSpecialty.code())) {
+                continue;
+            }
+            specialtyRepository.save(new WorkshopSpecialty(
+                    workshopId, defaultSpecialty.name(), defaultSpecialty.code(), defaultSpecialty.description()));
+        }
+        log.info("Seeded default specialties for workshop {}", workshopId.value());
+    }
+
+    private record DefaultSpecialty(String name, String code, String description) {}
+
+    private static final List<DefaultSpecialty> DEFAULT_SPECIALTIES = List.of(
+            new DefaultSpecialty("Mecánica General", "GENERAL_MECHANIC",
+                    "Mantenimiento preventivo, correctivo y reparación de motores y sistemas mecánicos"),
+            new DefaultSpecialty("Electricidad y Electrónica", "ELECTRICIAN",
+                    "Diagnóstico y reparación de circuitos eléctricos, sensores y cableado automotriz"),
+            new DefaultSpecialty("Planchado y Pintura", "BODYWORK_PAINT",
+                    "Reparación de carrocería, desabollado, pintura al horno y acabados"),
+            new DefaultSpecialty("Diagnóstico Computarizado", "DIAGNOSTIC",
+                    "Escaneo OBD-II, lectura de DTCs y reprogramación de módulos electrónicos"),
+            new DefaultSpecialty("Alineación y Suspensión", "TIRE_ALIGNMENT",
+                    "Alineación, balanceo, frenos, amortiguadores y tren delantero"));
 }

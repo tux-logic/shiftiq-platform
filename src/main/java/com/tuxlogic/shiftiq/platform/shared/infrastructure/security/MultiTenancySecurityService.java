@@ -8,6 +8,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.UUID;
@@ -30,9 +31,12 @@ public class MultiTenancySecurityService {
     private static final Logger LOGGER = LoggerFactory.getLogger(MultiTenancySecurityService.class);
 
     private final TenantScopeResolver tenantScopeResolver;
+    private final AccountBranchScopeResolver accountBranchScopeResolver;
 
-    public MultiTenancySecurityService(TenantScopeResolver tenantScopeResolver) {
+    public MultiTenancySecurityService(TenantScopeResolver tenantScopeResolver,
+                                       AccountBranchScopeResolver accountBranchScopeResolver) {
         this.tenantScopeResolver = tenantScopeResolver;
+        this.accountBranchScopeResolver = accountBranchScopeResolver;
     }
 
     public boolean isAuthorizedForBranch(UUID branchId) {
@@ -75,8 +79,10 @@ public class MultiTenancySecurityService {
     /**
      * Broad check for resources keyed by a user id where no tenant scoping exists in the
      * data model (customer and employee profiles are global records with no branch or
-     * workshop owner). Allows the caller itself, {@code ROLE_ADMIN} and, because those
-     * profiles are created by the workshop during onboarding, {@code ROLE_OWNER}.
+     * workshop owner). Allows the caller itself, {@code ROLE_ADMIN}, {@code ROLE_OWNER}
+     * (global onboarding bypass) and, scoped to shared branches, {@code ROLE_BRANCH_MANAGER}
+     * and {@code ROLE_ASSISTANT} so workshop staff can manage only the accounts that belong
+     * to one of their own branches.
      * For owner profiles or tenant scoped data use {@link #isAuthorizedForOwnerProfile(UUID)}
      * or {@link #isAuthorizedForSelf(UUID)} instead.
      */
@@ -94,12 +100,32 @@ public class MultiTenancySecurityService {
             if (authenticatedPrincipal.getId().equals(userId)) {
                 return true;
             }
-            return authenticatedPrincipal.hasRole("ROLE_ADMIN")
-                    || authenticatedPrincipal.hasRole("ROLE_OWNER")
-                    || authenticatedPrincipal.hasRole("ROLE_BRANCH_MANAGER")
-                    || authenticatedPrincipal.hasRole("ROLE_ASSISTANT");
+            if (authenticatedPrincipal.hasRole("ROLE_ADMIN") || authenticatedPrincipal.hasRole("ROLE_OWNER")) {
+                return true;
+            }
+            if (authenticatedPrincipal.hasRole("ROLE_BRANCH_MANAGER") || authenticatedPrincipal.hasRole("ROLE_ASSISTANT")) {
+                return sharesBranchWith(authenticatedPrincipal, userId);
+            }
+            return false;
         }
         return false;
+    }
+
+    /**
+     * @param authenticatedPrincipal caller requesting access to another account
+     * @param userId                 account being accessed
+     * @return {@code true} only when both accounts belong to at least one common branch
+     */
+    private boolean sharesBranchWith(AuthenticatedPrincipal authenticatedPrincipal, UUID userId) {
+        Set<UUID> callerBranches = authenticatedPrincipal.getBranchIds();
+        if (callerBranches == null || callerBranches.isEmpty()) {
+            return false;
+        }
+        Set<UUID> targetBranches = accountBranchScopeResolver.findBranchIdsForAccount(userId);
+        if (targetBranches == null || targetBranches.isEmpty()) {
+            return false;
+        }
+        return !Collections.disjoint(callerBranches, targetBranches);
     }
 
     public void validateUserAccess(UUID userId) {

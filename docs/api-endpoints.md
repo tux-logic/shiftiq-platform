@@ -315,8 +315,10 @@ Cuando una petición falla (`400 Bad Request`, `404 Not Found`, `409 Conflict`, 
 ### 🔧 Especialidades del Taller (Workshop Specialties)
 Cada taller dispone de un catálogo dinámico y configurable de especialidades técnicas (ej. Mecánica General, Electricidad Automotriz, Planchado y Pintura, etc.) que los asistentes y gerentes utilizan al dar de alta al personal técnico.
 
+> **Nota:** Al crear un taller se siembran automáticamente 5 especialidades por defecto (`GENERAL_MECHANIC`, `ELECTRICIAN`, `BODYWORK_PAINT`, `DIAGNOSTIC`, `TIRE_ALIGNMENT`). Solo se siembran las que aún no existan en el catálogo del taller.
+
 #### `POST /api/v1/workshops/{workshopId}/specialties` — Crear Especialidad
-* **Seguridad:** Requiere Token (`ROLE_OWNER` del taller o `ROLE_ADMIN`)
+* **Seguridad:** Requiere Token (`ROLE_ADMIN`, `ROLE_OWNER` del taller, o `ROLE_BRANCH_MANAGER`/`ROLE_ASSISTANT` con una sede asignada en ese taller)
 * **Request Body:**
 ```json
 {
@@ -373,7 +375,7 @@ Cada taller dispone de un catálogo dinámico y configurable de especialidades t
 * **Respuesta Exitosa (`200 OK`):** Retorna `WorkshopSpecialtyResource`.
 
 #### `PUT /api/v1/workshops/{workshopId}/specialties/{specialtyId}` — Actualizar Especialidad
-* **Seguridad:** Requiere Token (`ROLE_OWNER` o `ROLE_ADMIN`)
+* **Seguridad:** Requiere Token (`ROLE_ADMIN`, `ROLE_OWNER` del taller, o `ROLE_BRANCH_MANAGER`/`ROLE_ASSISTANT` con sede asignada en ese taller)
 * **Request Body:**
 ```json
 {
@@ -384,7 +386,7 @@ Cada taller dispone de un catálogo dinámico y configurable de especialidades t
 * **Respuesta Exitosa (`200 OK`):** Retorna `WorkshopSpecialtyResource` actualizado.
 
 #### `DELETE /api/v1/workshops/{workshopId}/specialties/{specialtyId}` — Desactivar Especialidad
-* **Seguridad:** Requiere Token (`ROLE_OWNER` o `ROLE_ADMIN`)
+* **Seguridad:** Requiere Token (`ROLE_ADMIN`, `ROLE_OWNER` del taller, o `ROLE_BRANCH_MANAGER`/`ROLE_ASSISTANT` con sede asignada en ese taller)
 * **Respuesta Exitosa (`204 NO CONTENT`)**
 
 ---
@@ -623,12 +625,14 @@ Cada taller dispone de un catálogo dinámico y configurable de especialidades t
   "role": "ROLE_EMPLOYEE"
 }
 ```
-* *Nota sobre `role`:* Opcional (`ROLE_BRANCH_MANAGER`, `ROLE_ASSISTANT`, `ROLE_EMPLOYEE`). Por defecto `ROLE_EMPLOYEE`.
+* *Nota sobre `role`:* Opcional (`ROLE_BRANCH_MANAGER`, `ROLE_ASSISTANT`, `ROLE_EMPLOYEE`), por defecto `ROLE_EMPLOYEE`. Se acepta con o sin el prefijo `ROLE_`. **El rol se asigna de verdad a la cuenta del usuario** y nunca degrada un rol de mayor jerarquía (un registro de `EMPLOYEE` no reemplaza a un `BRANCH_MANAGER`; en ese caso el rol se omite y se registra un warning). Los roles fuera de la allow-list (`ROLE_ADMIN`, `ROLE_OWNER`) se rechazan con `400`.
+* *Nota sobre `speciality`:* el código debe pertenecer al **catálogo activo de especialidades** del taller dueño de la sede; si no, la respuesta es `400` con `fleet.error.employeeRegistration.specialtyNotInCatalog`.
+* *Nota sobre JWT:* las autoridades se emiten al iniciar sesión, por lo que el usuario debe volver a autenticarse para que el nuevo rol surta efecto en su token.
 * **Respuesta Exitosa (`201 CREATED`):** Retorna `EmployeeRegistrationResource`.
 
 #### `POST /api/v1/employee-registrations/request-join` — Mecánico Solicita Unirse a Sede
 * **Seguridad:** Requiere Token (`ROLE_EMPLOYEE`)
-* **Descripción:** Un mecánico solicita unirse a una sede específica. La solicitud queda en estado `PENDING_APPROVAL`.
+* **Descripción:** Un mecánico solicita unirse a una sede específica. La solicitud queda en estado `PENDING_APPROVAL`. La `speciality` debe pertenecer al catálogo activo del taller (`400` en caso contrario). Ningún permiso se otorga hasta la aprobación.
 * **Request Body:**
 ```json
 {
@@ -655,7 +659,7 @@ Cada taller dispone de un catálogo dinámico y configurable de especialidades t
 
 #### `POST /api/v1/employee-registrations/{id}/approve` — Aprobar Mecánico
 * **Seguridad:** Requiere Token (`ROLE_OWNER` o Administrador de la Sede)
-* **Descripción:** El dueño del taller aprueba la solicitud. El estado cambia a `ACTIVE`.
+* **Descripción:** El dueño del taller aprueba la solicitud. El estado cambia a `ACTIVE`, la cuenta del usuario recibe las sedes de sus registros activos y se le asigna el rol `ROLE_EMPLOYEE` (sin degradar roles de mayor jerarquía).
 * **Respuesta Exitosa (`200 OK`):** Retorna `EmployeeRegistrationResource` con `status: "ACTIVE"`.
 
 #### `POST /api/v1/employee-registrations/{id}/reject` — Rechazar Solicitud
@@ -691,6 +695,7 @@ Cada taller dispone de un catálogo dinámico y configurable de especialidades t
 * **Respuesta Exitosa (`200 OK`):** Retorna `EmployeeRegistrationResource`.
 
 #### `DELETE /api/v1/employee-registrations/{id}` — Dar de Baja Empleado en Sede
+* **Descripción:** El registro pasa a `INACTIVE` y las sedes de la cuenta del usuario se recalculan con sus registros activos restantes (si no queda ninguna, pierde la membresía de sede).
 * **Respuesta Exitosa (`204 NO CONTENT`)**
 
 ---

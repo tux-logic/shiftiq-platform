@@ -239,12 +239,14 @@ public class EmployeeRegistrationsController {
             case REGISTRATION_NOT_FOUND -> "fleet.error.employeeRegistration.notFound";
             case INVALID_REGISTRATION_DATA -> "fleet.error.employeeRegistration.invalidData";
             case INVALID_STATUS_TRANSITION -> "fleet.error.employeeRegistration.invalidStatusTransition";
+            case SPECIALTY_NOT_IN_CATALOG -> "fleet.error.employeeRegistration.specialtyNotInCatalog";
         };
         String message = messageSource.getMessage(messageKey, null, LocaleContextHolder.getLocale());
         ApplicationError error = switch (failure) {
             case REGISTRATION_ALREADY_EXISTS -> ApplicationError.conflict("employeeRegistration", message);
             case REGISTRATION_NOT_FOUND -> ApplicationError.notFound("employeeRegistration", message);
-            case INVALID_REGISTRATION_DATA, INVALID_STATUS_TRANSITION -> ApplicationError.validationError("employeeRegistration", message);
+            case INVALID_REGISTRATION_DATA, INVALID_STATUS_TRANSITION, SPECIALTY_NOT_IN_CATALOG ->
+                    ApplicationError.validationError("employeeRegistration", message);
         };
         return ErrorResponseAssembler.toErrorResponseFromApplicationError(error);
     }
