@@ -58,9 +58,12 @@ public class EmployeeRegistrationsController {
     }
 
     @PostMapping
-    @Operation(summary = "Create a new employee registration", description = "Creates a new employee registration")
-    @PreAuthorize("isAuthenticated() and (hasRole('ADMIN') or @multiTenancySecurityService.isAuthorizedForBranch(#resource.branchId()))")
+    @Operation(summary = "Create a new employee registration", description = "Creates a new employee registration validating the workshop staff hierarchy")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<?> create(@Valid @RequestBody CreateEmployeeRegistrationResource resource) {
+        String targetRole = resource.role() != null && !resource.role().isBlank() ? resource.role() : "ROLE_EMPLOYEE";
+        multiTenancySecurityService.validateStaffManagement(targetRole, resource.branchId());
+
         var command = CreateEmployeeRegistrationCommandFromResourceAssembler.toCommandFromResource(resource);
         var result = commandService.handle(command);
         return result.fold(
@@ -199,9 +202,7 @@ public class EmployeeRegistrationsController {
             return ResponseEntity.notFound().build();
         }
         var registration = queryResult.success().get();
-        if (!multiTenancySecurityService.isAuthorizedForBranch(registration.getBranchId())) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
-        }
+        multiTenancySecurityService.validateStaffManagement("ROLE_EMPLOYEE", registration.getBranchId().value());
 
         var command = new ApproveEmployeeRegistrationCommand(new EmployeeId(id));
         var result = commandService.handle(command);
@@ -238,12 +239,14 @@ public class EmployeeRegistrationsController {
             case REGISTRATION_NOT_FOUND -> "fleet.error.employeeRegistration.notFound";
             case INVALID_REGISTRATION_DATA -> "fleet.error.employeeRegistration.invalidData";
             case INVALID_STATUS_TRANSITION -> "fleet.error.employeeRegistration.invalidStatusTransition";
+            case SPECIALTY_NOT_IN_CATALOG -> "fleet.error.employeeRegistration.specialtyNotInCatalog";
         };
         String message = messageSource.getMessage(messageKey, null, LocaleContextHolder.getLocale());
         ApplicationError error = switch (failure) {
             case REGISTRATION_ALREADY_EXISTS -> ApplicationError.conflict("employeeRegistration", message);
             case REGISTRATION_NOT_FOUND -> ApplicationError.notFound("employeeRegistration", message);
-            case INVALID_REGISTRATION_DATA, INVALID_STATUS_TRANSITION -> ApplicationError.validationError("employeeRegistration", message);
+            case INVALID_REGISTRATION_DATA, INVALID_STATUS_TRANSITION, SPECIALTY_NOT_IN_CATALOG ->
+                    ApplicationError.validationError("employeeRegistration", message);
         };
         return ErrorResponseAssembler.toErrorResponseFromApplicationError(error);
     }

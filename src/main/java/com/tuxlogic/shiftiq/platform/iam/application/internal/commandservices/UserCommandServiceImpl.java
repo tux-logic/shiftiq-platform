@@ -158,5 +158,35 @@ public class UserCommandServiceImpl implements UserCommandService {
         LOGGER.info("Assigned branch {} to user ID {}", command.branchId().value(), command.userId().value());
         return Optional.of(user);
     }
+
+    @Override
+    public Optional<User> handle(com.tuxlogic.shiftiq.platform.iam.domain.model.commands.AssignRoleToUserCommand command) {
+        var user = userRepository.findById(command.userId().value())
+                .orElseThrow(() -> new IllegalArgumentException("iam.error.user.notFound"));
+        var currentRole = user.getRole();
+        if (currentRole == command.role()) {
+            return Optional.of(user);
+        }
+        if (!currentRole.canBeReplacedBy(command.role())) {
+            LOGGER.warn("Role assignment skipped for user ID {}: {} would downgrade {}",
+                    command.userId().value(), command.role(), currentRole);
+            return Optional.empty();
+        }
+        user.assignRole(command.role());
+        userRepository.save(user);
+        LOGGER.info("Assigned role {} to user ID {} (previous role {})",
+                command.role(), command.userId().value(), currentRole);
+        return Optional.of(user);
+    }
+
+    @Override
+    public Optional<User> handle(com.tuxlogic.shiftiq.platform.iam.domain.model.commands.SetUserBranchesCommand command) {
+        var user = userRepository.findById(command.userId().value())
+                .orElseThrow(() -> new IllegalArgumentException("iam.error.user.notFound"));
+        user.replaceBranches(command.branchIds());
+        userRepository.save(user);
+        LOGGER.info("Replaced branches of user ID {} with {}", command.userId().value(), command.branchIds());
+        return Optional.of(user);
+    }
 }
 

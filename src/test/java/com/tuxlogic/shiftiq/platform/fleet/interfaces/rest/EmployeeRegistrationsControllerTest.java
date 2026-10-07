@@ -169,4 +169,37 @@ class EmployeeRegistrationsControllerTest {
         assertNotNull(response);
         assertEquals(HttpStatus.NO_CONTENT, response.getStatusCode());
     }
+
+    @Test
+    void create_WhenStaffManagementForbidden_ShouldThrowException() {
+        UUID branchId = UUID.randomUUID();
+        UUID employeeId = UUID.randomUUID();
+        var resource = new com.tuxlogic.shiftiq.platform.fleet.interfaces.rest.resources.CreateEmployeeRegistrationResource(
+                employeeId, branchId, "MECANICO", "Mecánico", new BigDecimal("1500.00"), "ROLE_EMPLOYEE");
+
+        doThrow(new org.springframework.security.access.AccessDeniedException("Unauthorized"))
+                .when(multiTenancySecurityService).validateStaffManagement("ROLE_EMPLOYEE", branchId);
+
+        assertThrows(org.springframework.security.access.AccessDeniedException.class,
+                () -> controller.create(resource));
+    }
+
+    @Test
+    void create_WhenAuthorized_ShouldReturnCreated() {
+        UUID branchId = UUID.randomUUID();
+        UUID employeeId = UUID.randomUUID();
+        var resource = new com.tuxlogic.shiftiq.platform.fleet.interfaces.rest.resources.CreateEmployeeRegistrationResource(
+                employeeId, branchId, "MECANICO", "Mecánico", new BigDecimal("1500.00"), "ROLE_EMPLOYEE");
+        EmployeeRegistration registration = new EmployeeRegistration(
+                employeeId, new BranchId(branchId), "MECANICO", "Mecánico", new BigDecimal("1500.00"));
+
+        when(commandService.handle(any(com.tuxlogic.shiftiq.platform.fleet.domain.model.commands.CreateEmployeeRegistrationCommand.class)))
+                .thenReturn(Result.success(registration));
+
+        ResponseEntity<?> response = controller.create(resource);
+
+        assertNotNull(response);
+        assertEquals(HttpStatus.CREATED, response.getStatusCode());
+        verify(multiTenancySecurityService).validateStaffManagement("ROLE_EMPLOYEE", branchId);
+    }
 }

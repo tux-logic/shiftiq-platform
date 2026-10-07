@@ -12,6 +12,10 @@ public record CreateEmployeeRegistrationResource(
         @NotNull(message = "fleet.error.resource.branchId.required") UUID branchId,
         @NotBlank(message = "fleet.error.resource.speciality.required") @Size(max = 50, message = "fleet.error.resource.speciality.size") String speciality,
         @Size(max = 50, message = "fleet.error.resource.specialityName.size") String specialityName,
-        @NotNull(message = "fleet.error.resource.salary.required") BigDecimal salary
+        @NotNull(message = "fleet.error.resource.salary.required") BigDecimal salary,
+        String role
 ) {
+    public CreateEmployeeRegistrationResource(UUID employeeId, UUID branchId, String speciality, String specialityName, BigDecimal salary) {
+        this(employeeId, branchId, speciality, specialityName, salary, "ROLE_EMPLOYEE");
+    }
 }

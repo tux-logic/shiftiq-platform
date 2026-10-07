@@ -28,6 +28,8 @@ La mayoría de los endpoints están protegidos mediante **JWT (JSON Web Token)**
    ```
 3. Cuando el backend responda `401 Unauthorized`, el frontend debe invocar de inmediato `POST /api/v1/authentication/sessions/refresh` enviando el `refreshToken` para obtener un nuevo `token` de forma transparente.
 
+> 💡 **Guía Completa de Seguridad y Roles:** Para un desglose a fondo sobre el ciclo de vida de tokens, la matriz jerárquica de permisos (`canManageStaff`) y los diagramas de onboarding de personal, consulta el documento [Flujo de Autenticación, Jerarquía de Roles y Gestión de Personal](auth-and-roles-flow.md).
+
 ### ⚠️ Formato Estándar de Errores
 
 Cuando una petición falla (`400 Bad Request`, `404 Not Found`, `409 Conflict`, etc.), el backend retorna un JSON estructurado bajo el siguiente formato:
@@ -312,6 +314,85 @@ Cuando una petición falla (`400 Bad Request`, `404 Not Found`, `409 Conflict`, 
 
 ---
 
+### 🔧 Especialidades del Taller (Workshop Specialties)
+Cada taller dispone de un catálogo dinámico y configurable de especialidades técnicas (ej. Mecánica General, Electricidad Automotriz, Planchado y Pintura, etc.) que los asistentes y gerentes utilizan al dar de alta al personal técnico.
+
+> **Nota:** Al crear un taller se siembran automáticamente 5 especialidades por defecto (`GENERAL_MECHANIC`, `ELECTRICIAN`, `BODYWORK_PAINT`, `DIAGNOSTIC`, `TIRE_ALIGNMENT`). Solo se siembran las que aún no existan en el catálogo del taller.
+
+#### `POST /api/v1/workshops/{workshopId}/specialties` — Crear Especialidad
+* **Seguridad:** Requiere Token (`ROLE_ADMIN`, `ROLE_OWNER` del taller, o `ROLE_BRANCH_MANAGER`/`ROLE_ASSISTANT` con una sede asignada en ese taller)
+* **Request Body:**
+```json
+{
+  "name": "Inyección Electrónica y Calibración",
+  "code": "INYECCION_ELECTRONICA",
+  "description": "Limpieza y diagnóstico de inyectores, sensores MAF/MAP y cuerpos de aceleración"
+}
+```
+* **Respuesta Exitosa (`201 CREATED`):**
+```json
+{
+  "id": "e4f5a6b7-8888-9999-0000-111122223333",
+  "workshopId": "b2c3d4e5-2222-3333-4444-555566667777",
+  "name": "Inyección Electrónica y Calibración",
+  "code": "INYECCION_ELECTRONICA",
+  "description": "Limpieza y diagnóstico de inyectores, sensores MAF/MAP y cuerpos de aceleración",
+  "active": true,
+  "createdAt": "2026-10-07T12:00:00Z",
+  "updatedAt": "2026-10-07T12:00:00Z"
+}
+```
+
+#### `GET /api/v1/workshops/{workshopId}/specialties` — Listar Especialidades del Taller
+* **Seguridad:** Requiere Token (Dueño, Gerente o Asistente del taller)
+* **Query Params:** `activeOnly` (booleano opcional, por defecto `true`)
+* **Respuesta Exitosa (`200 OK`):**
+```json
+[
+  {
+    "id": "e4f5a6b7-8888-9999-0000-111122223333",
+    "workshopId": "b2c3d4e5-2222-3333-4444-555566667777",
+    "name": "Mecánica General",
+    "code": "GENERAL_MECHANIC",
+    "description": "Mantenimiento preventivo, correctivo y reparación de motores",
+    "active": true,
+    "createdAt": "2026-10-07T12:00:00Z",
+    "updatedAt": "2026-10-07T12:00:00Z"
+  },
+  {
+    "id": "f5a6b7c8-9999-0000-1111-222233334444",
+    "workshopId": "b2c3d4e5-2222-3333-4444-555566667777",
+    "name": "Electricidad y Electrónica",
+    "code": "ELECTRICIAN",
+    "description": "Diagnóstico de circuitos, cableado y alternadores",
+    "active": true,
+    "createdAt": "2026-10-07T12:00:00Z",
+    "updatedAt": "2026-10-07T12:00:00Z"
+  }
+]
+```
+
+#### `GET /api/v1/workshops/{workshopId}/specialties/{specialtyId}` — Obtener Detalle de Especialidad
+* **Seguridad:** Requiere Token con acceso al taller
+* **Respuesta Exitosa (`200 OK`):** Retorna `WorkshopSpecialtyResource`.
+
+#### `PUT /api/v1/workshops/{workshopId}/specialties/{specialtyId}` — Actualizar Especialidad
+* **Seguridad:** Requiere Token (`ROLE_ADMIN`, `ROLE_OWNER` del taller, o `ROLE_BRANCH_MANAGER`/`ROLE_ASSISTANT` con sede asignada en ese taller)
+* **Request Body:**
+```json
+{
+  "name": "Mecánica General y Motores",
+  "description": "Reparación y mantenimiento integral de motores de combustión e híbridos"
+}
+```
+* **Respuesta Exitosa (`200 OK`):** Retorna `WorkshopSpecialtyResource` actualizado.
+
+#### `DELETE /api/v1/workshops/{workshopId}/specialties/{specialtyId}` — Desactivar Especialidad
+* **Seguridad:** Requiere Token (`ROLE_ADMIN`, `ROLE_OWNER` del taller, o `ROLE_BRANCH_MANAGER`/`ROLE_ASSISTANT` con sede asignada en ese taller)
+* **Respuesta Exitosa (`204 NO CONTENT`)**
+
+---
+
 ### 📍 Sedes (Branches)
 
 #### `POST /api/v1/branches` — Crear Sede para un Taller
@@ -528,24 +609,32 @@ Cuando una petición falla (`400 Bad Request`, `404 Not Found`, `409 Conflict`, 
 
 ### 👷 Flujo de Solicitud y Contratación de Mecánicos (Employee Registrations)
 
-#### `POST /api/v1/employee-registrations` — Crear Registro de Empleado en Sede
-* **Seguridad:** Requiere Token (Administrador o con acceso a la sede)
-* **Descripción:** Crea directamente un registro de empleado en una sede (alta manual), sin pasar por el flujo de `request-join` + aprobación. El registro nace en estado `ACTIVE`.
+#### `POST /api/v1/employee-registrations` — Crear Registro de Personal en Sede (Onboarding Jerárquico)
+* **Seguridad:** Requiere Token según la **Matriz Jerárquica del Taller**:
+  - `ROLE_OWNER`: En talleres multisede, asigna primero al Gerente de Sede (`BRANCH_MANAGER`). En talleres de sede única, el dueño actúa como gerente y asigna al Asistente (`ASSISTANT`) o técnicos directamente.
+  - `ROLE_BRANCH_MANAGER`: Asigna a su Asistente (`ASSISTANT`) y al personal técnico (`EMPLOYEE`) en su sede.
+  - `ROLE_ASSISTANT`: Asigna al personal técnico operativo (`EMPLOYEE`: mecánicos, electricistas, planchadores, etc.) en su sede.
+  - `ROLE_ADMIN`: Acceso irrestricto.
+* **Descripción:** Da de alta a un miembro del personal en la sede. El registro nace en estado `ACTIVE`.
 * **Request Body:**
 ```json
 {
   "employeeId": "a2b3c4d5-6666-7777-8888-999900001111",
   "branchId": "c3d4e5f6-3333-4444-5555-666677778888",
-  "speciality": "MOTOR_DIESEL",
-  "specialityName": "Especialista en Motores Diésel e Inyección",
-  "salary": 2500.00
+  "speciality": "GENERAL_MECHANIC",
+  "specialityName": "Mecánica General",
+  "salary": 2500.00,
+  "role": "ROLE_EMPLOYEE"
 }
 ```
+* *Nota sobre `role`:* Opcional (`ROLE_BRANCH_MANAGER`, `ROLE_ASSISTANT`, `ROLE_EMPLOYEE`), por defecto `ROLE_EMPLOYEE`. Se acepta con o sin el prefijo `ROLE_`. **El rol se asigna de verdad a la cuenta del usuario** y nunca degrada un rol de mayor jerarquía (un registro de `EMPLOYEE` no reemplaza a un `BRANCH_MANAGER`; en ese caso el rol se omite y se registra un warning). Los roles fuera de la allow-list (`ROLE_ADMIN`, `ROLE_OWNER`) se rechazan con `400`.
+* *Nota sobre `speciality`:* el código debe pertenecer al **catálogo activo de especialidades** del taller dueño de la sede; si no, la respuesta es `400` con `fleet.error.employeeRegistration.specialtyNotInCatalog`.
+* *Nota sobre JWT:* las autoridades se emiten al iniciar sesión, por lo que el usuario debe volver a autenticarse para que el nuevo rol surta efecto en su token.
 * **Respuesta Exitosa (`201 CREATED`):** Retorna `EmployeeRegistrationResource`.
 
 #### `POST /api/v1/employee-registrations/request-join` — Mecánico Solicita Unirse a Sede
 * **Seguridad:** Requiere Token (`ROLE_EMPLOYEE`)
-* **Descripción:** Un mecánico solicita unirse a una sede específica. La solicitud queda en estado `PENDING_APPROVAL`.
+* **Descripción:** Un mecánico solicita unirse a una sede específica. La solicitud queda en estado `PENDING_APPROVAL`. La `speciality` debe pertenecer al catálogo activo del taller (`400` en caso contrario). Ningún permiso se otorga hasta la aprobación.
 * **Request Body:**
 ```json
 {
@@ -572,7 +661,7 @@ Cuando una petición falla (`400 Bad Request`, `404 Not Found`, `409 Conflict`, 
 
 #### `POST /api/v1/employee-registrations/{id}/approve` — Aprobar Mecánico
 * **Seguridad:** Requiere Token (`ROLE_OWNER` o Administrador de la Sede)
-* **Descripción:** El dueño del taller aprueba la solicitud. El estado cambia a `ACTIVE`.
+* **Descripción:** El dueño del taller aprueba la solicitud. El estado cambia a `ACTIVE`, la cuenta del usuario recibe las sedes de sus registros activos y se le asigna el rol `ROLE_EMPLOYEE` (sin degradar roles de mayor jerarquía).
 * **Respuesta Exitosa (`200 OK`):** Retorna `EmployeeRegistrationResource` con `status: "ACTIVE"`.
 
 #### `POST /api/v1/employee-registrations/{id}/reject` — Rechazar Solicitud
@@ -608,6 +697,7 @@ Cuando una petición falla (`400 Bad Request`, `404 Not Found`, `409 Conflict`, 
 * **Respuesta Exitosa (`200 OK`):** Retorna `EmployeeRegistrationResource`.
 
 #### `DELETE /api/v1/employee-registrations/{id}` — Dar de Baja Empleado en Sede
+* **Descripción:** El registro pasa a `INACTIVE` y las sedes de la cuenta del usuario se recalculan con sus registros activos restantes (si no queda ninguna, pierde la membresía de sede).
 * **Respuesta Exitosa (`204 NO CONTENT`)**
 
 ---

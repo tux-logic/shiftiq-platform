@@ -10,9 +10,12 @@ import org.springframework.stereotype.Repository;
 import com.tuxlogic.shiftiq.platform.core.domain.model.valueobjects.EmployeeId;
 import com.tuxlogic.shiftiq.platform.fleet.domain.model.valueobjects.EmployeeRegistrationStatus;
 import com.tuxlogic.shiftiq.platform.shared.domain.model.valueobjects.BranchId;
+import java.util.LinkedHashSet;
 import java.util.Optional;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Repository
 public class EmployeeRegistrationRepositoryAdapter implements EmployeeRegistrationRepository {
@@ -67,5 +70,16 @@ public class EmployeeRegistrationRepositoryAdapter implements EmployeeRegistrati
     @Override
     public boolean existsByEmployeeIdAndBranchId(UUID employeeId, UUID branchId) {
         return persistenceRepository.findByEmployeeIdAndBranchId(employeeId, branchId).isPresent();
+    }
+
+    @Override
+    public Set<UUID> findActiveBranchIdsByEmployeeId(UUID employeeId) {
+        if (employeeId == null) {
+            return Set.of();
+        }
+        return persistenceRepository.findAllByEmployeeIdAndStatus(employeeId, EmployeeRegistrationStatus.ACTIVE.value())
+                .stream()
+                .map(EmployeeRegistrationPersistenceEntity::getBranchId)
+                .collect(Collectors.toCollection(LinkedHashSet::new));
     }
 }

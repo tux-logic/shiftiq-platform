@@ -6,6 +6,8 @@ import com.tuxlogic.shiftiq.platform.iam.domain.model.commands.SignUpCommand;
 import com.tuxlogic.shiftiq.platform.iam.domain.model.commands.UpdateUserEmailCommand;
 import com.tuxlogic.shiftiq.platform.iam.domain.model.commands.UpdateUserPasswordCommand;
 import com.tuxlogic.shiftiq.platform.iam.domain.model.commands.GoogleSignInCommand;
+import com.tuxlogic.shiftiq.platform.iam.domain.model.commands.AssignRoleToUserCommand;
+import com.tuxlogic.shiftiq.platform.iam.domain.model.commands.SetUserBranchesCommand;
 import com.tuxlogic.shiftiq.platform.iam.domain.model.queries.AuthenticatedUser;
 
 import com.tuxlogic.shiftiq.platform.iam.domain.model.commands.AssignBranchToUserCommand;
@@ -19,4 +21,6 @@ public interface UserCommandService {
     Optional<AuthenticatedUser> handle(UpdateUserEmailCommand command);
     Optional<User> handle(UpdateUserPasswordCommand command);
     Optional<User> handle(AssignBranchToUserCommand command);
+    Optional<User> handle(AssignRoleToUserCommand command);
+    Optional<User> handle(SetUserBranchesCommand command);
 }

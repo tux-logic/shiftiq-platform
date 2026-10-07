@@ -24,9 +24,13 @@ class MultiTenancySecurityServiceTest {
     @Mock
     private TenantScopeResolver tenantScopeResolver;
 
+    @Mock
+    private AccountBranchScopeResolver accountBranchScopeResolver;
+
     private MultiTenancySecurityService service;
 
     private final UUID userId = UUID.randomUUID();
+    private final UUID otherUserId = UUID.randomUUID();
     private final UUID ownBranchId = UUID.randomUUID();
     private final UUID otherBranchId = UUID.randomUUID();
     private final UUID ownWorkshopId = UUID.randomUUID();
@@ -36,7 +40,7 @@ class MultiTenancySecurityServiceTest {
 
     @BeforeEach
     void setUp() {
-        service = new MultiTenancySecurityService(tenantScopeResolver);
+        service = new MultiTenancySecurityService(tenantScopeResolver, accountBranchScopeResolver);
     }
 
     @AfterEach
@@ -198,11 +202,127 @@ class MultiTenancySecurityServiceTest {
         assertThat(service.resolveNetworkAccessibleBranchIds()).isNotNull().isEmpty();
     }
 
+    @Test
+    @DisplayName("owner can assign branch manager, and in single branch workshop can assign assistant and employee")
+    void ownerStaffManagementHierarchy() {
+        authenticate(principal(false, true, Set.of(ownBranchId)));
+        when(tenantScopeResolver.findWorkshopIdForBranch(ownBranchId)).thenReturn(ownWorkshopId);
+        when(tenantScopeResolver.countBranchesForWorkshop(ownWorkshopId)).thenReturn(1);
+
+        assertThat(service.canManageStaff("ROLE_BRANCH_MANAGER", ownBranchId)).isTrue();
+        assertThat(service.canManageStaff("ROLE_ASSISTANT", ownBranchId)).isTrue();
+        assertThat(service.canManageStaff("ROLE_EMPLOYEE", ownBranchId)).isTrue();
+
+        // Multi branch workshop: owner must delegate and can only assign branch manager
+        when(tenantScopeResolver.countBranchesForWorkshop(ownWorkshopId)).thenReturn(3);
+        assertThat(service.canManageStaff("ROLE_BRANCH_MANAGER", ownBranchId)).isTrue();
+        assertThat(service.canManageStaff("ROLE_ASSISTANT", ownBranchId)).isFalse();
+        assertThat(service.canManageStaff("ROLE_EMPLOYEE", ownBranchId)).isFalse();
+    }
+
+    @Test
+    @DisplayName("branch manager can assign assistant and employee, but not manager")
+    void branchManagerStaffManagementHierarchy() {
+        var mgrPrincipal = Mockito.mock(AuthenticatedPrincipal.class);
+        Mockito.lenient().when(mgrPrincipal.getId()).thenReturn(userId);
+        Mockito.lenient().when(mgrPrincipal.hasRole("ROLE_ADMIN")).thenReturn(false);
+        Mockito.lenient().when(mgrPrincipal.hasRole("ROLE_OWNER")).thenReturn(false);
+        Mockito.lenient().when(mgrPrincipal.hasRole("ROLE_BRANCH_MANAGER")).thenReturn(true);
+        Mockito.lenient().when(mgrPrincipal.hasRole("ROLE_ASSISTANT")).thenReturn(false);
+        Mockito.lenient().when(mgrPrincipal.getBranchIds()).thenReturn(Set.of(ownBranchId));
+        Mockito.lenient().when(mgrPrincipal.hasBranch(ownBranchId)).thenReturn(true);
+        authenticate(mgrPrincipal);
+
+        when(tenantScopeResolver.findWorkshopIdForBranch(ownBranchId)).thenReturn(ownWorkshopId);
+        when(tenantScopeResolver.countBranchesForWorkshop(ownWorkshopId)).thenReturn(2);
+
+        assertThat(service.canManageStaff("ROLE_BRANCH_MANAGER", ownBranchId)).isFalse();
+        assertThat(service.canManageStaff("ROLE_ASSISTANT", ownBranchId)).isTrue();
+        assertThat(service.canManageStaff("ROLE_EMPLOYEE", ownBranchId)).isTrue();
+    }
+
+    @Test
+    @DisplayName("assistant can only assign employee")
+    void assistantStaffManagementHierarchy() {
+        var asstPrincipal = Mockito.mock(AuthenticatedPrincipal.class);
+        Mockito.lenient().when(asstPrincipal.getId()).thenReturn(userId);
+        Mockito.lenient().when(asstPrincipal.hasRole("ROLE_ADMIN")).thenReturn(false);
+        Mockito.lenient().when(asstPrincipal.hasRole("ROLE_OWNER")).thenReturn(false);
+        Mockito.lenient().when(asstPrincipal.hasRole("ROLE_BRANCH_MANAGER")).thenReturn(false);
+        Mockito.lenient().when(asstPrincipal.hasRole("ROLE_ASSISTANT")).thenReturn(true);
+        Mockito.lenient().when(asstPrincipal.getBranchIds()).thenReturn(Set.of(ownBranchId));
+        Mockito.lenient().when(asstPrincipal.hasBranch(ownBranchId)).thenReturn(true);
+        authenticate(asstPrincipal);
+
+        when(tenantScopeResolver.findWorkshopIdForBranch(ownBranchId)).thenReturn(ownWorkshopId);
+        when(tenantScopeResolver.countBranchesForWorkshop(ownWorkshopId)).thenReturn(2);
+
+        assertThat(service.canManageStaff("ROLE_BRANCH_MANAGER", ownBranchId)).isFalse();
+        assertThat(service.canManageStaff("ROLE_ASSISTANT", ownBranchId)).isFalse();
+        assertThat(service.canManageStaff("ROLE_EMPLOYEE", ownBranchId)).isTrue();
+    }
+
+    @Test
+    @DisplayName("branch manager reads only users that share at least one branch (H3)")
+    void branchManagerUserAccessRequiresSharedBranch() {
+        var mgrPrincipal = staffPrincipal(true, Set.of(ownBranchId));
+        authenticate(mgrPrincipal);
+
+        when(accountBranchScopeResolver.findBranchIdsForAccount(otherUserId)).thenReturn(Set.of(ownBranchId));
+        assertThat(service.isAuthorizedForUser(otherUserId)).isTrue();
+
+        when(accountBranchScopeResolver.findBranchIdsForAccount(otherUserId)).thenReturn(Set.of(otherBranchId));
+        assertThat(service.isAuthorizedForUser(otherUserId)).isFalse();
+    }
+
+    @Test
+    @DisplayName("assistant is denied when the target user belongs to another tenant (H3)")
+    void assistantUserAccessDeniedAcrossTenants() {
+        var asstPrincipal = staffPrincipal(false, Set.of(ownBranchId));
+        authenticate(asstPrincipal);
+
+        when(accountBranchScopeResolver.findBranchIdsForAccount(otherUserId)).thenReturn(Set.of(otherBranchId));
+        assertThat(service.isAuthorizedForUser(otherUserId)).isFalse();
+
+        when(accountBranchScopeResolver.findBranchIdsForAccount(otherUserId)).thenReturn(Set.of());
+        assertThat(service.isAuthorizedForUser(otherUserId)).isFalse();
+    }
+
+    @Test
+    @DisplayName("staff without branch membership cannot read other accounts (H3)")
+    void staffWithoutBranchesCannotReadOtherUsers() {
+        authenticate(staffPrincipal(true, Set.of()));
+
+        assertThat(service.isAuthorizedForUser(otherUserId)).isFalse();
+    }
+
+    @Test
+    @DisplayName("a plain user only reaches its own account")
+    void plainUserOnlyReachesOwnAccount() {
+        authenticate(principal(false, false, Set.of()));
+
+        assertThat(service.isAuthorizedForUser(userId)).isTrue();
+        assertThat(service.isAuthorizedForUser(otherUserId)).isFalse();
+    }
+
     private AuthenticatedPrincipal principal(boolean admin, boolean owner, Set<UUID> memberships) {
         var principal = Mockito.mock(AuthenticatedPrincipal.class);
         Mockito.lenient().when(principal.getId()).thenReturn(userId);
         Mockito.lenient().when(principal.hasRole("ROLE_ADMIN")).thenReturn(admin);
         Mockito.lenient().when(principal.hasRole("ROLE_OWNER")).thenReturn(owner);
+        Mockito.lenient().when(principal.getBranchIds()).thenReturn(memberships);
+        Mockito.lenient().when(principal.hasBranch(Mockito.any(UUID.class)))
+                .thenAnswer(invocation -> memberships.contains(invocation.getArgument(0)));
+        return principal;
+    }
+
+    private AuthenticatedPrincipal staffPrincipal(boolean branchManager, Set<UUID> memberships) {
+        var principal = Mockito.mock(AuthenticatedPrincipal.class);
+        Mockito.lenient().when(principal.getId()).thenReturn(userId);
+        Mockito.lenient().when(principal.hasRole("ROLE_ADMIN")).thenReturn(false);
+        Mockito.lenient().when(principal.hasRole("ROLE_OWNER")).thenReturn(false);
+        Mockito.lenient().when(principal.hasRole("ROLE_BRANCH_MANAGER")).thenReturn(branchManager);
+        Mockito.lenient().when(principal.hasRole("ROLE_ASSISTANT")).thenReturn(!branchManager);
         Mockito.lenient().when(principal.getBranchIds()).thenReturn(memberships);
         Mockito.lenient().when(principal.hasBranch(Mockito.any(UUID.class)))
                 .thenAnswer(invocation -> memberships.contains(invocation.getArgument(0)));
