@@ -28,6 +28,8 @@ La mayoría de los endpoints están protegidos mediante **JWT (JSON Web Token)**
    ```
 3. Cuando el backend responda `401 Unauthorized`, el frontend debe invocar de inmediato `POST /api/v1/authentication/sessions/refresh` enviando el `refreshToken` para obtener un nuevo `token` de forma transparente.
 
+> 💡 **Guía Completa de Seguridad y Roles:** Para un desglose a fondo sobre el ciclo de vida de tokens, la matriz jerárquica de permisos (`canManageStaff`) y los diagramas de onboarding de personal, consulta el documento [Flujo de Autenticación, Jerarquía de Roles y Gestión de Personal](auth-and-roles-flow.md).
+
 ### ⚠️ Formato Estándar de Errores
 
 Cuando una petición falla (`400 Bad Request`, `404 Not Found`, `409 Conflict`, etc.), el backend retorna un JSON estructurado bajo el siguiente formato:
