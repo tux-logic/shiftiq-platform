@@ -531,4 +531,76 @@ class MercadoPagoPaymentsControllerTest {
         assertEquals(HttpStatus.OK, response.getStatusCode());
         verify(voucherCommandService).handle(any(ProcessMercadoPagoCheckoutCommand.class));
     }
+
+    @Test
+    void handleWebhook_WhenExistingVoucherEmissionFailedWithoutIntent_ShouldReturnServiceUnavailable() throws Exception {
+        UUID quoteId = UUID.randomUUID();
+        String requestId = "req-ef-no-intent";
+        String paymentId = "123456789";
+        String ts = String.valueOf(Instant.now().getEpochSecond());
+        String validSignature = generateValidSignature(TEST_SECRET, paymentId, requestId, ts);
+
+        MercadoPagoWebhookResource body = new MercadoPagoWebhookResource(
+                "payment.created",
+                "payment",
+                new MercadoPagoWebhookResource.MercadoPagoWebhookData(paymentId),
+                null
+        );
+
+        MercadoPagoPaymentResult approvedPayment = new MercadoPagoPaymentResult(
+                123456789L,
+                "approved",
+                "accredited",
+                new BigDecimal("150.00"),
+                "PEN",
+                quoteId.toString()
+        );
+        when(paymentCommandService.getPaymentStatus(123456789L)).thenReturn(Optional.of(approvedPayment));
+
+        Voucher failedVoucher = new Voucher(quoteId, VoucherType.RECEIPT, "DNI", "12345678", "Juan Perez",
+                new Money(new BigDecimal("150.00")), null, null);
+        failedVoucher.markEmissionFailed();
+        when(voucherQueryService.handle(any(GetVoucherByQuoteIdQuery.class))).thenReturn(Optional.of(failedVoucher));
+
+        ResponseEntity<Void> response = controller.handleWebhook(validSignature, requestId, null, null, null, null, body);
+
+        assertEquals(HttpStatus.SERVICE_UNAVAILABLE, response.getStatusCode());
+        verify(voucherCommandService, never()).handle(any(ProcessMercadoPagoCheckoutCommand.class));
+    }
+
+    @Test
+    void handleWebhook_WhenExistingVoucherStalePendingWithoutIntent_ShouldReturnServiceUnavailable() throws Exception {
+        UUID quoteId = UUID.randomUUID();
+        String requestId = "req-stale-no-intent";
+        String paymentId = "123456789";
+        String ts = String.valueOf(Instant.now().getEpochSecond());
+        String validSignature = generateValidSignature(TEST_SECRET, paymentId, requestId, ts);
+
+        MercadoPagoWebhookResource body = new MercadoPagoWebhookResource(
+                "payment.created",
+                "payment",
+                new MercadoPagoWebhookResource.MercadoPagoWebhookData(paymentId),
+                null
+        );
+
+        MercadoPagoPaymentResult approvedPayment = new MercadoPagoPaymentResult(
+                123456789L,
+                "approved",
+                "accredited",
+                new BigDecimal("150.00"),
+                "PEN",
+                quoteId.toString()
+        );
+        when(paymentCommandService.getPaymentStatus(123456789L)).thenReturn(Optional.of(approvedPayment));
+
+        Voucher staleVoucher = new Voucher(quoteId, VoucherType.RECEIPT, "DNI", "12345678", "Juan Perez",
+                new Money(new BigDecimal("150.00")), null, null);
+        staleVoucher.setUpdatedAt(Instant.now().minusSeconds(100));
+        when(voucherQueryService.handle(any(GetVoucherByQuoteIdQuery.class))).thenReturn(Optional.of(staleVoucher));
+
+        ResponseEntity<Void> response = controller.handleWebhook(validSignature, requestId, null, null, null, null, body);
+
+        assertEquals(HttpStatus.SERVICE_UNAVAILABLE, response.getStatusCode());
+        verify(voucherCommandService, never()).handle(any(ProcessMercadoPagoCheckoutCommand.class));
+    }
 }

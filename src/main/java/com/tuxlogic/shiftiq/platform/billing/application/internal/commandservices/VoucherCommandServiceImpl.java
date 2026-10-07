@@ -23,6 +23,7 @@ import com.tuxlogic.shiftiq.platform.inventory.application.queryservices.Product
 import com.tuxlogic.shiftiq.platform.inventory.domain.model.queries.GetProductByIdQuery;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
@@ -136,6 +137,9 @@ public class VoucherCommandServiceImpl implements VoucherCommandService {
                     externalInvoiceId,
                     invoiceResult.pdfUrl()
             );
+            if (invoiceResult.correlative() != null && !invoiceResult.correlative().isBlank()) {
+                voucher.setCorrelative(invoiceResult.correlative());
+            }
 
             var savedVoucher = voucherRepository.save(voucher);
             return Result.success(savedVoucher);
@@ -258,6 +262,10 @@ public class VoucherCommandServiceImpl implements VoucherCommandService {
                     externalInvoiceId,
                     invoiceResult.pdfUrl()
             );
+
+            if (invoiceResult.correlative() != null && !invoiceResult.correlative().isBlank()) {
+                voucher.setCorrelative(invoiceResult.correlative());
+            }
 
             // 5. Add full payment to the Voucher
             voucher.addPayment(quote.getTotalAmount(), command.method(), quote.getBranchId().value());

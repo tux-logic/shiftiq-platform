@@ -238,6 +238,9 @@ public class MercadoPagoPaymentsController {
                                                         quoteId, retryResult.failure().get());
                                                 return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).build();
                                             }
+                                        } else {
+                                            LOGGER.warn("No PaymentIntent found to retry EMISSION_FAILED voucher for quote ID '{}'. Returning 503 to keep Mercado Pago retrying.", quoteId);
+                                            return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).build();
                                         }
                                     }
                                     if (existingVoucher.getStatus() == VoucherStatus.PENDING) {
@@ -267,6 +270,9 @@ public class MercadoPagoPaymentsController {
                                                             quoteId, retryResult.failure().get());
                                                     return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).build();
                                                 }
+                                            } else {
+                                                LOGGER.warn("No PaymentIntent found to recover stale PENDING voucher for quote ID '{}'. Returning 503 to keep Mercado Pago retrying.", quoteId);
+                                                return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).build();
                                             }
                                         } else {
                                             LOGGER.info("Voucher for quote ID '{}' is currently PENDING (<60s in progress). Returning 503 so MP retries later.", quoteId);

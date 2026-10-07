@@ -5,6 +5,7 @@ import com.tuxlogic.shiftiq.platform.billing.application.outboundservices.Paymen
 import com.tuxlogic.shiftiq.platform.billing.application.outboundservices.PaymentResult;
 import com.tuxlogic.shiftiq.platform.billing.domain.model.aggregates.Quote;
 import com.tuxlogic.shiftiq.platform.billing.domain.model.aggregates.Voucher;
+import com.tuxlogic.shiftiq.platform.billing.domain.model.commands.GenerateVoucherCommand;
 import com.tuxlogic.shiftiq.platform.billing.domain.model.commands.ProcessMercadoPagoCheckoutCommand;
 import com.tuxlogic.shiftiq.platform.billing.domain.model.valueobjects.*;
 import com.tuxlogic.shiftiq.platform.billing.domain.repositories.QuoteRepository;
@@ -509,5 +510,51 @@ class ProcessMercadoPagoCheckoutTest {
         assertThat(result.isFailure()).isTrue();
         assertThat(result.failure().get()).isEqualTo(VoucherCommandFailure.VOUCHER_EMISSION_IN_PROGRESS);
         verify(factosGateway, never()).issueVoucher(any(), any(), any(), any(), any(), any(), any());
+    }
+
+    @Test
+    @DisplayName("GenerateVoucher persists the fiscal correlative returned by Factos instead of leaving it null")
+    void generateVoucherPersistsCorrelativeReturnedByFactos() {
+        UUID quoteId = UUID.randomUUID();
+        UUID branchId = UUID.randomUUID();
+        UUID workshopId = UUID.randomUUID();
+        Quote quote = new Quote(quoteId, UUID.randomUUID(), new BranchId(branchId), new Money(new BigDecimal("100.00")), 0.0, new Money(new BigDecimal("100.00")), QuoteStatus.APPROVED);
+
+        when(quoteRepository.findById(eq(quoteId))).thenReturn(Optional.of(quote));
+        when(voucherRepository.findByQuoteId(eq(quoteId))).thenReturn(Optional.empty());
+
+        com.tuxlogic.shiftiq.platform.core.domain.model.aggregates.Branch mockBranch =
+                mock(com.tuxlogic.shiftiq.platform.core.domain.model.aggregates.Branch.class);
+        when(mockBranch.getWorkshopId()).thenReturn(new com.tuxlogic.shiftiq.platform.core.domain.model.valueobjects.WorkshopId(workshopId));
+        when(branchQueryService.handle(any(com.tuxlogic.shiftiq.platform.core.domain.model.queries.GetBranchByIdQuery.class)))
+                .thenReturn(Optional.of(mockBranch));
+
+        com.tuxlogic.shiftiq.platform.core.domain.model.aggregates.Workshop mockWorkshop =
+                mock(com.tuxlogic.shiftiq.platform.core.domain.model.aggregates.Workshop.class);
+        when(mockWorkshop.getTaxId()).thenReturn(new com.tuxlogic.shiftiq.platform.core.domain.model.valueobjects.TaxId("20123456789"));
+        when(workshopQueryService.handle(any(com.tuxlogic.shiftiq.platform.core.domain.model.queries.GetWorkshopByIdQuery.class)))
+                .thenReturn(Optional.of(mockWorkshop));
+
+        FactosGateway.FactosInvoiceResult invoiceResult =
+                new FactosGateway.FactosInvoiceResult("F001", "00000007", "http://pdf-url", new BigDecimal("100.00"));
+        when(factosGateway.issueVoucher(eq("20123456789"), eq(VoucherType.INVOICE), eq("RUC"), eq("20601234567"), eq("Transportes Lima S.A.C."), any()))
+                .thenReturn(Optional.of(invoiceResult));
+
+        when(voucherRepository.save(any(Voucher.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        GenerateVoucherCommand command = new GenerateVoucherCommand(
+                quoteId,
+                VoucherType.INVOICE,
+                "RUC",
+                "20601234567",
+                "Transportes Lima S.A.C."
+        );
+
+        Result<Voucher, VoucherCommandFailure> result = service.handle(command);
+
+        assertThat(result.isSuccess()).isTrue();
+        assertThat(result.success().get().getCorrelative()).isEqualTo("00000007");
+        assertThat(result.success().get().getStatus()).isNotNull();
+        verify(fiscalCorrelativeService, never()).nextCorrelative(any());
     }
 }
