@@ -14,10 +14,12 @@ Guía completa de arquitectura y desarrollo sobre el ciclo de vida de autenticac
    - [Renovación de Sesión (Refresh Token)](#33-renovación-de-sesión-refresh-token)
    - [Cierre de Sesión (Revocación)](#34-cierre-de-sesión-revocación)
 4. [Flujo Jerárquico de Contratación y Onboarding de Personal](#-4-flujo-jerárquico-de-contratación-y-onboarding-de-personal)
-   - [Regla de Delegación: Caso Mono-Sede vs. Multi-Sede](#41-regla-de-delegación-caso-mono-sede-vs-multi-sede)
-   - [Diagrama de Secuencia de Onboarding](#42-diagrama-de-secuencia-de-onboarding)
-   - [Paso a Paso del Registro Directo](#43-paso-a-paso-del-registro-directo)
-   - [Flujo de Postulación Autónoma (Request-Join & Aprobación)](#44-flujo-de-postulación-autónoma-request-join--aprobación)
+   - [Principio Rector y Filosofía del Modelo Jerárquico](#41-principio-rector-y-filosofía-del-modelo-jerárquico)
+   - [Guía Operativa Paso a Paso: Agregado por Jerarquía en Taller Multi-Sede](#42-guía-operativa-paso-a-paso-agregado-por-jerarquía-en-taller-multi-sede)
+   - [Guía Operativa en Taller Mono-Sede](#43-guía-operativa-en-taller-mono-sede-1-sola-sede)
+   - [Diagrama de Secuencia Técnico de Validación](#44-diagrama-de-secuencia-técnico-de-validación)
+   - [Matriz de Infracciones de Jerarquía y Respuestas HTTP](#45-matriz-de-infracciones-de-jerarquía-y-respuestas-http)
+   - [Flujo de Postulación Autónoma (Request-Join & Aprobación)](#46-flujo-de-postulación-autónoma-request-join--aprobación)
 5. [Aislamiento Multi-Tenant y Seguridad por Sede](#-5-aislamiento-multi-tenant-y-seguridad-por-sede)
    - [Scoping de Cuentas (`AccountBranchScopeResolver`)](#51-scoping-de-cuentas-accountbranchscoperesolver)
    - [Protección Contra Degradación de Privilegios](#52-protección-contra-degradación-de-privilegios)
@@ -178,116 +180,227 @@ Invalida la sesión activa y elimina el refresh token de la base de datos para i
 
 ## 👥 4. Flujo Jerárquico de Contratación y Onboarding de Personal
 
-### 4.1. Regla de Delegación: Caso Mono-Sede vs. Multi-Sede
+### 4.1. Principio Rector y Filosofía del Modelo Jerárquico
 
-El sistema se adapta automáticamente a la escala y estructura organizativa del taller:
+En los talleres automotrices modernos, la administración del personal sigue una **cadena de mando delegada**:
+
+1. **La cuenta padre (`ROLE_OWNER`)** no debe microgestionar decenas de técnicos distribuidos en múltiples sedes. Su responsabilidad es designar al responsable de cada sede: el **Gerente de Sede (`ROLE_BRANCH_MANAGER`)**.
+2. **El Gerente de Sede (`ROLE_BRANCH_MANAGER`)** toma posesión administrativa de su sede y designa a su brazo operativo: el **Asistente de Sede (`ROLE_ASSISTANT`)**.
+3. **El Asistente de Sede (`ROLE_ASSISTANT`)** es la persona en el piso de recepción y taller que gestiona el día a día; por ello, es quien se encarga de dar de alta al personal técnico y operativo (**Mecánicos**, **Electricistas**, **Planchadores**, **Técnicos de Diagnóstico**, etc. con `ROLE_EMPLOYEE`).
+4. **En talleres con una sola sede (Mono-Sede)**, no existe una estructura gerencial compleja: el propio **Dueño (`ROLE_OWNER`)** asume el papel de gestor directo de la sede y puede dar de alta directamente a su Asistente (`ROLE_ASSISTANT`) o a los técnicos (`ROLE_EMPLOYEE`).
+5. **Los empleados técnicos (`ROLE_EMPLOYEE`)** están estrictamente bloqueados de dar de alta o administrar a otros miembros del personal.
 
 ```mermaid
 graph TD
-    subgraph MultiSede ["Caso 1: Taller Multi-Sede (> 1 sede)"]
-        O1["Dueño (ROLE_OWNER)"] -->|Asigna| GM["Gerente de Sede (ROLE_BRANCH_MANAGER)"]
-        GM -->|Asigna| AS1["Asistente (ROLE_ASSISTANT)"]
-        GM -->|Asigna| OP1["Mecánicos / Técnicos (ROLE_EMPLOYEE)"]
-        AS1 -->|Asigna| OP1
+    subgraph MultiSede ["Escenario Multi-Sede (> 1 sede en el consorcio)"]
+        O1["👑 Dueño del Taller (ROLE_OWNER)<br/>(Cuenta Padre)"]
+        GM1["👔 Gerente de Sede Norte (ROLE_BRANCH_MANAGER)"]
+        GM2["👔 Gerente de Sede Sur (ROLE_BRANCH_MANAGER)"]
+        AS1["📋 Asistente / Recepción Sede Norte (ROLE_ASSISTANT)"]
+        AS2["📋 Asistente / Recepción Sede Sur (ROLE_ASSISTANT)"]
+        T1["🔧 Mecánicos, Electricistas, Planchadores<br/>(ROLE_EMPLOYEE)"]
+        T2["🔧 Mecánicos, Electricistas, Planchadores<br/>(ROLE_EMPLOYEE)"]
+
+        O1 -->|1. Agrega| GM1
+        O1 -->|1. Agrega| GM2
+        GM1 -->|2. Agrega| AS1
+        GM2 -->|2. Agrega| AS2
+        AS1 -->|3. Agrega| T1
+        AS2 -->|3. Agrega| T2
     end
 
-    subgraph MonoSede ["Caso 2: Taller Mono-Sede (1 sola sede)"]
-        O2["Dueño (ROLE_OWNER)"] -->|Asigna directamente| AS2["Asistente (ROLE_ASSISTANT)"]
-        O2 -->|Asigna directamente| OP2["Mecánicos / Técnicos (ROLE_EMPLOYEE)"]
-        AS2 -->|Asigna| OP2
+    subgraph MonoSede ["Escenario Mono-Sede (1 sola sede física)"]
+        O2["👑 Dueño del Taller (ROLE_OWNER)<br/>(Asume rol de Gerente)"]
+        AS_M["📋 Asistente (ROLE_ASSISTANT)"]
+        T_M["🔧 Mecánicos y Técnicos (ROLE_EMPLOYEE)"]
+
+        O2 -->|Agrega directamente| AS_M
+        O2 -.->|O agrega directamente| T_M
+        AS_M -->|Agrega operativamente| T_M
     end
 ```
 
 ---
 
-### 4.2. Diagrama de Secuencia de Onboarding
+### 4.2. Guía Operativa Paso a Paso: Agregado por Jerarquía en Taller Multi-Sede
 
-A continuación se muestra la secuencia completa que ocurre cuando una autoridad da de alta a un miembro del personal:
+A continuación se muestra el ciclo completo de peticiones REST ejecutadas para dar de alta a toda la cadena de mando.
+
+#### 📌 Pre-requisito Común: Cuenta de Usuario y Perfil de Empleado
+Antes de que una persona pueda ser vinculada a una sede, debe contar con su cuenta base en IAM y su perfil en el Core:
+1. El usuario se registra en la plataforma: `POST /api/v1/authentication/sign-up` (obtiene un `userId` con rol `ROLE_USER`).
+2. Se crea su ficha de datos personales: `POST /api/v1/employees` con el `userId`, DNI, nombre y teléfono (obtiene un `employeeId`).
+
+---
+
+#### 🥇 Paso 1: La Cuenta Padre (Dueño) Agrega al Gerente de Sede
+* **Quién ejecuta:** Dueño del Taller (`ROLE_OWNER`).
+* **Cabecera HTTP:** `Authorization: Bearer <token_del_dueño>`.
+* **Endpoint:** `POST /api/v1/employee-registrations`
+* **Request Body:**
+```json
+{
+  "employeeId": "77777777-1111-2222-3333-444444444444",
+  "branchId": "b1111111-0000-0000-0000-000000000001",
+  "speciality": "GENERAL_MECHANIC",
+  "specialityName": "Gerencia General de Sede Norte",
+  "salary": 4500.00,
+  "role": "ROLE_BRANCH_MANAGER"
+}
+```
+* **Efecto en el sistema:**
+  1. Se valida que el llamador sea el dueño del taller al que pertenece `branchId`.
+  2. Se valida que el rol objetivo sea `ROLE_BRANCH_MANAGER`.
+  3. Se crea el registro `EmployeeRegistration` en estado `ACTIVE`.
+  4. En IAM, la cuenta de usuario se actualiza:
+     - `user.role` = `ROLE_BRANCH_MANAGER`.
+     - `user.branchIds` = `["b1111111-0000-0000-0000-000000000001"]`.
+
+---
+
+#### 🥈 Paso 2: El Gerente de Sede Agrega a su Asistente
+* **Quién ejecuta:** El Gerente de Sede (`ROLE_BRANCH_MANAGER`).
+* **Credenciales:** El gerente inicia sesión en `POST /api/v1/authentication/sessions` y utiliza su nuevo token emitido.
+* **Cabecera HTTP:** `Authorization: Bearer <token_del_gerente>`.
+* **Endpoint:** `POST /api/v1/employee-registrations`
+* **Request Body:**
+```json
+{
+  "employeeId": "88888888-2222-3333-4444-555555555555",
+  "branchId": "b1111111-0000-0000-0000-000000000001",
+  "speciality": "GENERAL_MECHANIC",
+  "specialityName": "Asistente Administrativa y Recepción",
+  "salary": 2200.00,
+  "role": "ROLE_ASSISTANT"
+}
+```
+* **Efecto en el sistema:**
+  1. [`MultiTenancySecurityService`](file:///home/aldo/Proyectos/University/Mobile-Applications/shiftiq-platform/src/main/java/com/tuxlogic/shiftiq/platform/shared/infrastructure/security/MultiTenancySecurityService.java) comprueba que el token pertenezca a la sede `b1111111-0000-0000-0000-000000000001`.
+  2. Comprueba que un `ROLE_BRANCH_MANAGER` tiene autorización para asignar `ROLE_ASSISTANT`.
+  3. En IAM, la cuenta del asistente recibe:
+     - `user.role` = `ROLE_ASSISTANT`.
+     - `user.branchIds` = `["b1111111-0000-0000-0000-000000000001"]`.
+
+---
+
+#### 🥉 Paso 3: El Asistente de Sede Agrega al Personal Técnico
+* **Quién ejecuta:** El Asistente de Sede (`ROLE_ASSISTANT`).
+* **Credenciales:** El asistente inicia sesión y usa su token `Bearer <token_del_asistente>`.
+* **Endpoint:** `POST /api/v1/employee-registrations`
+* **Request Body para Mecánico General:**
+```json
+{
+  "employeeId": "99999999-3333-4444-5555-666666666666",
+  "branchId": "b1111111-0000-0000-0000-000000000001",
+  "speciality": "GENERAL_MECHANIC",
+  "specialityName": "Mecánico Automotriz de Motores",
+  "salary": 2800.00,
+  "role": "ROLE_EMPLOYEE"
+}
+```
+* **Request Body para Electricista Automotriz:**
+```json
+{
+  "employeeId": "aaaaaaaa-4444-5555-6666-777777777777",
+  "branchId": "b1111111-0000-0000-0000-000000000001",
+  "speciality": "ELECTRICIAN",
+  "specialityName": "Técnico Electricista y Diagnóstico de Sensores",
+  "salary": 3000.00,
+  "role": "ROLE_EMPLOYEE"
+}
+```
+* **Request Body para Planchado y Pintura:**
+```json
+{
+  "employeeId": "bbbbbbbb-5555-6666-7777-888888888888",
+  "branchId": "b1111111-0000-0000-0000-000000000001",
+  "speciality": "BODYWORK_PAINT",
+  "specialityName": "Maestro Planchador y Pintor al Horno",
+  "salary": 3100.00,
+  "role": "ROLE_EMPLOYEE"
+}
+```
+* **Efecto en el sistema:**
+  1. Se verifica que `GENERAL_MECHANIC`, `ELECTRICIAN` y `BODYWORK_PAINT` pertenezcan al catálogo activo del taller.
+  2. Se verifica que el llamador (`ROLE_ASSISTANT`) solo esté intentando dar de alta `ROLE_EMPLOYEE`.
+  3. Las cuentas IAM de los técnicos quedan configuradas con `ROLE_EMPLOYEE` y vinculadas exclusivamente a la sede Norte.
+
+---
+
+### 4.3. Guía Operativa en Taller Mono-Sede (1 sola sede)
+
+Cuando el taller cuenta con una sola sede (`countBranchesForWorkshop <= 1`):
+* El Dueño (`ROLE_OWNER`) tiene potestad directa sobre la sede y no está obligado a crear un Gerente.
+* El Dueño puede invocar directamente `POST /api/v1/employee-registrations` con:
+  * `role: "ROLE_ASSISTANT"` para incorporar a su asistente.
+  * O `role: "ROLE_EMPLOYEE"` para incorporar directamente a los mecánicos.
+* Una vez registrado el asistente, este asume la tarea de seguir agregando más personal técnico.
+
+---
+
+### 4.4. Diagrama de Secuencia Técnico de Validación
 
 ```mermaid
 sequenceDiagram
     autonumber
-    actor Gerente as Gerente / Asistente
+    actor Jefe as Autoridad (Dueño / Gerente / Asistente)
     participant API as EmployeeRegistrationsController
     participant Sec as MultiTenancySecurityService
     participant Fleet as EmployeeRegistrationCommandService
     participant Core as ExternalCoreService
     participant IAM as ExternalIamService
 
-    Gerente->>API: POST /api/v1/employee-registrations { employeeId, branchId, speciality, salary, role }
+    Jefe->>API: POST /api/v1/employee-registrations { employeeId, branchId, speciality, salary, role }
     API->>Sec: validateStaffManagement(role, branchId)
-    Note over Sec: Verifica que el llamador tenga la sede asignada<br/>y que su rango jerárquico permita asignar ese rol.
-    Sec-->>API: Autorizado OK
+    alt Llamador no tiene acceso a la sede o rol no permitido en jerarquía
+        Sec-->>API: throws AccessDeniedException
+        API-->>Jefe: 403 FORBIDDEN
+    else Jerarquía y sede válidas
+        Sec-->>API: Autorizado OK
+    end
 
     API->>Fleet: handle(CreateEmployeeRegistrationCommand)
     Fleet->>Core: existsBranchById(branchId) & existsEmployeeById(employeeId)
-    Core-->>Fleet: OK
     Fleet->>Core: findWorkshopIdForBranch(branchId)
-    Core-->>Fleet: workshopId
     Fleet->>Core: existsActiveWorkshopSpecialty(workshopId, speciality)
-    Note over Fleet,Core: Valida que la especialidad pertenezca al catálogo activo del taller
-    Core-->>Fleet: true (Válida)
+    alt Especialidad no existe o está inactiva en el taller
+        Core-->>Fleet: false
+        Fleet-->>API: Result.failure(SPECIALTY_NOT_IN_CATALOG)
+        API-->>Jefe: 400 BAD REQUEST ("fleet.error.employeeRegistration.specialtyNotInCatalog")
+    else Especialidad activa OK
+        Core-->>Fleet: true
+    end
 
-    Fleet->>Fleet: Guarda EmployeeRegistration (ACTIVE)
+    Fleet->>Fleet: repository.save(registration)
     Fleet->>Core: findUserIdByEmployeeId(employeeId)
-    Core-->>Fleet: userId
     Fleet->>IAM: setBranches(userId, activeBranches)
     Fleet->>IAM: assignRole(userId, role)
-    Note over IAM: Comprueba no degradar privilegios (hierarchyRank)<br/>y persiste el nuevo rol y sedes en la cuenta User.
+    Note over IAM: Comprueba no degradar privilegios (canBeReplacedBy)<br/>y actualiza la cuenta User en base de datos.
     IAM-->>Fleet: OK
 
     Fleet-->>API: Result.success(registration)
-    API-->>Gerente: 201 CREATED (EmployeeRegistrationResource)
+    API-->>Jefe: 201 CREATED (EmployeeRegistrationResource)
 ```
 
 ---
 
-### 4.3. Paso a Paso del Registro Directo
+### 4.5. Matriz de Infracciones de Jerarquía y Respuestas HTTP
 
-Para registrar a un empleado y asignarle su rol en una sede:
+El sistema rechaza de forma estricta cualquier intento de saltarse la cadena de mando o quebrantar la seguridad multi-tenant:
 
-* **Endpoint:** `POST /api/v1/employee-registrations`
-* **Cabecera requerida:** `Authorization: Bearer <token_del_jefe>`
-* **Request Body:**
-```json
-{
-  "employeeId": "a1b2c3d4-e5f6-7a8b-9c0d-1e2f3a4b5c6d",
-  "branchId": "e2f3a4b5-c6d7-8e9f-0a1b-2c3d4e5f6a7b",
-  "speciality": "GENERAL_MECHANIC",
-  "specialityName": "Mecánico Automotriz Senior",
-  "salary": 3200.00,
-  "role": "ROLE_EMPLOYEE"
-}
-```
-
-#### Parámetros del Body:
-* `employeeId` *(UUID, Requerido)*: ID del perfil de empleado registrado previamente en el Core (`POST /api/v1/employees`).
-* `branchId` *(UUID, Requerido)*: ID de la sede a la que se incorpora.
-* `speciality` *(String, Requerido)*: Código en mayúsculas de una especialidad activa del catálogo del taller (ej. `GENERAL_MECHANIC`, `ELECTRICIAN`, `BODYWORK_PAINT`, etc.).
-* `specialityName` *(String, Opcional)*: Título descriptivo o cargo específico dentro del taller.
-* `salary` *(BigDecimal, Requerido)*: Salario asignado.
-* `role` *(String, Opcional)*: Rol asignado en el sistema IAM. Acepta con o sin prefijo `ROLE_`:
-  * `"ROLE_BRANCH_MANAGER"` (Gerente de Sede).
-  * `"ROLE_ASSISTANT"` (Asistente de Sede).
-  * `"ROLE_EMPLOYEE"` (Técnico / Operativo — valor por defecto si se omite).
-
-* **Respuesta Exitosa (`201 CREATED`):**
-```json
-{
-  "id": "f5e4d3c2-b1a0-9f8e-7d6c-5b4a3f2e1d0c",
-  "employeeId": "a1b2c3d4-e5f6-7a8b-9c0d-1e2f3a4b5c6d",
-  "branchId": "e2f3a4b5-c6d7-8e9f-0a1b-2c3d4e5f6a7b",
-  "speciality": "GENERAL_MECHANIC",
-  "specialityName": "Mecánico Automotriz Senior",
-  "salary": 3200.00,
-  "status": "ACTIVE",
-  "createdAt": "2026-10-07T14:30:00Z"
-}
-```
+| Escenario de Intento No Permitido | Emisor | Rol Solicitado | Código HTTP | Razón / Mensaje |
+| :--- | :--- | :--- | :---: | :--- |
+| Asistente intenta dar de alta a un Gerente | `ROLE_ASSISTANT` | `ROLE_BRANCH_MANAGER` | **`403 FORBIDDEN`** | Un asistente solo puede dar de alta personal técnico (`ROLE_EMPLOYEE`). |
+| Asistente intenta dar de alta a otro Asistente | `ROLE_ASSISTANT` | `ROLE_ASSISTANT` | **`403 FORBIDDEN`** | Solo el Gerente (o Dueño en mono-sede) puede nombrar asistentes. |
+| Técnico intenta dar de alta a un compañero | `ROLE_EMPLOYEE` | `ROLE_EMPLOYEE` | **`403 FORBIDDEN`** | Los mecánicos/técnicos no tienen permisos de gestión de personal. |
+| Gerente intenta dar de alta personal en una sede ajena | `ROLE_BRANCH_MANAGER` | `ROLE_EMPLOYEE` | **`403 FORBIDDEN`** | El gerente no pertenece ni tiene asignada esa sede (`!isAuthorizedForBranch`). |
+| Dueño en taller multi-sede intenta dar de alta un técnico sin delegar | `ROLE_OWNER` | `ROLE_EMPLOYEE` | **`403 FORBIDDEN`** | En multi-sede se exige delegar: el dueño debe nombrar al `ROLE_BRANCH_MANAGER`. |
+| Solicitud con rol reservado de plataforma | Cualquier usuario | `ROLE_ADMIN` u `ROLE_OWNER` | **`400 BAD REQUEST`** | El campo `role` solo acepta roles de personal de sede. |
+| Especialidad no existe en el catálogo del taller | Cualquier autoridad | Especialidad no registrada | **`400 BAD REQUEST`** | `fleet.error.employeeRegistration.specialtyNotInCatalog`. |
 
 ---
 
-### 4.4. Flujo de Postulación Autónoma (Request-Join & Aprobación)
+### 4.6. Flujo de Postulación Autónoma (Request-Join & Aprobación)
 
 Este flujo se utiliza cuando un mecánico registrado en la aplicación móvil solicita unirse por iniciativa propia a una sede:
 
