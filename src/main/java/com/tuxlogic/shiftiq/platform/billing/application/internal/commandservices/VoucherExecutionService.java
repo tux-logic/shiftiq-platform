@@ -209,6 +209,7 @@ public class VoucherExecutionService {
                     null
             );
             voucher.setCorrelative(correlative);
+            voucher.setBranchId(quote.getBranchId().value());
             voucher.recordPrepayment(
                     quote.getTotalAmount(),
                     PaymentMethod.CREDIT_CARD,
@@ -233,7 +234,18 @@ public class VoucherExecutionService {
         return voucher.getPayments().stream().anyMatch(p -> paymentId.equals(p.getExternalPaymentId()));
     }
 
-    private boolean isStale(Voucher voucher) {
+    /**
+     * Reserves the fiscal correlative and persists the voucher in a single transaction, so a
+     * number is never consumed without being recorded and never consumed twice.
+     */
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public Voucher reserveVoucher(Voucher voucher) {
+        String correlative = fiscalCorrelativeService.nextCorrelative(seriesOf(voucher.getType()));
+        voucher.setCorrelative(correlative);
+        return voucherRepository.save(voucher);
+    }
+
+    public boolean isStale(Voucher voucher) {
         Instant lastUpdate = voucher.getUpdatedAt() != null ? voucher.getUpdatedAt() : voucher.getCreatedAt();
         return lastUpdate != null && Duration.between(lastUpdate, Instant.now()).toSeconds() >= STALE_PENDING_SECONDS;
     }

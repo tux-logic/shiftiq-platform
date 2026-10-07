@@ -3,11 +3,14 @@ package com.tuxlogic.shiftiq.platform.billing.application.internal.commandservic
 import com.tuxlogic.shiftiq.platform.billing.domain.model.valueobjects.VoucherCommandFailure;
 import com.tuxlogic.shiftiq.platform.billing.application.commandservices.VoucherCommandService;
 import com.tuxlogic.shiftiq.platform.billing.application.outboundservices.FactosGateway;
+import com.tuxlogic.shiftiq.platform.billing.domain.model.aggregates.Quote;
 import com.tuxlogic.shiftiq.platform.billing.domain.model.aggregates.Voucher;
 import com.tuxlogic.shiftiq.platform.billing.domain.model.commands.AddPaymentCommand;
 import com.tuxlogic.shiftiq.platform.billing.domain.model.commands.GenerateVoucherCommand;
+import com.tuxlogic.shiftiq.platform.billing.domain.model.valueobjects.PaymentMethod;
 import com.tuxlogic.shiftiq.platform.billing.domain.model.valueobjects.QuoteStatus;
 import com.tuxlogic.shiftiq.platform.billing.domain.model.valueobjects.VoucherStatus;
+import com.tuxlogic.shiftiq.platform.billing.domain.model.valueobjects.VoucherType;
 import com.tuxlogic.shiftiq.platform.billing.domain.repositories.QuoteRepository;
 import com.tuxlogic.shiftiq.platform.billing.domain.repositories.VoucherRepository;
 import com.tuxlogic.shiftiq.platform.core.application.queryservices.BranchQueryService;
@@ -92,61 +95,15 @@ public class VoucherCommandServiceImpl implements VoucherCommandService {
         if (quote.getStatus() != QuoteStatus.APPROVED) {
             return Result.failure(VoucherCommandFailure.QUOTE_NOT_APPROVED);
         }
-        if (voucherRepository.findByQuoteId(command.quoteId()).isPresent()) {
-            return Result.failure(VoucherCommandFailure.QUOTE_ALREADY_INVOICED);
-        }
 
-        // 2. Query Core context for Issuer RUC (Tax ID)
-        var coreBranchId = new BranchId(quote.getBranchId().value());
-        var branchOpt = branchQueryService.handle(new GetBranchByIdQuery(coreBranchId));
-        if (branchOpt.isEmpty()) {
-            return Result.failure(VoucherCommandFailure.ISSUER_NOT_FOUND);
-        }
-        
-        var workshopOpt = workshopQueryService.handle(new GetWorkshopByIdQuery(branchOpt.get().getWorkshopId()));
-        if (workshopOpt.isEmpty()) {
-            return Result.failure(VoucherCommandFailure.ISSUER_NOT_FOUND);
-        }
-        String issuerRuc = workshopOpt.get().getTaxId().value();
-
-        // 3. Issue Voucher via Factos
-        var invoiceResultOpt = factosGateway.issueVoucher(
-                issuerRuc,
+        return emitVoucher(
+                quote,
                 command.type(),
                 command.customerDocumentType(),
                 command.customerDocumentNumber(),
                 command.customerName(),
-                getDetailedBillingItems(quote)
+                null
         );
-
-        if (invoiceResultOpt.isEmpty()) {
-            return Result.failure(VoucherCommandFailure.FACTOS_ISSUANCE_FAILED);
-        }
-
-        var invoiceResult = invoiceResultOpt.get();
-        UUID externalInvoiceId = UUID.nameUUIDFromBytes((invoiceResult.series() + "-" + invoiceResult.correlative()).getBytes(StandardCharsets.UTF_8));
-
-        // 4. Create and save Voucher Aggregate
-        try {
-            var voucher = new Voucher(
-                    command.quoteId(),
-                    command.type(),
-                    command.customerDocumentType(),
-                    command.customerDocumentNumber(),
-                    command.customerName(),
-                    quote.getTotalAmount(),
-                    externalInvoiceId,
-                    invoiceResult.pdfUrl()
-            );
-            if (invoiceResult.correlative() != null && !invoiceResult.correlative().isBlank()) {
-                voucher.setCorrelative(invoiceResult.correlative());
-            }
-
-            var savedVoucher = voucherRepository.save(voucher);
-            return Result.success(savedVoucher);
-        } catch (IllegalArgumentException e) {
-            return Result.failure(VoucherCommandFailure.INVALID_VOUCHER_DATA);
-        }
     }
 
     @Override
@@ -217,8 +174,54 @@ public class VoucherCommandServiceImpl implements VoucherCommandService {
         if (quote.getStatus() != QuoteStatus.APPROVED) {
             return Result.failure(VoucherCommandFailure.QUOTE_NOT_APPROVED);
         }
-        if (voucherRepository.findByQuoteId(command.quoteId()).isPresent()) {
-            return Result.failure(VoucherCommandFailure.QUOTE_ALREADY_INVOICED);
+
+        return emitVoucher(
+                quote,
+                command.type(),
+                command.customerDocumentType(),
+                command.customerDocumentNumber(),
+                command.customerName(),
+                command.method()
+        );
+    }
+
+    /**
+     * Emits a voucher through Factos using the manual (non-Mercado Pago) checkout path.
+     *
+     * <p>The fiscal correlative is reserved and persisted <strong>before</strong> the Factos call so a
+     * failed or interrupted emission never consumes a numbering slot without recording it: the slot stays
+     * attached to the voucher row and is reused by the next attempt instead of leaving a gap.</p>
+     *
+     * @param paymentMethod full payment to record on a fresh voucher, or {@code null} when the voucher
+     *                      is generated without payment (invoices of an already approved quote)
+     */
+    private Result<Voucher, VoucherCommandFailure> emitVoucher(
+            Quote quote,
+            VoucherType type,
+            String customerDocumentType,
+            String customerDocumentNumber,
+            String customerName,
+            PaymentMethod paymentMethod) {
+
+        // 1. Recover a voucher that already holds a reserved correlative, or reject duplicates
+        Voucher voucherToEmit = null;
+        var existingOpt = voucherRepository.findByQuoteId(quote.getId());
+        if (existingOpt.isPresent()) {
+            var existing = existingOpt.get();
+            boolean emitted = existing.getExternalInvoiceId() != null;
+            if (!emitted && existing.getStatus() == VoucherStatus.EMISSION_FAILED) {
+                log.info("Voucher for quote ID '{}' is in EMISSION_FAILED. Retrying emission with correlative '{}'",
+                        quote.getId(), existing.getCorrelative());
+                voucherToEmit = existing;
+            } else if (!emitted && existing.getStatus() == VoucherStatus.PENDING && voucherExecutionService.isStale(existing)) {
+                log.info("Voucher for quote ID '{}' is stale PENDING. Recovering emission with correlative '{}'",
+                        quote.getId(), existing.getCorrelative());
+                voucherToEmit = existing;
+            } else if (!emitted && existing.getStatus() == VoucherStatus.PENDING) {
+                return Result.failure(VoucherCommandFailure.VOUCHER_EMISSION_IN_PROGRESS);
+            } else {
+                return Result.failure(VoucherCommandFailure.QUOTE_ALREADY_INVOICED);
+            }
         }
 
         // 2. Query Core context for Issuer RUC (Tax ID)
@@ -227,54 +230,71 @@ public class VoucherCommandServiceImpl implements VoucherCommandService {
         if (branchOpt.isEmpty()) {
             return Result.failure(VoucherCommandFailure.ISSUER_NOT_FOUND);
         }
-        
+
         var workshopOpt = workshopQueryService.handle(new GetWorkshopByIdQuery(branchOpt.get().getWorkshopId()));
         if (workshopOpt.isEmpty()) {
             return Result.failure(VoucherCommandFailure.ISSUER_NOT_FOUND);
         }
         String issuerRuc = workshopOpt.get().getTaxId().value();
 
-        // 3. Issue Voucher via Factos
+        // 3. Reserve the correlative in an isolated transaction before calling Factos
+        if (voucherToEmit == null) {
+            try {
+                var voucher = new Voucher(
+                        quote.getId(),
+                        type,
+                        customerDocumentType,
+                        customerDocumentNumber,
+                        customerName,
+                        quote.getTotalAmount(),
+                        null,
+                        null
+                );
+                voucher.setBranchId(quote.getBranchId().value());
+                if (paymentMethod != null) {
+                    voucher.addPayment(quote.getTotalAmount(), paymentMethod, quote.getBranchId().value());
+                }
+                voucherToEmit = voucher;
+            } catch (IllegalArgumentException | IllegalStateException e) {
+                return Result.failure(VoucherCommandFailure.INVALID_VOUCHER_DATA);
+            }
+        }
+
+        if (voucherToEmit.getCorrelative() == null || voucherToEmit.getCorrelative().isBlank()) {
+            try {
+                voucherToEmit = voucherExecutionService.reserveVoucher(voucherToEmit);
+            } catch (DataIntegrityViolationException e) {
+                log.warn("Concurrent voucher insert conflict for quote ID '{}': {}", quote.getId(), e.getMessage());
+                return Result.failure(VoucherCommandFailure.VOUCHER_EMISSION_IN_PROGRESS);
+            } catch (IllegalArgumentException | IllegalStateException e) {
+                return Result.failure(VoucherCommandFailure.INVALID_VOUCHER_DATA);
+            }
+        }
+
+        // 4. Issue Voucher via Factos outside any database transaction, using the reserved correlative
         var invoiceResultOpt = factosGateway.issueVoucher(
                 issuerRuc,
-                command.type(),
-                command.customerDocumentType(),
-                command.customerDocumentNumber(),
-                command.customerName(),
-                getDetailedBillingItems(quote)
+                type,
+                customerDocumentType,
+                customerDocumentNumber,
+                customerName,
+                getDetailedBillingItems(quote),
+                voucherToEmit.getCorrelative()
         );
 
         if (invoiceResultOpt.isEmpty()) {
+            voucherExecutionService.markEmissionFailed(voucherToEmit.getId());
             return Result.failure(VoucherCommandFailure.FACTOS_ISSUANCE_FAILED);
         }
 
         var invoiceResult = invoiceResultOpt.get();
         UUID externalInvoiceId = UUID.nameUUIDFromBytes((invoiceResult.series() + "-" + invoiceResult.correlative()).getBytes(StandardCharsets.UTF_8));
 
-        // 4. Create Voucher Aggregate
         try {
-            var voucher = new Voucher(
-                    command.quoteId(),
-                    command.type(),
-                    command.customerDocumentType(),
-                    command.customerDocumentNumber(),
-                    command.customerName(),
-                    quote.getTotalAmount(),
-                    externalInvoiceId,
-                    invoiceResult.pdfUrl()
-            );
-
-            if (invoiceResult.correlative() != null && !invoiceResult.correlative().isBlank()) {
-                voucher.setCorrelative(invoiceResult.correlative());
-            }
-
-            // 5. Add full payment to the Voucher
-            voucher.addPayment(quote.getTotalAmount(), command.method(), quote.getBranchId().value());
-
-            // 6. Save the fully paid Voucher
-            var savedVoucher = voucherRepository.save(voucher);
+            var savedVoucher = voucherExecutionService.markEmissionSuccess(
+                    voucherToEmit.getId(), externalInvoiceId, invoiceResult.pdfUrl());
             return Result.success(savedVoucher);
-        } catch (IllegalArgumentException | IllegalStateException e) {
+        } catch (IllegalStateException | IllegalArgumentException e) {
             return Result.failure(VoucherCommandFailure.INVALID_VOUCHER_DATA);
         }
     }
@@ -292,6 +312,7 @@ public class VoucherCommandServiceImpl implements VoucherCommandService {
             return Result.failure(f.failure());
         }
         if (validation instanceof VoucherPreparationResult.AlreadyEmitted ae) {
+            markIntentCompleted(command.quoteId());
             return Result.success(ae.voucher());
         }
         if (validation instanceof VoucherPreparationResult.InProgress) {
@@ -311,6 +332,7 @@ public class VoucherCommandServiceImpl implements VoucherCommandService {
             return Result.failure(f.failure());
         }
         if (prepResult instanceof VoucherPreparationResult.AlreadyEmitted ae) {
+            markIntentCompleted(command.quoteId());
             return Result.success(ae.voucher());
         }
         if (prepResult instanceof VoucherPreparationResult.InProgress) {
@@ -339,18 +361,23 @@ public class VoucherCommandServiceImpl implements VoucherCommandService {
             UUID externalInvoiceId = UUID.nameUUIDFromBytes((invoiceResult.series() + "-" + invoiceResult.correlative()).getBytes(StandardCharsets.UTF_8));
             var savedVoucher = voucherExecutionService.markEmissionSuccess(ready.voucher().getId(), externalInvoiceId, invoiceResult.pdfUrl());
 
-            if (paymentIntentJpaRepository != null) {
-                paymentIntentJpaRepository.findByQuoteId(command.quoteId()).ifPresent(intent -> {
-                    intent.setStatus("COMPLETED");
-                    intent.setUpdatedAt(LocalDateTime.now());
-                    paymentIntentJpaRepository.save(intent);
-                });
-            }
+            markIntentCompleted(command.quoteId());
 
             return Result.success(savedVoucher);
         }
 
         return Result.failure(VoucherCommandFailure.INVALID_VOUCHER_DATA);
+    }
+
+    private void markIntentCompleted(UUID quoteId) {
+        if (paymentIntentJpaRepository == null) {
+            return;
+        }
+        paymentIntentJpaRepository.findByQuoteId(quoteId).ifPresent(intent -> {
+            intent.setStatus("COMPLETED");
+            intent.setUpdatedAt(LocalDateTime.now());
+            paymentIntentJpaRepository.save(intent);
+        });
     }
 
     private Result<Voucher, VoucherCommandFailure> resolveConcurrentVoucher(
@@ -361,6 +388,7 @@ public class VoucherCommandServiceImpl implements VoucherCommandService {
             boolean paymentMatches = conflictingVoucher.getPayments().stream()
                     .anyMatch(p -> command.paymentId().equals(p.getExternalPaymentId()));
             if (paymentMatches && conflictingVoucher.getStatus() == VoucherStatus.PAID) {
+                markIntentCompleted(command.quoteId());
                 return Result.success(conflictingVoucher);
             }
         }

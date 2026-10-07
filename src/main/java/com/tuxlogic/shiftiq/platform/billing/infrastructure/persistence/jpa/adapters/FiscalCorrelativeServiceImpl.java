@@ -8,8 +8,9 @@ import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * Implementation of FiscalCorrelativeService using database pessimistic write locks
- * in an isolated transaction (REQUIRES_NEW) to prevent collisions across multiple instances.
+ * Implementation of FiscalCorrelativeService using database pessimistic write locks to prevent
+ * collisions across multiple instances. The allocation joins the caller transaction so the
+ * correlative bump commits atomically with the voucher insert and never leaves numbering gaps.
  */
 @Service
 public class FiscalCorrelativeServiceImpl implements FiscalCorrelativeService {
@@ -21,7 +22,7 @@ public class FiscalCorrelativeServiceImpl implements FiscalCorrelativeService {
     }
 
     @Override
-    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    @Transactional(propagation = Propagation.REQUIRED)
     public String nextCorrelative(String series) {
         String cleanSeries = (series != null && !series.isBlank()) ? series.toUpperCase() : "B001";
         var sequence = sequenceRepository.findBySeriesForUpdate(cleanSeries)

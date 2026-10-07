@@ -214,72 +214,16 @@ public class MercadoPagoPaymentsController {
                                         LOGGER.info("Voucher already exists and is PAID for quote ID '{}'. Webhook confirmed.", quoteId);
                                         return ResponseEntity.ok().build();
                                     }
-                                    if (existingVoucher.getStatus() == VoucherStatus.EMISSION_FAILED) {
-                                        LOGGER.info("Existing voucher in EMISSION_FAILED for quote ID '{}'. Retrying emission via webhook...", quoteId);
-                                        var intentOpt = paymentCommandService.getPaymentIntent(quoteId);
-                                        if (intentOpt.isPresent()) {
-                                            var intent = intentOpt.get();
-                                            VoucherType voucherType = "INVOICE".equalsIgnoreCase(intent.getVoucherType())
-                                                    ? VoucherType.INVOICE : VoucherType.RECEIPT;
-                                            var checkoutCmd = new ProcessMercadoPagoCheckoutCommand(
-                                                    quoteId,
-                                                    voucherType,
-                                                    intent.getCustomerDocumentType(),
-                                                    intent.getCustomerDocumentNumber(),
-                                                    intent.getCustomerName(),
-                                                    paymentIdStr
-                                            );
-                                            var retryResult = voucherCommandService.handle(checkoutCmd);
-                                            if (retryResult.isSuccess()) {
-                                                LOGGER.info("Successfully recovered and issued voucher on retry for quote ID '{}'", quoteId);
-                                                return ResponseEntity.ok().build();
-                                            } else {
-                                                LOGGER.warn("Webhook retry emission failed for quote ID '{}': {}. Returning 503 to trigger Mercado Pago retry.",
-                                                        quoteId, retryResult.failure().get());
-                                                return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).build();
-                                            }
-                                        } else {
-                                            LOGGER.warn("No PaymentIntent found to retry EMISSION_FAILED voucher for quote ID '{}'. Returning 503 to keep Mercado Pago retrying.", quoteId);
-                                            return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).build();
-                                        }
+                                    if (existingVoucher.getStatus() == VoucherStatus.EMISSION_FAILED
+                                            || (existingVoucher.getStatus() == VoucherStatus.PENDING && isStale(existingVoucher))) {
+                                        LOGGER.info("Existing voucher for quote ID '{}' is '{}'. Retrying emission via webhook...", quoteId, existingVoucher.getStatus());
+                                        return retryEmission(quoteId, paymentIdStr, existingVoucher.getStatus());
                                     }
                                     if (existingVoucher.getStatus() == VoucherStatus.PENDING) {
-                                        java.time.Instant lastUpdate = existingVoucher.getUpdatedAt() != null ? existingVoucher.getUpdatedAt() : existingVoucher.getCreatedAt();
-                                        boolean isStale = lastUpdate != null && java.time.Duration.between(lastUpdate, java.time.Instant.now()).toSeconds() >= 60;
-                                        if (isStale) {
-                                            LOGGER.info("Existing voucher in PENDING is stale (>=60s) for quote ID '{}'. Retrying emission via webhook...", quoteId);
-                                            var intentOpt = paymentCommandService.getPaymentIntent(quoteId);
-                                            if (intentOpt.isPresent()) {
-                                                var intent = intentOpt.get();
-                                                VoucherType voucherType = "INVOICE".equalsIgnoreCase(intent.getVoucherType())
-                                                        ? VoucherType.INVOICE : VoucherType.RECEIPT;
-                                                var checkoutCmd = new ProcessMercadoPagoCheckoutCommand(
-                                                        quoteId,
-                                                        voucherType,
-                                                        intent.getCustomerDocumentType(),
-                                                        intent.getCustomerDocumentNumber(),
-                                                        intent.getCustomerName(),
-                                                        paymentIdStr
-                                                );
-                                                var retryResult = voucherCommandService.handle(checkoutCmd);
-                                                if (retryResult.isSuccess()) {
-                                                    LOGGER.info("Successfully recovered and issued voucher on stale PENDING retry for quote ID '{}'", quoteId);
-                                                    return ResponseEntity.ok().build();
-                                                } else {
-                                                    LOGGER.warn("Webhook retry emission failed for stale PENDING quote ID '{}': {}. Returning 503 to trigger MP retry.",
-                                                            quoteId, retryResult.failure().get());
-                                                    return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).build();
-                                                }
-                                            } else {
-                                                LOGGER.warn("No PaymentIntent found to recover stale PENDING voucher for quote ID '{}'. Returning 503 to keep Mercado Pago retrying.", quoteId);
-                                                return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).build();
-                                            }
-                                        } else {
-                                            LOGGER.info("Voucher for quote ID '{}' is currently PENDING (<60s in progress). Returning 503 so MP retries later.", quoteId);
-                                            return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).build();
-                                        }
+                                        LOGGER.info("Voucher for quote ID '{}' is currently PENDING (<{}s in progress). Returning 503 so MP retries later.", quoteId, STALE_PENDING_SECONDS);
+                                        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).build();
                                     }
-                                    LOGGER.info("Voucher for quote ID '{}' is in status '{}'.", quoteId, existingVoucher.getStatus());
+                                    LOGGER.warn("Voucher for quote ID '{}' is in unhandled status '{}'. No emission performed, returning 200.", quoteId, existingVoucher.getStatus());
                                     return ResponseEntity.ok().build();
                                 } else {
                                     // Autonomous issuance via stored PaymentIntent
@@ -293,16 +237,7 @@ public class MercadoPagoPaymentsController {
                                             return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
                                         }
 
-                                        VoucherType voucherType = "INVOICE".equalsIgnoreCase(intent.getVoucherType())
-                                                ? VoucherType.INVOICE : VoucherType.RECEIPT;
-                                        var checkoutCmd = new ProcessMercadoPagoCheckoutCommand(
-                                                quoteId,
-                                                voucherType,
-                                                intent.getCustomerDocumentType(),
-                                                intent.getCustomerDocumentNumber(),
-                                                intent.getCustomerName(),
-                                                paymentIdStr
-                                        );
+                                        var checkoutCmd = buildCheckoutCommand(quoteId, intent, paymentIdStr);
                                         var checkoutResult = voucherCommandService.handle(checkoutCmd);
                                         if (checkoutResult.isSuccess()) {
                                             LOGGER.info("Autonomously issued voucher via webhook for quote ID '{}' and payment ID '{}'",
@@ -331,6 +266,45 @@ public class MercadoPagoPaymentsController {
         }
 
         return ResponseEntity.ok().build();
+    }
+
+    private static final long STALE_PENDING_SECONDS = 60;
+
+    private boolean isStale(com.tuxlogic.shiftiq.platform.billing.domain.model.aggregates.Voucher voucher) {
+        java.time.Instant lastUpdate = voucher.getUpdatedAt() != null ? voucher.getUpdatedAt() : voucher.getCreatedAt();
+        return lastUpdate != null && java.time.Duration.between(lastUpdate, java.time.Instant.now()).toSeconds() >= STALE_PENDING_SECONDS;
+    }
+
+    private ProcessMercadoPagoCheckoutCommand buildCheckoutCommand(
+            UUID quoteId,
+            com.tuxlogic.shiftiq.platform.billing.infrastructure.persistence.jpa.entities.PaymentIntentPersistenceEntity intent,
+            String paymentIdStr) {
+        VoucherType voucherType = "INVOICE".equalsIgnoreCase(intent.getVoucherType())
+                ? VoucherType.INVOICE : VoucherType.RECEIPT;
+        return new ProcessMercadoPagoCheckoutCommand(
+                quoteId,
+                voucherType,
+                intent.getCustomerDocumentType(),
+                intent.getCustomerDocumentNumber(),
+                intent.getCustomerName(),
+                paymentIdStr
+        );
+    }
+
+    private ResponseEntity<Void> retryEmission(UUID quoteId, String paymentIdStr, VoucherStatus reason) {
+        var intentOpt = paymentCommandService.getPaymentIntent(quoteId);
+        if (intentOpt.isEmpty()) {
+            LOGGER.warn("No PaymentIntent found to recover voucher in {} for quote ID '{}'. Returning 503 to keep Mercado Pago retrying.", reason, quoteId);
+            return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).build();
+        }
+        var retryResult = voucherCommandService.handle(buildCheckoutCommand(quoteId, intentOpt.get(), paymentIdStr));
+        if (retryResult.isSuccess()) {
+            LOGGER.info("Successfully recovered and issued voucher in {} for quote ID '{}'", reason, quoteId);
+            return ResponseEntity.ok().build();
+        }
+        LOGGER.warn("Webhook retry emission failed ({}) for quote ID '{}': {}. Returning 503 to trigger Mercado Pago retry.",
+                reason, quoteId, retryResult.failure().get());
+        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).build();
     }
 
     private boolean isValidSignature(String xSignature, String xRequestId, String dataId) {

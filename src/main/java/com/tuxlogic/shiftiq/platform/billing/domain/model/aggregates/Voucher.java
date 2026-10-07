@@ -25,6 +25,7 @@ public class Voucher extends AbstractDomainAggregateRoot<Voucher> {
 
     private UUID id;
     private UUID quoteId;
+    private UUID branchId;
     private VoucherType type;
     private String customerDocumentType;
     private String customerDocumentNumber;
@@ -110,6 +111,10 @@ public class Voucher extends AbstractDomainAggregateRoot<Voucher> {
 
     public void setCorrelative(String correlative) {
         this.correlative = correlative;
+    }
+
+    public void setBranchId(UUID branchId) {
+        this.branchId = branchId;
     }
 
     public void setUpdatedAt(Instant updatedAt) {
@@ -239,8 +244,14 @@ public class Voucher extends AbstractDomainAggregateRoot<Voucher> {
         this.pdfUrl = pdfUrl;
         this.updatedAt = Instant.now();
         if (getTotalPaidAmount().compareTo(this.totalAmount.amount()) >= 0) {
-            this.status = VoucherStatus.PAID;
-            this.registerDomainEvent(new VoucherPaidEvent(this, this.id, this.quoteId));
+            if (this.status != VoucherStatus.PAID) {
+                this.status = VoucherStatus.PAID;
+                this.registerDomainEvent(new VoucherPaidEvent(this, this.id, this.quoteId));
+            }
+        } else if (this.status == VoucherStatus.EMISSION_FAILED) {
+            // Emission was retried successfully on a voucher without full payment: it is emitted
+            // again but still unpaid, so it returns to PENDING instead of staying EMISSION_FAILED.
+            this.status = VoucherStatus.PENDING;
         }
     }
 

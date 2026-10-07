@@ -20,11 +20,14 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InOrder;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.math.BigDecimal;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -514,34 +517,114 @@ class ProcessMercadoPagoCheckoutTest {
     }
 
     @Test
-    @DisplayName("GenerateVoucher persists the fiscal correlative returned by Factos instead of leaving it null")
-    void generateVoucherPersistsCorrelativeReturnedByFactos() {
+    @DisplayName("GenerateVoucher reserves the fiscal correlative before calling Factos and persists it on the voucher")
+    void generateVoucherReservesCorrelativeBeforeCallingFactos() {
         UUID quoteId = UUID.randomUUID();
         UUID branchId = UUID.randomUUID();
-        UUID workshopId = UUID.randomUUID();
-        Quote quote = new Quote(quoteId, UUID.randomUUID(), new BranchId(branchId), new Money(new BigDecimal("100.00")), 0.0, new Money(new BigDecimal("100.00")), QuoteStatus.APPROVED);
+        Quote quote = approvedQuote(quoteId, branchId);
 
         when(quoteRepository.findById(eq(quoteId))).thenReturn(Optional.of(quote));
         when(voucherRepository.findByQuoteId(eq(quoteId))).thenReturn(Optional.empty());
+        stubIssuer("20123456789", UUID.randomUUID());
 
-        com.tuxlogic.shiftiq.platform.core.domain.model.aggregates.Branch mockBranch =
-                mock(com.tuxlogic.shiftiq.platform.core.domain.model.aggregates.Branch.class);
-        when(mockBranch.getWorkshopId()).thenReturn(new com.tuxlogic.shiftiq.platform.core.domain.model.valueobjects.WorkshopId(workshopId));
-        when(branchQueryService.handle(any(com.tuxlogic.shiftiq.platform.core.domain.model.queries.GetBranchByIdQuery.class)))
-                .thenReturn(Optional.of(mockBranch));
-
-        com.tuxlogic.shiftiq.platform.core.domain.model.aggregates.Workshop mockWorkshop =
-                mock(com.tuxlogic.shiftiq.platform.core.domain.model.aggregates.Workshop.class);
-        when(mockWorkshop.getTaxId()).thenReturn(new com.tuxlogic.shiftiq.platform.core.domain.model.valueobjects.TaxId("20123456789"));
-        when(workshopQueryService.handle(any(com.tuxlogic.shiftiq.platform.core.domain.model.queries.GetWorkshopByIdQuery.class)))
-                .thenReturn(Optional.of(mockWorkshop));
+        when(fiscalCorrelativeService.nextCorrelative(eq("F001"))).thenReturn("00000007");
+        List<SavedVoucherState> savedStates = stubVoucherPersistence();
 
         FactosGateway.FactosInvoiceResult invoiceResult =
                 new FactosGateway.FactosInvoiceResult("F001", "00000007", "http://pdf-url", new BigDecimal("100.00"));
-        when(factosGateway.issueVoucher(eq("20123456789"), eq(VoucherType.INVOICE), eq("RUC"), eq("20601234567"), eq("Transportes Lima S.A.C."), any()))
+        when(factosGateway.issueVoucher(eq("20123456789"), eq(VoucherType.INVOICE), eq("RUC"), eq("20601234567"),
+                eq("Transportes Lima S.A.C."), any(), eq("00000007")))
                 .thenReturn(Optional.of(invoiceResult));
 
+        GenerateVoucherCommand command = new GenerateVoucherCommand(
+                quoteId,
+                VoucherType.INVOICE,
+                "RUC",
+                "20601234567",
+                "Transportes Lima S.A.C."
+        );
+
+        Result<Voucher, VoucherCommandFailure> result = service.handle(command);
+
+        assertThat(result.isSuccess()).isTrue();
+        Voucher emittedVoucher = result.success().get();
+        assertThat(emittedVoucher.getCorrelative()).isEqualTo("00000007");
+        assertThat(emittedVoucher.getBranchId()).isEqualTo(branchId);
+        assertThat(emittedVoucher.getExternalInvoiceId()).isNotNull();
+
+        SavedVoucherState reserved = savedStates.get(0);
+        assertThat(reserved.correlative()).isEqualTo("00000007");
+        assertThat(reserved.branchId()).isEqualTo(branchId);
+        assertThat(reserved.externalInvoiceId()).isNull();
+        assertThat(reserved.status()).isEqualTo(VoucherStatus.PENDING);
+
+        InOrder inOrder = inOrder(fiscalCorrelativeService, factosGateway);
+        inOrder.verify(fiscalCorrelativeService).nextCorrelative(eq("F001"));
+        inOrder.verify(factosGateway).issueVoucher(any(), any(), any(), any(), any(), any(), any());
+    }
+
+    @Test
+    @DisplayName("GenerateVoucher keeps the reserved correlative attached to the voucher when Factos fails")
+    void generateVoucherKeepsReservedCorrelativeWhenFactosFails() {
+        UUID quoteId = UUID.randomUUID();
+        UUID branchId = UUID.randomUUID();
+        Quote quote = approvedQuote(quoteId, branchId);
+
+        when(quoteRepository.findById(eq(quoteId))).thenReturn(Optional.of(quote));
+        when(voucherRepository.findByQuoteId(eq(quoteId))).thenReturn(Optional.empty());
+        stubIssuer("20123456789", UUID.randomUUID());
+
+        when(fiscalCorrelativeService.nextCorrelative(eq("F001"))).thenReturn("00000007");
+        List<SavedVoucherState> savedStates = stubVoucherPersistence();
+
+        when(factosGateway.issueVoucher(eq("20123456789"), eq(VoucherType.INVOICE), eq("RUC"), eq("20601234567"),
+                eq("Transportes Lima S.A.C."), any(), eq("00000007")))
+                .thenReturn(Optional.empty());
+
+        GenerateVoucherCommand command = new GenerateVoucherCommand(
+                quoteId,
+                VoucherType.INVOICE,
+                "RUC",
+                "20601234567",
+                "Transportes Lima S.A.C."
+        );
+
+        Result<Voucher, VoucherCommandFailure> result = service.handle(command);
+
+        assertThat(result.isFailure()).isTrue();
+        assertThat(result.failure().get()).isEqualTo(VoucherCommandFailure.FACTOS_ISSUANCE_FAILED);
+        verify(fiscalCorrelativeService).nextCorrelative(eq("F001"));
+
+        SavedVoucherState reserved = savedStates.get(0);
+        assertThat(reserved.correlative()).isEqualTo("00000007");
+        assertThat(reserved.externalInvoiceId()).isNull();
+        SavedVoucherState failed = savedStates.get(savedStates.size() - 1);
+        assertThat(failed.correlative()).isEqualTo("00000007");
+        assertThat(failed.status()).isEqualTo(VoucherStatus.EMISSION_FAILED);
+    }
+
+    @Test
+    @DisplayName("GenerateVoucher retries a failed emission reusing the reserved correlative instead of allocating a new one")
+    void generateVoucherRetryReusesReservedCorrelative() {
+        UUID quoteId = UUID.randomUUID();
+        UUID branchId = UUID.randomUUID();
+        Quote quote = approvedQuote(quoteId, branchId);
+        Voucher failedVoucher = new Voucher(
+                UUID.randomUUID(), quoteId, VoucherType.INVOICE, "RUC", "20601234567", "Transportes Lima S.A.C.",
+                quote.getTotalAmount(), VoucherStatus.EMISSION_FAILED, null, null, List.of(), "00000007");
+        failedVoucher.setBranchId(branchId);
+
+        when(quoteRepository.findById(eq(quoteId))).thenReturn(Optional.of(quote));
+        when(voucherRepository.findByQuoteId(eq(quoteId))).thenReturn(Optional.of(failedVoucher));
+        stubIssuer("20123456789", UUID.randomUUID());
+        when(voucherRepository.findById(eq(failedVoucher.getId()))).thenReturn(Optional.of(failedVoucher));
         when(voucherRepository.save(any(Voucher.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        FactosGateway.FactosInvoiceResult invoiceResult =
+                new FactosGateway.FactosInvoiceResult("F001", "00000007", "http://pdf-url", new BigDecimal("100.00"));
+        when(factosGateway.issueVoucher(eq("20123456789"), eq(VoucherType.INVOICE), eq("RUC"), eq("20601234567"),
+                eq("Transportes Lima S.A.C."), any(), eq("00000007")))
+                .thenReturn(Optional.of(invoiceResult));
 
         GenerateVoucherCommand command = new GenerateVoucherCommand(
                 quoteId,
@@ -555,8 +638,45 @@ class ProcessMercadoPagoCheckoutTest {
 
         assertThat(result.isSuccess()).isTrue();
         assertThat(result.success().get().getCorrelative()).isEqualTo("00000007");
-        assertThat(result.success().get().getStatus()).isNotNull();
+        assertThat(result.success().get().getStatus()).isEqualTo(VoucherStatus.PENDING);
+        assertThat(result.success().get().getExternalInvoiceId()).isNotNull();
         verify(fiscalCorrelativeService, never()).nextCorrelative(any());
+    }
+
+    private Quote approvedQuote(UUID quoteId, UUID branchId) {
+        return new Quote(quoteId, UUID.randomUUID(), new BranchId(branchId), new Money(new BigDecimal("100.00")), 0.0,
+                new Money(new BigDecimal("100.00")), QuoteStatus.APPROVED);
+    }
+
+    private void stubIssuer(String taxId, UUID workshopId) {
+        com.tuxlogic.shiftiq.platform.core.domain.model.aggregates.Branch mockBranch =
+                mock(com.tuxlogic.shiftiq.platform.core.domain.model.aggregates.Branch.class);
+        when(mockBranch.getWorkshopId()).thenReturn(new com.tuxlogic.shiftiq.platform.core.domain.model.valueobjects.WorkshopId(workshopId));
+        when(branchQueryService.handle(any(com.tuxlogic.shiftiq.platform.core.domain.model.queries.GetBranchByIdQuery.class)))
+                .thenReturn(Optional.of(mockBranch));
+
+        com.tuxlogic.shiftiq.platform.core.domain.model.aggregates.Workshop mockWorkshop =
+                mock(com.tuxlogic.shiftiq.platform.core.domain.model.aggregates.Workshop.class);
+        when(mockWorkshop.getTaxId()).thenReturn(new com.tuxlogic.shiftiq.platform.core.domain.model.valueobjects.TaxId(taxId));
+        when(workshopQueryService.handle(any(com.tuxlogic.shiftiq.platform.core.domain.model.queries.GetWorkshopByIdQuery.class)))
+                .thenReturn(Optional.of(mockWorkshop));
+    }
+
+    private List<SavedVoucherState> stubVoucherPersistence() {
+        List<SavedVoucherState> savedStates = new ArrayList<>();
+        Voucher[] lastSaved = new Voucher[1];
+        when(voucherRepository.save(any(Voucher.class))).thenAnswer(invocation -> {
+            Voucher voucher = invocation.getArgument(0);
+            lastSaved[0] = voucher;
+            savedStates.add(new SavedVoucherState(
+                    voucher.getCorrelative(), voucher.getExternalInvoiceId(), voucher.getStatus(), voucher.getBranchId()));
+            return voucher;
+        });
+        when(voucherRepository.findById(any(UUID.class))).thenAnswer(invocation -> Optional.ofNullable(lastSaved[0]));
+        return savedStates;
+    }
+
+    private record SavedVoucherState(String correlative, UUID externalInvoiceId, VoucherStatus status, UUID branchId) {
     }
 
     @Test
@@ -588,9 +708,9 @@ class ProcessMercadoPagoCheckoutTest {
 
         when(fiscalCorrelativeService.nextCorrelative(eq("B001"))).thenReturn("00000001");
 
-        Voucher pendingVoucher = new Voucher(quoteId, VoucherType.RECEIPT, "DNI", "12345678", "Juan Perez", quote.getTotalAmount(), null, null);
-        when(voucherRepository.save(any(Voucher.class))).thenReturn(pendingVoucher);
-        when(voucherRepository.findById(pendingVoucher.getId())).thenReturn(Optional.of(pendingVoucher));
+        Voucher emittedVoucher = new Voucher(quoteId, VoucherType.RECEIPT, "DNI", "12345678", "Juan Perez", quote.getTotalAmount(), UUID.randomUUID(), "http://pdf-url");
+        when(voucherRepository.save(any(Voucher.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(voucherRepository.findById(any(UUID.class))).thenReturn(Optional.of(emittedVoucher));
 
         FactosGateway.FactosInvoiceResult invoiceResult =
                 new FactosGateway.FactosInvoiceResult("B001", "00000001", "http://pdf-url", new BigDecimal("100.00"));
@@ -609,6 +729,9 @@ class ProcessMercadoPagoCheckoutTest {
         Result<Voucher, VoucherCommandFailure> result = service.handle(command);
 
         assertThat(result.isSuccess()).isTrue();
+        ArgumentCaptor<Voucher> savedVoucherCaptor = ArgumentCaptor.forClass(Voucher.class);
+        verify(voucherRepository, atLeastOnce()).save(savedVoucherCaptor.capture());
+        assertThat(savedVoucherCaptor.getAllValues().get(0).getBranchId()).isEqualTo(branchId);
         InOrder inOrder = inOrder(quoteRepository, paymentGateway);
         inOrder.verify(quoteRepository).findById(eq(quoteId));
         inOrder.verify(paymentGateway).getPaymentStatusByExternalId(eq("11223344"));
