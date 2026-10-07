@@ -48,6 +48,11 @@ public class WebSecurityConfiguration {
     }
 
     @Bean
+    public ObjectMapper objectMapper() {
+        return new ObjectMapper();
+    }
+
+    @Bean
     public MercadoPagoRateLimitingFilter mercadoPagoRateLimitingFilter(ObjectMapper objectMapper, MessageSource messageSource) {
         return new MercadoPagoRateLimitingFilter(objectMapper, messageSource);
     }

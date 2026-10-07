@@ -1,0 +1,7 @@
+-- Migration V10: Convert bpchar (CHAR) columns to VARCHAR to match String JPA entity fields
+ALTER TABLE branches ALTER COLUMN phone TYPE VARCHAR(50);
+ALTER TABLE customers ALTER COLUMN phone TYPE VARCHAR(50);
+ALTER TABLE employees ALTER COLUMN phone TYPE VARCHAR(50);
+ALTER TABLE owners ALTER COLUMN phone TYPE VARCHAR(50);
+ALTER TABLE payments ALTER COLUMN currency TYPE VARCHAR(10);
+ALTER TABLE vouchers ALTER COLUMN currency TYPE VARCHAR(10);
