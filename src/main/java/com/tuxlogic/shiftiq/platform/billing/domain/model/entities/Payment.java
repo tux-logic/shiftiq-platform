@@ -9,7 +9,7 @@ import java.util.UUID;
 
 /**
  * Entity representing a monetary payment made against a {@link com.tuxlogic.shiftiq.platform.billing.domain.model.aggregates.Voucher}.
- * Payments track the amount paid, payment method used, branch ID, and payment timestamp.
+ * Payments track the amount paid, payment method used, branch ID, payment timestamp, and optional external provider reference.
  */
 @Getter
 public class Payment {
@@ -18,6 +18,8 @@ public class Payment {
     private PaymentMethod method;
     private UUID branchId;
     private LocalDateTime paidAt;
+    private String paymentProvider;
+    private String externalPaymentId;
 
     /**
      * Default constructor required for persistence frameworks.
@@ -26,15 +28,11 @@ public class Payment {
         // Required for persistence
     }
 
-    /**
-     * Creates a new Payment and validates its core invariants.
-     * 
-     * @param amount the monetary amount of the payment (must be strictly positive)
-     * @param method the payment method used
-     * @param branchId the ID of the branch where the payment is received
-     * @throws IllegalArgumentException if amount is zero/negative, or if method/branchId are null
-     */
     public Payment(Money amount, PaymentMethod method, UUID branchId) {
+        this(amount, method, branchId, "MANUAL", null);
+    }
+
+    public Payment(Money amount, PaymentMethod method, UUID branchId, String paymentProvider, String externalPaymentId) {
         if (amount == null || amount.amount().compareTo(java.math.BigDecimal.ZERO) <= 0) {
             throw new IllegalArgumentException("billing.error.payment.invalidAmount");
         }
@@ -44,24 +42,33 @@ public class Payment {
         if (branchId == null) {
             throw new IllegalArgumentException("billing.error.payment.branchIdRequired");
         }
-        
+
         this.id = UUID.randomUUID();
         this.amount = amount;
         this.method = method;
         this.branchId = branchId;
         this.paidAt = LocalDateTime.now();
+        this.paymentProvider = paymentProvider != null ? paymentProvider : "MANUAL";
+        this.externalPaymentId = externalPaymentId;
     }
 
     // For persistence rebuilding
     public Payment(UUID id, Money amount, PaymentMethod method, UUID branchId) {
-        this(id, amount, method, branchId, LocalDateTime.now());
+        this(id, amount, method, branchId, LocalDateTime.now(), "MANUAL", null);
     }
 
     public Payment(UUID id, Money amount, PaymentMethod method, UUID branchId, LocalDateTime paidAt) {
+        this(id, amount, method, branchId, paidAt, "MANUAL", null);
+    }
+
+    public Payment(UUID id, Money amount, PaymentMethod method, UUID branchId, LocalDateTime paidAt, String paymentProvider, String externalPaymentId) {
         this.id = id;
         this.amount = amount;
         this.method = method;
         this.branchId = branchId;
         this.paidAt = paidAt != null ? paidAt : LocalDateTime.now();
+        this.paymentProvider = paymentProvider != null ? paymentProvider : "MANUAL";
+        this.externalPaymentId = externalPaymentId;
     }
 }
+

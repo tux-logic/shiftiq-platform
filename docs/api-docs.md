@@ -1681,7 +1681,7 @@ A continuación, se detalla **CADA ENDPOINT** disponible en el sistema con sus p
 ### `POST /api/v1/branches/{branchId}/subscriptions/pay`
 **Propósito:** Simulate payment and assign subscription
 
-*Simulates a payment (Mock Stripe) using a dummy credit card and assigns the subscription plan*
+*Simulates a payment (Mock Payment Gateway) using a dummy credit card and assigns the subscription plan*
 
 **📍 Parámetros (URL / Query):**
 - `branchId` (path):  (Requerido: true)

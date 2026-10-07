@@ -89,9 +89,9 @@ public class CheckoutsController {
         return toErrorResponse(result.failure().get());
     }
 
-    @PostMapping("/stripe")
-    @Operation(summary = "Process Stripe checkout", description = "Verifies a Stripe PaymentIntent, generates a voucher via Factos/SUNAT, and records the payment")
-    public ResponseEntity<?> stripeCheckout(@Valid @RequestBody com.tuxlogic.shiftiq.platform.billing.interfaces.rest.resources.ProcessStripeCheckoutResource resource) {
+    @PostMapping("/mercadopago")
+    @Operation(summary = "Process Mercado Pago checkout", description = "Verifies a Mercado Pago payment, generates a voucher via Factos/SUNAT, and records the payment")
+    public ResponseEntity<?> mercadopagoCheckout(@Valid @RequestBody com.tuxlogic.shiftiq.platform.billing.interfaces.rest.resources.ProcessMercadoPagoCheckoutResource resource) {
         validateQuoteAccess(resource.quoteId());
         VoucherType voucherType;
         try {
@@ -100,13 +100,13 @@ public class CheckoutsController {
             return ResponseEntity.badRequest().body("Invalid voucher type");
         }
 
-        var command = new com.tuxlogic.shiftiq.platform.billing.domain.model.commands.ProcessStripeCheckoutCommand(
+        var command = new com.tuxlogic.shiftiq.platform.billing.domain.model.commands.ProcessMercadoPagoCheckoutCommand(
                 resource.quoteId(),
                 voucherType,
                 resource.customerDocumentType(),
                 resource.customerDocumentNumber(),
                 resource.customerName(),
-                resource.paymentIntentId()
+                resource.paymentId()
         );
 
         var result = commandService.handle(command);
@@ -118,6 +118,7 @@ public class CheckoutsController {
 
         return toErrorResponse(result.failure().get());
     }
+
 
     private ResponseEntity<?> toErrorResponse(VoucherCommandFailure failure) {
         return switch (failure) {
@@ -160,6 +161,18 @@ public class CheckoutsController {
             case PAYMENT_NOT_FOUND -> {
                 String message = messageSource.getMessage("billing.error.payment.notFound", null, org.springframework.context.i18n.LocaleContextHolder.getLocale());
                 yield com.tuxlogic.shiftiq.platform.shared.interfaces.rest.transform.ErrorResponseAssembler.toErrorResponseFromApplicationError(com.tuxlogic.shiftiq.platform.shared.application.result.ApplicationError.notFound("checkout", message));
+            }
+            case QUOTE_ALREADY_INVOICED -> {
+                String message = messageSource.getMessage("billing.error.quote.alreadyInvoiced", null, org.springframework.context.i18n.LocaleContextHolder.getLocale());
+                yield com.tuxlogic.shiftiq.platform.shared.interfaces.rest.transform.ErrorResponseAssembler.toErrorResponseFromApplicationError(com.tuxlogic.shiftiq.platform.shared.application.result.ApplicationError.conflict("checkout", message));
+            }
+            case PAYMENT_ALREADY_CONSUMED -> {
+                String message = messageSource.getMessage("billing.error.payment.alreadyConsumed", null, org.springframework.context.i18n.LocaleContextHolder.getLocale());
+                yield com.tuxlogic.shiftiq.platform.shared.interfaces.rest.transform.ErrorResponseAssembler.toErrorResponseFromApplicationError(com.tuxlogic.shiftiq.platform.shared.application.result.ApplicationError.conflict("checkout", message));
+            }
+            case VOUCHER_EMISSION_IN_PROGRESS -> {
+                String message = messageSource.getMessage("billing.error.voucher.emissionInProgress", null, org.springframework.context.i18n.LocaleContextHolder.getLocale());
+                yield com.tuxlogic.shiftiq.platform.shared.interfaces.rest.transform.ErrorResponseAssembler.toErrorResponseFromApplicationError(com.tuxlogic.shiftiq.platform.shared.application.result.ApplicationError.conflict("checkout", message));
             }
         };
     }

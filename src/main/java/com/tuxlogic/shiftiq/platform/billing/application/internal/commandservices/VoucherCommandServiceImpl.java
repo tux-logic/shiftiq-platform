@@ -3,11 +3,14 @@ package com.tuxlogic.shiftiq.platform.billing.application.internal.commandservic
 import com.tuxlogic.shiftiq.platform.billing.domain.model.valueobjects.VoucherCommandFailure;
 import com.tuxlogic.shiftiq.platform.billing.application.commandservices.VoucherCommandService;
 import com.tuxlogic.shiftiq.platform.billing.application.outboundservices.FactosGateway;
+import com.tuxlogic.shiftiq.platform.billing.domain.model.aggregates.Quote;
 import com.tuxlogic.shiftiq.platform.billing.domain.model.aggregates.Voucher;
 import com.tuxlogic.shiftiq.platform.billing.domain.model.commands.AddPaymentCommand;
 import com.tuxlogic.shiftiq.platform.billing.domain.model.commands.GenerateVoucherCommand;
+import com.tuxlogic.shiftiq.platform.billing.domain.model.valueobjects.PaymentMethod;
 import com.tuxlogic.shiftiq.platform.billing.domain.model.valueobjects.QuoteStatus;
 import com.tuxlogic.shiftiq.platform.billing.domain.model.valueobjects.VoucherStatus;
+import com.tuxlogic.shiftiq.platform.billing.domain.model.valueobjects.VoucherType;
 import com.tuxlogic.shiftiq.platform.billing.domain.repositories.QuoteRepository;
 import com.tuxlogic.shiftiq.platform.billing.domain.repositories.VoucherRepository;
 import com.tuxlogic.shiftiq.platform.core.application.queryservices.BranchQueryService;
@@ -21,6 +24,8 @@ import com.tuxlogic.shiftiq.platform.operations.domain.model.queries.GetWorkOrde
 import com.tuxlogic.shiftiq.platform.operations.domain.model.valueobjects.WorkOrderId;
 import com.tuxlogic.shiftiq.platform.inventory.application.queryservices.ProductQueryService;
 import com.tuxlogic.shiftiq.platform.inventory.domain.model.queries.GetProductByIdQuery;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -34,10 +39,14 @@ import java.util.UUID;
  * Handles the business use cases for Voucher operations, interacting with repositories
  * and with the Factos external service to emit documents to the tax authority.
  */
+import lombok.extern.slf4j.Slf4j;
 import com.tuxlogic.shiftiq.platform.billing.application.outboundservices.PaymentGateway;
 
+import com.tuxlogic.shiftiq.platform.billing.infrastructure.persistence.jpa.repositories.PaymentIntentJpaRepository;
+import java.time.LocalDateTime;
+
+@Slf4j
 @Service
-@Transactional
 public class VoucherCommandServiceImpl implements VoucherCommandService {
 
     private final VoucherRepository voucherRepository;
@@ -48,7 +57,10 @@ public class VoucherCommandServiceImpl implements VoucherCommandService {
     private final PaymentGateway paymentGateway;
     private final WorkOrderQueryService workOrderQueryService;
     private final ProductQueryService productQueryService;
+    private final VoucherExecutionService voucherExecutionService;
+    private final PaymentIntentJpaRepository paymentIntentJpaRepository;
 
+    @Autowired
     public VoucherCommandServiceImpl(
             VoucherRepository voucherRepository,
             QuoteRepository quoteRepository,
@@ -57,7 +69,9 @@ public class VoucherCommandServiceImpl implements VoucherCommandService {
             FactosGateway factosGateway,
             PaymentGateway paymentGateway,
             WorkOrderQueryService workOrderQueryService,
-            ProductQueryService productQueryService) {
+            ProductQueryService productQueryService,
+            VoucherExecutionService voucherExecutionService,
+            PaymentIntentJpaRepository paymentIntentJpaRepository) {
         this.voucherRepository = voucherRepository;
         this.quoteRepository = quoteRepository;
         this.branchQueryService = branchQueryService;
@@ -66,10 +80,11 @@ public class VoucherCommandServiceImpl implements VoucherCommandService {
         this.paymentGateway = paymentGateway;
         this.workOrderQueryService = workOrderQueryService;
         this.productQueryService = productQueryService;
+        this.voucherExecutionService = voucherExecutionService;
+        this.paymentIntentJpaRepository = paymentIntentJpaRepository;
     }
 
     @Override
-    @Transactional
     public Result<Voucher, VoucherCommandFailure> handle(GenerateVoucherCommand command) {
         // 1. Get and validate Quote
         var quoteOpt = quoteRepository.findById(command.quoteId());
@@ -81,54 +96,14 @@ public class VoucherCommandServiceImpl implements VoucherCommandService {
             return Result.failure(VoucherCommandFailure.QUOTE_NOT_APPROVED);
         }
 
-        // 2. Query Core context for Issuer RUC (Tax ID)
-        var coreBranchId = new BranchId(quote.getBranchId().value());
-        var branchOpt = branchQueryService.handle(new GetBranchByIdQuery(coreBranchId));
-        if (branchOpt.isEmpty()) {
-            return Result.failure(VoucherCommandFailure.ISSUER_NOT_FOUND);
-        }
-        
-        var workshopOpt = workshopQueryService.handle(new GetWorkshopByIdQuery(branchOpt.get().getWorkshopId()));
-        if (workshopOpt.isEmpty()) {
-            return Result.failure(VoucherCommandFailure.ISSUER_NOT_FOUND);
-        }
-        String issuerRuc = workshopOpt.get().getTaxId().value();
-
-        // 3. Issue Voucher via Factos
-        var invoiceResultOpt = factosGateway.issueVoucher(
-                issuerRuc,
+        return emitVoucher(
+                quote,
                 command.type(),
                 command.customerDocumentType(),
                 command.customerDocumentNumber(),
                 command.customerName(),
-                getDetailedBillingItems(quote)
+                null
         );
-
-        if (invoiceResultOpt.isEmpty()) {
-            return Result.failure(VoucherCommandFailure.FACTOS_ISSUANCE_FAILED);
-        }
-
-        var invoiceResult = invoiceResultOpt.get();
-        UUID externalInvoiceId = UUID.nameUUIDFromBytes((invoiceResult.series() + "-" + invoiceResult.correlative()).getBytes(StandardCharsets.UTF_8));
-
-        // 4. Create and save Voucher Aggregate
-        try {
-            var voucher = new Voucher(
-                    command.quoteId(),
-                    command.type(),
-                    command.customerDocumentType(),
-                    command.customerDocumentNumber(),
-                    command.customerName(),
-                    quote.getTotalAmount(),
-                    externalInvoiceId,
-                    invoiceResult.pdfUrl()
-            );
-
-            var savedVoucher = voucherRepository.save(voucher);
-            return Result.success(savedVoucher);
-        } catch (IllegalArgumentException e) {
-            return Result.failure(VoucherCommandFailure.INVALID_VOUCHER_DATA);
-        }
     }
 
     @Override
@@ -167,6 +142,7 @@ public class VoucherCommandServiceImpl implements VoucherCommandService {
     }
 
     @Override
+    @Transactional
     public Result<Voucher, VoucherCommandFailure> handle(com.tuxlogic.shiftiq.platform.billing.domain.model.commands.RemovePaymentCommand command) {
         var voucherOpt = voucherRepository.findById(command.voucherId());
         
@@ -188,7 +164,6 @@ public class VoucherCommandServiceImpl implements VoucherCommandService {
     }
 
     @Override
-    @Transactional
     public Result<Voucher, VoucherCommandFailure> handle(com.tuxlogic.shiftiq.platform.billing.domain.model.commands.ProcessCheckoutCommand command) {
         // 1. Get and validate Quote
         var quoteOpt = quoteRepository.findById(command.quoteId());
@@ -200,94 +175,227 @@ public class VoucherCommandServiceImpl implements VoucherCommandService {
             return Result.failure(VoucherCommandFailure.QUOTE_NOT_APPROVED);
         }
 
+        return emitVoucher(
+                quote,
+                command.type(),
+                command.customerDocumentType(),
+                command.customerDocumentNumber(),
+                command.customerName(),
+                command.method()
+        );
+    }
+
+    /**
+     * Emits a voucher through Factos using the manual (non-Mercado Pago) checkout path.
+     *
+     * <p>The fiscal correlative is reserved and persisted <strong>before</strong> the Factos call so a
+     * failed or interrupted emission never consumes a numbering slot without recording it: the slot stays
+     * attached to the voucher row and is reused by the next attempt instead of leaving a gap.</p>
+     *
+     * @param paymentMethod full payment to record on a fresh voucher, or {@code null} when the voucher
+     *                      is generated without payment (invoices of an already approved quote)
+     */
+    private Result<Voucher, VoucherCommandFailure> emitVoucher(
+            Quote quote,
+            VoucherType type,
+            String customerDocumentType,
+            String customerDocumentNumber,
+            String customerName,
+            PaymentMethod paymentMethod) {
+
+        // 1. Recover a voucher that already holds a reserved correlative, or reject duplicates
+        Voucher voucherToEmit = null;
+        var existingOpt = voucherRepository.findByQuoteId(quote.getId());
+        if (existingOpt.isPresent()) {
+            var existing = existingOpt.get();
+            boolean emitted = existing.getExternalInvoiceId() != null;
+            if (!emitted && existing.getStatus() == VoucherStatus.EMISSION_FAILED) {
+                log.info("Voucher for quote ID '{}' is in EMISSION_FAILED. Retrying emission with correlative '{}'",
+                        quote.getId(), existing.getCorrelative());
+                voucherToEmit = existing;
+            } else if (!emitted && existing.getStatus() == VoucherStatus.PENDING && voucherExecutionService.isStale(existing)) {
+                log.info("Voucher for quote ID '{}' is stale PENDING. Recovering emission with correlative '{}'",
+                        quote.getId(), existing.getCorrelative());
+                voucherToEmit = existing;
+            } else if (!emitted && existing.getStatus() == VoucherStatus.PENDING) {
+                return Result.failure(VoucherCommandFailure.VOUCHER_EMISSION_IN_PROGRESS);
+            } else {
+                return Result.failure(VoucherCommandFailure.QUOTE_ALREADY_INVOICED);
+            }
+        }
+
         // 2. Query Core context for Issuer RUC (Tax ID)
         var coreBranchId = new BranchId(quote.getBranchId().value());
         var branchOpt = branchQueryService.handle(new GetBranchByIdQuery(coreBranchId));
         if (branchOpt.isEmpty()) {
             return Result.failure(VoucherCommandFailure.ISSUER_NOT_FOUND);
         }
-        
+
         var workshopOpt = workshopQueryService.handle(new GetWorkshopByIdQuery(branchOpt.get().getWorkshopId()));
         if (workshopOpt.isEmpty()) {
             return Result.failure(VoucherCommandFailure.ISSUER_NOT_FOUND);
         }
         String issuerRuc = workshopOpt.get().getTaxId().value();
 
-        // 3. Issue Voucher via Factos
+        // 3. Reserve the correlative in an isolated transaction before calling Factos
+        if (voucherToEmit == null) {
+            try {
+                var voucher = new Voucher(
+                        quote.getId(),
+                        type,
+                        customerDocumentType,
+                        customerDocumentNumber,
+                        customerName,
+                        quote.getTotalAmount(),
+                        null,
+                        null
+                );
+                voucher.setBranchId(quote.getBranchId().value());
+                if (paymentMethod != null) {
+                    voucher.addPayment(quote.getTotalAmount(), paymentMethod, quote.getBranchId().value());
+                }
+                voucherToEmit = voucher;
+            } catch (IllegalArgumentException | IllegalStateException e) {
+                return Result.failure(VoucherCommandFailure.INVALID_VOUCHER_DATA);
+            }
+        }
+
+        if (voucherToEmit.getCorrelative() == null || voucherToEmit.getCorrelative().isBlank()) {
+            try {
+                voucherToEmit = voucherExecutionService.reserveVoucher(voucherToEmit);
+            } catch (DataIntegrityViolationException e) {
+                log.warn("Concurrent voucher insert conflict for quote ID '{}': {}", quote.getId(), e.getMessage());
+                return Result.failure(VoucherCommandFailure.VOUCHER_EMISSION_IN_PROGRESS);
+            } catch (IllegalArgumentException | IllegalStateException e) {
+                return Result.failure(VoucherCommandFailure.INVALID_VOUCHER_DATA);
+            }
+        }
+
+        // 4. Issue Voucher via Factos outside any database transaction, using the reserved correlative
         var invoiceResultOpt = factosGateway.issueVoucher(
                 issuerRuc,
-                command.type(),
-                command.customerDocumentType(),
-                command.customerDocumentNumber(),
-                command.customerName(),
-                getDetailedBillingItems(quote)
+                type,
+                customerDocumentType,
+                customerDocumentNumber,
+                customerName,
+                getDetailedBillingItems(quote),
+                voucherToEmit.getCorrelative()
         );
 
         if (invoiceResultOpt.isEmpty()) {
+            voucherExecutionService.markEmissionFailed(voucherToEmit.getId());
             return Result.failure(VoucherCommandFailure.FACTOS_ISSUANCE_FAILED);
         }
 
         var invoiceResult = invoiceResultOpt.get();
         UUID externalInvoiceId = UUID.nameUUIDFromBytes((invoiceResult.series() + "-" + invoiceResult.correlative()).getBytes(StandardCharsets.UTF_8));
 
-        // 4. Create Voucher Aggregate
         try {
-            var voucher = new Voucher(
-                    command.quoteId(),
-                    command.type(),
-                    command.customerDocumentType(),
-                    command.customerDocumentNumber(),
-                    command.customerName(),
-                    quote.getTotalAmount(),
-                    externalInvoiceId,
-                    invoiceResult.pdfUrl()
-            );
-
-            // 5. Add full payment to the Voucher
-            voucher.addPayment(quote.getTotalAmount(), command.method(), quote.getBranchId().value());
-
-            // 6. Save the fully paid Voucher
-            var savedVoucher = voucherRepository.save(voucher);
+            var savedVoucher = voucherExecutionService.markEmissionSuccess(
+                    voucherToEmit.getId(), externalInvoiceId, invoiceResult.pdfUrl());
             return Result.success(savedVoucher);
-        } catch (IllegalArgumentException | IllegalStateException e) {
+        } catch (IllegalStateException | IllegalArgumentException e) {
             return Result.failure(VoucherCommandFailure.INVALID_VOUCHER_DATA);
         }
     }
 
     @Override
-    @Transactional
-    public Result<Voucher, VoucherCommandFailure> handle(com.tuxlogic.shiftiq.platform.billing.domain.model.commands.ProcessStripeCheckoutCommand command) {
-        // 1. Validate Quote
-        var quoteOpt = quoteRepository.findById(command.quoteId());
-        if (quoteOpt.isEmpty()) {
-            return Result.failure(VoucherCommandFailure.QUOTE_NOT_FOUND);
-        }
-        var quote = quoteOpt.get();
-
-        // 2. Verify PaymentIntent status and amount
-        var stripeIntentOpt = paymentGateway.getPaymentIntent(command.paymentIntentId());
-        if (stripeIntentOpt.isEmpty()) {
-            return Result.failure(VoucherCommandFailure.PAYMENT_NOT_FOUND);
-        }
-        var stripeIntent = stripeIntentOpt.get();
-        if (!"succeeded".equalsIgnoreCase(stripeIntent.status()) && !"requires_capture".equalsIgnoreCase(stripeIntent.status())) {
-            return Result.failure(VoucherCommandFailure.INVALID_VOUCHER_DATA);
-        }
-        if (stripeIntent.amount().compareTo(quote.getTotalAmount().amount()) != 0) {
-            return Result.failure(VoucherCommandFailure.INVALID_VOUCHER_DATA);
+    public Result<Voucher, VoucherCommandFailure> handle(com.tuxlogic.shiftiq.platform.billing.domain.model.commands.ProcessMercadoPagoCheckoutCommand command) {
+        if (voucherExecutionService == null) {
+            log.error("VoucherExecutionService is not configured");
+            return Result.failure(VoucherCommandFailure.FACTOS_ISSUANCE_FAILED);
         }
 
-        // 3. Delegate to standard checkout with CREDIT_CARD method
-        var checkoutCommand = new com.tuxlogic.shiftiq.platform.billing.domain.model.commands.ProcessCheckoutCommand(
-                command.quoteId(),
-                command.type(),
-                command.customerDocumentType(),
-                command.customerDocumentNumber(),
-                command.customerName(),
-                com.tuxlogic.shiftiq.platform.billing.domain.model.valueobjects.PaymentMethod.CREDIT_CARD
-        );
-        return handle(checkoutCommand);
+        // Phase 1: read-only validation (quote, voucher state, Mercado Pago) without any lock
+        var validation = voucherExecutionService.validateCheckout(command);
+        if (validation instanceof VoucherPreparationResult.Failed f) {
+            return Result.failure(f.failure());
+        }
+        if (validation instanceof VoucherPreparationResult.AlreadyEmitted ae) {
+            markIntentCompleted(command.quoteId());
+            return Result.success(ae.voucher());
+        }
+        if (validation instanceof VoucherPreparationResult.InProgress) {
+            log.warn("Checkout for quote ID '{}' is already in progress. Rejecting concurrent attempt.", command.quoteId());
+            return Result.failure(VoucherCommandFailure.VOUCHER_EMISSION_IN_PROGRESS);
+        }
+
+        // Phase 2: isolated preparation transaction (quote lock held, local database work only)
+        VoucherPreparationResult prepResult;
+        try {
+            prepResult = voucherExecutionService.prepareValidatedVoucher(command);
+        } catch (DataIntegrityViolationException e) {
+            log.warn("Concurrent voucher insert conflict for quote ID '{}': {}", command.quoteId(), e.getMessage());
+            return resolveConcurrentVoucher(command);
+        }
+        if (prepResult instanceof VoucherPreparationResult.Failed f) {
+            return Result.failure(f.failure());
+        }
+        if (prepResult instanceof VoucherPreparationResult.AlreadyEmitted ae) {
+            markIntentCompleted(command.quoteId());
+            return Result.success(ae.voucher());
+        }
+        if (prepResult instanceof VoucherPreparationResult.InProgress) {
+            log.warn("Checkout for quote ID '{}' is already in progress. Rejecting concurrent attempt.", command.quoteId());
+            return Result.failure(VoucherCommandFailure.VOUCHER_EMISSION_IN_PROGRESS);
+        }
+        if (prepResult instanceof VoucherPreparationResult.ReadyToEmit ready) {
+            // Phase 2: Call Factos HTTP outside any database transaction
+            var invoiceResultOpt = factosGateway.issueVoucher(
+                    ready.issuerRuc(),
+                    command.type(),
+                    command.customerDocumentType(),
+                    command.customerDocumentNumber(),
+                    command.customerName(),
+                    getDetailedBillingItems(ready.quote()),
+                    ready.correlative()
+            );
+
+            // Phase 3: Transition status in isolated transaction (committed in REQUIRES_NEW)
+            if (invoiceResultOpt.isEmpty()) {
+                voucherExecutionService.markEmissionFailed(ready.voucher().getId());
+                return Result.failure(VoucherCommandFailure.FACTOS_ISSUANCE_FAILED);
+            }
+
+            var invoiceResult = invoiceResultOpt.get();
+            UUID externalInvoiceId = UUID.nameUUIDFromBytes((invoiceResult.series() + "-" + invoiceResult.correlative()).getBytes(StandardCharsets.UTF_8));
+            var savedVoucher = voucherExecutionService.markEmissionSuccess(ready.voucher().getId(), externalInvoiceId, invoiceResult.pdfUrl());
+
+            markIntentCompleted(command.quoteId());
+
+            return Result.success(savedVoucher);
+        }
+
+        return Result.failure(VoucherCommandFailure.INVALID_VOUCHER_DATA);
     }
+
+    private void markIntentCompleted(UUID quoteId) {
+        if (paymentIntentJpaRepository == null) {
+            return;
+        }
+        paymentIntentJpaRepository.findByQuoteId(quoteId).ifPresent(intent -> {
+            intent.setStatus("COMPLETED");
+            intent.setUpdatedAt(LocalDateTime.now());
+            paymentIntentJpaRepository.save(intent);
+        });
+    }
+
+    private Result<Voucher, VoucherCommandFailure> resolveConcurrentVoucher(
+            com.tuxlogic.shiftiq.platform.billing.domain.model.commands.ProcessMercadoPagoCheckoutCommand command) {
+        var conflictOpt = voucherRepository.findByQuoteId(command.quoteId());
+        if (conflictOpt.isPresent()) {
+            var conflictingVoucher = conflictOpt.get();
+            boolean paymentMatches = conflictingVoucher.getPayments().stream()
+                    .anyMatch(p -> command.paymentId().equals(p.getExternalPaymentId()));
+            if (paymentMatches && conflictingVoucher.getStatus() == VoucherStatus.PAID) {
+                markIntentCompleted(command.quoteId());
+                return Result.success(conflictingVoucher);
+            }
+        }
+        return Result.failure(VoucherCommandFailure.VOUCHER_EMISSION_IN_PROGRESS);
+    }
+
+
 
     private List<FactosGateway.FactosItem> getDetailedBillingItems(com.tuxlogic.shiftiq.platform.billing.domain.model.aggregates.Quote quote) {
         List<FactosGateway.FactosItem> items = new java.util.ArrayList<>();

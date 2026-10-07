@@ -24,6 +24,9 @@ public class VoucherPersistenceEntity extends AuditableAbstractPersistenceEntity
     @Column(name = "quote_id", nullable = false)
     private UUID quoteId;
 
+    @Column(name = "branch_id")
+    private UUID branchId;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "type", nullable = false, length = 20)
     private VoucherType type;
@@ -44,8 +47,11 @@ public class VoucherPersistenceEntity extends AuditableAbstractPersistenceEntity
     @Column(name = "status", nullable = false, length = 20)
     private VoucherStatus status;
 
-    @Column(name = "external_invoice_id", nullable = false)
+    @Column(name = "external_invoice_id")
     private UUID externalInvoiceId;
+
+    @Column(name = "correlative", length = 10)
+    private String correlative;
 
     @Column(name = "pdf_url", length = 500)
     private String pdfUrl;

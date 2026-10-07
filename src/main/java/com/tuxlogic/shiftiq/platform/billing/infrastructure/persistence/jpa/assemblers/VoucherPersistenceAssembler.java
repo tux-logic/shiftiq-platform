@@ -24,6 +24,7 @@ public class VoucherPersistenceAssembler {
             entity.setId(aggregate.getId());
         }
         entity.setQuoteId(aggregate.getQuoteId());
+        entity.setBranchId(aggregate.getBranchId());
         entity.setType(aggregate.getType());
         entity.setCustomerDocumentType(aggregate.getCustomerDocumentType());
         entity.setCustomerDocumentNumber(aggregate.getCustomerDocumentNumber());
@@ -32,6 +33,7 @@ public class VoucherPersistenceAssembler {
         entity.setStatus(aggregate.getStatus());
         entity.setExternalInvoiceId(aggregate.getExternalInvoiceId());
         entity.setPdfUrl(aggregate.getPdfUrl());
+        entity.setCorrelative(aggregate.getCorrelative());
 
 
         // Map payments
@@ -44,6 +46,8 @@ public class VoucherPersistenceAssembler {
                 paymentEntity.setMethod(payment.getMethod());
                 paymentEntity.setPaidAt(payment.getPaidAt() != null ? payment.getPaidAt() : java.time.LocalDateTime.now());
                 paymentEntity.setBranchId(payment.getBranchId());
+                paymentEntity.setPaymentProvider(payment.getPaymentProvider());
+                paymentEntity.setExternalPaymentId(payment.getExternalPaymentId());
                 paymentEntity.setVoucher(entity);
                 return paymentEntity;
             }).collect(Collectors.toList());
@@ -55,12 +59,20 @@ public class VoucherPersistenceAssembler {
 
     public static Voucher toAggregate(VoucherPersistenceEntity entity) {
         if (entity == null) return null;
-        
+
         var payments = entity.getPayments() != null ? entity.getPayments().stream()
-                .map(pEntity -> new Payment(pEntity.getId(), new Money(pEntity.getAmount()), pEntity.getMethod(), pEntity.getBranchId(), pEntity.getPaidAt()))
+                .map(pEntity -> new Payment(
+                        pEntity.getId(),
+                        new Money(pEntity.getAmount()),
+                        pEntity.getMethod(),
+                        pEntity.getBranchId(),
+                        pEntity.getPaidAt(),
+                        pEntity.getPaymentProvider(),
+                        pEntity.getExternalPaymentId()
+                ))
                 .collect(Collectors.toList()) : new java.util.ArrayList<Payment>();
 
-        return new Voucher(
+        var voucher = new Voucher(
                 entity.getId(),
                 entity.getQuoteId(),
                 entity.getType(),
@@ -71,7 +83,13 @@ public class VoucherPersistenceAssembler {
                 entity.getStatus(),
                 entity.getExternalInvoiceId(),
                 entity.getPdfUrl(),
-                payments
+                payments,
+                entity.getCorrelative(),
+                entity.getCreatedAt(),
+                entity.getUpdatedAt()
         );
+        voucher.setBranchId(entity.getBranchId());
+        return voucher;
     }
 }
+

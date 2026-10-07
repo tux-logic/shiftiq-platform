@@ -15,4 +15,10 @@ public interface VoucherJpaRepository extends JpaRepository<VoucherPersistenceEn
     
     @Query("SELECT v FROM VoucherPersistenceEntity v WHERE v.quoteId IN (SELECT q.id FROM QuotePersistenceEntity q WHERE q.branchId = :branchId)")
     List<VoucherPersistenceEntity> findByBranchId(@Param("branchId") com.tuxlogic.shiftiq.platform.shared.domain.model.valueobjects.BranchId branchId);
+
+    java.util.Optional<VoucherPersistenceEntity> findByQuoteId(UUID quoteId);
+
+    @Query("SELECT COUNT(p) > 0 FROM PaymentPersistenceEntity p WHERE p.externalPaymentId = :externalPaymentId")
+    boolean existsByExternalPaymentId(@Param("externalPaymentId") String externalPaymentId);
 }
+

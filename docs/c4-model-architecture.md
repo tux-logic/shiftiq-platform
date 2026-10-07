@@ -27,7 +27,7 @@ graph TB
 
     subgraph External_Systems ["Sistemas Externos Integrados"]
         FactosAPI["Factos Electronic Invoicing API<br><i>[External REST Service]</i><br>Proveedor de Servicios Electrónicos (PSE) para homologación y envío de comprobantes (F001/B001) a SUNAT."]
-        StripeAPI["Stripe Payments API<br><i>[External REST Service]</i><br>Pasarela internacional de procesamiento de pagos con tarjetas de crédito/débito."]
+        MercadoPagoAPI["Mercado Pago API<br><i>[External REST Service]</i><br>Pasarela de procesamiento de pagos y preferencias de cobro."]
     end
 
     WorkshopOwner -->|"HTTPS / Web App"| ShiftIQPlatform
@@ -38,14 +38,15 @@ graph TB
     ObdScanner -->|"HTTP REST Telemetry"| ShiftIQPlatform
 
     ShiftIQPlatform -->|"JSON REST API / CPE"| FactosAPI
-    ShiftIQPlatform -->|"HTTPS / PaymentIntents"| StripeAPI
+    ShiftIQPlatform -->|"HTTPS / Checkout Preferences"| MercadoPagoAPI
 ```
 
 ### 📋 Descripción de Componentes de Contexto
 - **ShiftIQ Platform**: Sistema central de software que encapsula la lógica de negocio multitenant para la gestión automotriz.
 - **Factos API**: Servicio externo para emisión y envío de comprobantes electrónicos (Boletas `B001` y Facturas `F001`) a la SUNAT.
-- **Stripe API**: Pasarela para el cobro con tarjetas de crédito y débito.
+- **Mercado Pago API**: Pasarela para el cobro con tarjetas de crédito/débito y pasarela de pago en línea.
 - **OBD2 Hardware Scanner**: Escáner telemático físicamente conectado al puerto OBD-II del vehículo para streaming de datos de motor.
+
 
 ---
 
@@ -71,7 +72,7 @@ graph TB
 
     subgraph External_Services ["Servicios Externos"]
         FactosService["Factos API<br><i>[SUNAT CPE]</i>"]
-        StripeService["Stripe API<br><i>[Card Gateway]</i>"]
+        MercadoPagoService["Mercado Pago API<br><i>[Payment Gateway]</i>"]
     end
 
     OwnerUser -->|"HTTPS / REST / JSON"| WebApp
@@ -84,13 +85,13 @@ graph TB
     ApiContainer -->|"JDBC / JPA Hibernate"| Database
 
     ApiContainer -->|"HTTP REST / API-KEY"| FactosService
-    ApiContainer -->|"HTTPS / Stripe SDK"| StripeService
+    ApiContainer -->|"HTTPS / Mercado Pago SDK"| MercadoPagoService
 ```
 
 ### 📋 Descripción de Contenedores
 1. **Single Page Web Application** (`TypeScript / React / Next.js`): Aplicación web responsiva para administración de sucursales, tablero de caja, cotizaciones y catálogo de inventario.
 2. **Mobile Application** (`Dart / Flutter`): Aplicación nativa multiplataforma para consulta de vehículos, recepción de citas y recepción de alertas telemáticas.
-3. **Backend REST API Container** (`Java 21 / Spring Boot 3.3.4`): API monolítica modular diseñada bajo Domain-Driven Design (DDD) dividida en 7 Bounded Contexts independientes.
+3. **Backend REST API Container** (`Java 26 / Spring Boot 4.0.6`): API monolítica modular diseñada bajo Domain-Driven Design (DDD) dividida en 7 Bounded Contexts independientes.
 4. **PostgreSQL 16 Database**: Almacenamiento relacional en puerto `5432` con esquema multitenant optimizado y auditoría por entidad.
 
 ---
@@ -105,6 +106,7 @@ El **Nivel 3 (Componentes)** del modelo C4 está desglosado minuciosamente para 
 | **Core** | CustomersController, EmployeesController, WorkshopsController, SubscriptionsController | [`core-bounded-context-dictionary.md`](file:///home/aldo/Proyectos/University/Mobile-Applications/shiftiq-platform/docs/core-bounded-context-dictionary.md) |
 | **Operations** | WorkOrdersController, WorkOrderTasksController, ServicesController | [`operations-bounded-context-dictionary.md`](file:///home/aldo/Proyectos/University/Mobile-Applications/shiftiq-platform/docs/operations-bounded-context-dictionary.md) |
 | **Inventory** | ProductsController, InventoryStockListener, MinimumStockAlertEvaluationJob | [`inventory-bounded-context-dictionary.md`](file:///home/aldo/Proyectos/University/Mobile-Applications/shiftiq-platform/docs/inventory-bounded-context-dictionary.md) |
-| **Billing** | QuotesController, VouchersController, CheckoutsController, StripePaymentsController, FactosGatewayImpl | [`billing-bounded-context-dictionary.md`](file:///home/aldo/Proyectos/University/Mobile-Applications/shiftiq-platform/docs/billing-bounded-context-dictionary.md) |
+| **Billing** | QuotesController, VouchersController, CheckoutsController, MercadoPagoPaymentsController, FactosGatewayImpl | [`billing-bounded-context-dictionary.md`](file:///home/aldo/Proyectos/University/Mobile-Applications/shiftiq-platform/docs/billing-bounded-context-dictionary.md) |
 | **Fleet** | AppointmentsController, CustomerRegistrationsController, EmployeeRegistrationsController | [`fleet-bounded-context-dictionary.md`](file:///home/aldo/Proyectos/University/Mobile-Applications/shiftiq-platform/docs/fleet-bounded-context-dictionary.md) |
 | **IoT** | VehiclesController, Obd2DevicesController, Obd2DeviceRegistrationsController, TelemetryBatchesController | [`iot-bounded-context-dictionary.md`](file:///home/aldo/Proyectos/University/Mobile-Applications/shiftiq-platform/docs/iot-bounded-context-dictionary.md) |
+

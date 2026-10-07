@@ -13,6 +13,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import com.tuxlogic.shiftiq.platform.billing.domain.model.events.VoucherPaidEvent;
+import java.time.Instant;
 import java.util.UUID;
 /**
  * Aggregate root representing a Voucher (Invoice or Receipt) in the billing context.
@@ -24,6 +25,7 @@ public class Voucher extends AbstractDomainAggregateRoot<Voucher> {
 
     private UUID id;
     private UUID quoteId;
+    private UUID branchId;
     private VoucherType type;
     private String customerDocumentType;
     private String customerDocumentNumber;
@@ -32,7 +34,11 @@ public class Voucher extends AbstractDomainAggregateRoot<Voucher> {
     private VoucherStatus status;
     private UUID externalInvoiceId; // ID returned by the Factos service
     private String pdfUrl;
+    private String correlative; // sequential fiscal correlative (e.g. 00000001)
     private List<Payment> payments = new ArrayList<>();
+    private Instant createdAt = Instant.now();
+    private Instant updatedAt = Instant.now();
+
     /**
      * Default constructor required by the persistence assembler and JPA.
      */
@@ -63,6 +69,8 @@ public class Voucher extends AbstractDomainAggregateRoot<Voucher> {
         this.status = VoucherStatus.PENDING;
         this.externalInvoiceId = externalInvoiceId;
         this.pdfUrl = pdfUrl;
+        this.createdAt = Instant.now();
+        this.updatedAt = Instant.now();
     }
 
     // For persistence rebuilding
@@ -82,6 +90,35 @@ public class Voucher extends AbstractDomainAggregateRoot<Voucher> {
         if (payments != null) {
             this.payments = payments;
         }
+    }
+
+    public Voucher(UUID id, UUID quoteId, VoucherType type, String customerDocumentType, 
+                   String customerDocumentNumber, String customerName, 
+                   Money totalAmount, VoucherStatus status, UUID externalInvoiceId, String pdfUrl,
+                   List<Payment> payments, String correlative) {
+        this(id, quoteId, type, customerDocumentType, customerDocumentNumber, customerName, totalAmount, status, externalInvoiceId, pdfUrl, payments);
+        this.correlative = correlative;
+    }
+
+    public Voucher(UUID id, UUID quoteId, VoucherType type, String customerDocumentType, 
+                   String customerDocumentNumber, String customerName, 
+                   Money totalAmount, VoucherStatus status, UUID externalInvoiceId, String pdfUrl,
+                   List<Payment> payments, String correlative, Instant createdAt, Instant updatedAt) {
+        this(id, quoteId, type, customerDocumentType, customerDocumentNumber, customerName, totalAmount, status, externalInvoiceId, pdfUrl, payments, correlative);
+        if (createdAt != null) this.createdAt = createdAt;
+        if (updatedAt != null) this.updatedAt = updatedAt;
+    }
+
+    public void setCorrelative(String correlative) {
+        this.correlative = correlative;
+    }
+
+    public void setBranchId(UUID branchId) {
+        this.branchId = branchId;
+    }
+
+    public void setUpdatedAt(Instant updatedAt) {
+        this.updatedAt = updatedAt;
     }
 
     /**
@@ -115,6 +152,10 @@ public class Voucher extends AbstractDomainAggregateRoot<Voucher> {
      * @throws IllegalStateException if the voucher is canceled, already paid, or if the payment exceeds the remaining debt
      */
     public void addPayment(Money amount, PaymentMethod method, UUID branchId) {
+        addPayment(amount, method, branchId, "MANUAL", null);
+    }
+
+    public void addPayment(Money amount, PaymentMethod method, UUID branchId, String paymentProvider, String externalPaymentId) {
         if (this.status == VoucherStatus.CANCELED) {
             throw new IllegalStateException("billing.error.voucher.cannotAddPaymentCanceled");
         }
@@ -129,7 +170,7 @@ public class Voucher extends AbstractDomainAggregateRoot<Voucher> {
             throw new IllegalStateException("billing.error.voucher.paymentExceedsDebt");
         }
 
-        this.payments.add(new Payment(amount, method, branchId));
+        this.payments.add(new Payment(amount, method, branchId, paymentProvider, externalPaymentId));
 
         if (newTotalPaid.compareTo(this.totalAmount.amount()) == 0) {
             this.status = VoucherStatus.PAID;
@@ -138,6 +179,18 @@ public class Voucher extends AbstractDomainAggregateRoot<Voucher> {
             this.status = VoucherStatus.PARTIALLY_PAID;
         }
     }
+
+    /**
+     * Records an authorized payment against a voucher that is pending electronic invoice emission.
+     * The voucher remains in PENDING status until {@link #markEmissionSuccessful(UUID, String)} is called.
+     */
+    public void recordPrepayment(Money amount, PaymentMethod method, UUID branchId, String paymentProvider, String externalPaymentId) {
+        if (this.status == VoucherStatus.CANCELED) {
+            throw new IllegalStateException("billing.error.voucher.cannotAddPaymentCanceled");
+        }
+        this.payments.add(new Payment(amount, method, branchId, paymentProvider, externalPaymentId));
+    }
+
 
     /**
      * Removes a previously recorded payment from this voucher.
@@ -181,5 +234,34 @@ public class Voucher extends AbstractDomainAggregateRoot<Voucher> {
         }
         this.status = VoucherStatus.CANCELED;
     }
+
+    /**
+     * Marks the electronic voucher as successfully emitted by the external invoicing authority (Factos/SUNAT).
+     * Transitions to PAID if payments match the total amount and registers the VoucherPaidEvent.
+     */
+    public void markEmissionSuccessful(UUID externalInvoiceId, String pdfUrl) {
+        this.externalInvoiceId = externalInvoiceId;
+        this.pdfUrl = pdfUrl;
+        this.updatedAt = Instant.now();
+        if (getTotalPaidAmount().compareTo(this.totalAmount.amount()) >= 0) {
+            if (this.status != VoucherStatus.PAID) {
+                this.status = VoucherStatus.PAID;
+                this.registerDomainEvent(new VoucherPaidEvent(this, this.id, this.quoteId));
+            }
+        } else if (this.status == VoucherStatus.EMISSION_FAILED) {
+            // Emission was retried successfully on a voucher without full payment: it is emitted
+            // again but still unpaid, so it returns to PENDING instead of staying EMISSION_FAILED.
+            this.status = VoucherStatus.PENDING;
+        }
+    }
+
+    /**
+     * Marks the electronic voucher emission as failed following an external gateway error or timeout.
+     */
+    public void markEmissionFailed() {
+        this.status = VoucherStatus.EMISSION_FAILED;
+        this.updatedAt = Instant.now();
+    }
 }
+
 

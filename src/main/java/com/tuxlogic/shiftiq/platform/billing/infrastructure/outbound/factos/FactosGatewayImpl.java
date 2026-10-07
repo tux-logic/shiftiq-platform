@@ -1,6 +1,7 @@
 package com.tuxlogic.shiftiq.platform.billing.infrastructure.outbound.factos;
 
 import com.tuxlogic.shiftiq.platform.billing.application.outboundservices.FactosGateway;
+import com.tuxlogic.shiftiq.platform.billing.application.outboundservices.FiscalCorrelativeService;
 import com.tuxlogic.shiftiq.platform.billing.domain.model.valueobjects.VoucherType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -16,7 +17,6 @@ import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Optional;
-import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * Implementation of the FactosGateway outbound service interface.
@@ -26,19 +26,21 @@ import java.util.concurrent.atomic.AtomicLong;
 public class FactosGatewayImpl implements FactosGateway {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(FactosGatewayImpl.class);
-    private static final AtomicLong CORRELATIVE_COUNTER = new AtomicLong((System.currentTimeMillis() / 1000) % 100000000L);
 
     private final String factosApiUrl;
     private final String factosApiKey;
     private final RestTemplate restTemplate;
+    private final FiscalCorrelativeService fiscalCorrelativeService;
 
     public FactosGatewayImpl(
             @Value("${factos.api.url}") String factosApiUrl,
             @Value("${factos.api.key}") String factosApiKey,
-            RestTemplate restTemplate) {
+            RestTemplate restTemplate,
+            FiscalCorrelativeService fiscalCorrelativeService) {
         this.factosApiUrl = factosApiUrl;
         this.factosApiKey = factosApiKey;
         this.restTemplate = restTemplate;
+        this.fiscalCorrelativeService = fiscalCorrelativeService;
     }
 
     @Override
@@ -48,12 +50,15 @@ public class FactosGatewayImpl implements FactosGateway {
             String customerDocumentType,
             String customerDocumentNumber,
             String customerName,
-            List<FactosItem> items
+            List<FactosItem> items,
+            String correlative
     ) {
         try {
             String cpeType = documentType == VoucherType.INVOICE ? "01" : "03";
             String series = documentType == VoucherType.INVOICE ? "F001" : "B001";
-            String correlative = String.format("%08d", CORRELATIVE_COUNTER.getAndIncrement() % 100000000L);
+            String targetCorrelative = (correlative != null && !correlative.isBlank())
+                    ? correlative
+                    : fiscalCorrelativeService.nextCorrelative(series);
             String issueDate = LocalDate.now().format(DateTimeFormatter.ISO_LOCAL_DATE);
 
             List<FactosIssueInvoiceRequest.Item> requestItems = items.stream()
@@ -68,7 +73,7 @@ public class FactosGatewayImpl implements FactosGateway {
 
             var requestDto = new FactosIssueInvoiceRequest(
                     series,
-                    correlative,
+                    targetCorrelative,
                     cpeType,
                     issueDate,
                     issuerRuc,

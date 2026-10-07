@@ -48,4 +48,16 @@ public class VoucherQueryServiceImpl implements VoucherQueryService {
     public List<Voucher> handle(GetVouchersByBranchIdQuery query) {
         return voucherRepository.findByBranchId(query.branchId());
     }
+
+    /**
+     * Retrieves a specific Voucher by its associated Quote ID.
+     *
+     * @param query The query object containing the target quote ID.
+     * @return An Optional containing the Voucher if found, or empty otherwise.
+     */
+    @Override
+    @Transactional(readOnly = true)
+    public Optional<Voucher> handle(com.tuxlogic.shiftiq.platform.billing.domain.model.queries.GetVoucherByQuoteIdQuery query) {
+        return voucherRepository.findByQuoteId(query.quoteId());
+    }
 }

@@ -4,6 +4,7 @@ import com.cloudinary.Cloudinary;
 import com.cloudinary.utils.ObjectUtils;
 import com.tuxlogic.shiftiq.platform.shared.application.outboundservices.storage.StorageService;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
@@ -29,6 +30,7 @@ public class CloudinaryStorageServiceImpl implements StorageService {
 
     private final Cloudinary cloudinary;
 
+    @Autowired
     public CloudinaryStorageServiceImpl(
             @Value("${cloudinary.cloud-name:${CLOUDINARY_CLOUD_NAME:}}") String cloudName,
             @Value("${cloudinary.api-key:${CLOUDINARY_API_KEY:}}") String apiKey,
