@@ -63,7 +63,7 @@ public class EmployeesController {
     @PutMapping("/{employeeId}")
     public ResponseEntity<EmployeeResource> updateEmployee(@PathVariable UUID employeeId, @Valid @RequestBody UpdateEmployeeResource resource) {
         var existing = employeeQueryService.handle(new GetEmployeeByIdQuery(new EmployeeId(employeeId)));
-        existing.ifPresent(e -> multiTenancySecurityService.validateUserAccess(e.getUserId().value()));
+        existing.ifPresent(e -> multiTenancySecurityService.validateSelfAccess(e.getUserId().value()));
 
         var command = UpdateEmployeeCommandFromResourceAssembler.toCommandFromResource(employeeId, resource);
         var employee = employeeCommandService.handle(command);
@@ -121,7 +121,7 @@ public class EmployeesController {
     @DeleteMapping("/{employeeId}")
     public ResponseEntity<?> deleteEmployee(@PathVariable UUID employeeId) {
         var existing = employeeQueryService.handle(new GetEmployeeByIdQuery(new EmployeeId(employeeId)));
-        existing.ifPresent(e -> multiTenancySecurityService.validateUserAccess(e.getUserId().value()));
+        existing.ifPresent(e -> multiTenancySecurityService.validateSelfAccess(e.getUserId().value()));
 
         var command = new DeleteEmployeeCommand(new EmployeeId(employeeId));
         employeeCommandService.handle(command);

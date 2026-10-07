@@ -76,13 +76,14 @@ La arquitectura sigue principios de **Domain-Driven Design (DDD)** con **Context
 - **Valores nulos denegados por defecto**: `isAuthorizedForBranch(null)` → false, `isAuthorizedForUser(null)` → false
 - **Aislamiento SaaS multi-dueño (modelo de negocio: plataforma con dueños independientes)**: `ROLE_OWNER` solo accede a las sedes de sus propios talleres, resueltas por `TenantScopeResolver` (puerto en `shared`, implementación en `core`: usuario → owner → talleres → sedes). `ROLE_ADMIN` conserva acceso total; `/api/v1/analytics/network/summary` agrega únicamente las sedes del dueño autenticado
 - **Controladores**: `BranchesController`, `AppointmentsController`, `CustomerRegistrationsController`, `EmployeeRegistrationsController` usan la sobrecarga `isAuthorizedForBranch(BranchId)` que es nula-safe
-- **Perfiles de dueño y talleres acotados**: `POST/PUT/GET /owners` usa `isAuthorizedForSelf` y `POST/PUT/GET /workshops` usa `isAuthorizedForOwnerProfile` (ambos vía `TenantScopeResolver.findOwnerProfileIdForUser`); no aplican el bypass de `ROLE_OWNER` de `isAuthorizedForUser`, que se conserva solo para clientes/empleados (perfiles globales sin sucursal en el modelo de datos actual)
+- **Perfiles de dueño y talleres acotados**: `POST/PUT/GET /owners` usa `isAuthorizedForSelf` y `POST/PUT/GET /workshops` usa `isAuthorizedForOwnerProfile` (ambos vía `TenantScopeResolver.findOwnerProfileIdForUser`); no aplican el bypass de `ROLE_OWNER` de `isAuthorizedForUser`, que se conserva solo para lectura/alta de clientes/empleados (perfiles globales sin sucursal en el modelo de datos actual)
+- **Escritura de clientes/empleados acotada (opción "endurecer sin migración")**: `PUT` y `DELETE` de `/customers` y `/employees` usan `validateSelfAccess` (solo `ADMIN` o el propio usuario, sin bypass de `ROLE_OWNER`); lectura (`GET`) y alta (`POST`) mantienen `isAuthorizedForUser`
 
-### Testing (55 tests verdes)
-- `GlobalExceptionHandlerTest`: 8 tests cubriendo los nuevos handlers y el comportamiento "no leak"
+### Testing (202 tests, 0 failures / 0 errors / 5 skipped)
+- `GlobalExceptionHandlerTest`: handlers y comportamiento "no leak"
+- Suite unitaria por capa (command services, query services, controllers, eventos, scheduler)
+- `AnalyticsUpsertJdbcTest`: 5 tests de integración JDBC contra la BD real (esquema V13, upserts, concurrencia). Se ejecutan solo con `DATABASE_URL` exportada (p. ej. `set -a; source .env; set +a`); sin credenciales quedan **skipped**
 - Tests de integración con Testcontainers (pending Docker)
-- Tests unitarios por capa (command services, query services, controladores)
-- Cobertura: 47 tests previos + 8 del handler = 55 total, 0 failures, 0 errors
 
 ## Guía de desarrollo rápida
 

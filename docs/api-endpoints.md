@@ -427,6 +427,7 @@ Cuando una petición falla (`400 Bad Request`, `404 Not Found`, `409 Conflict`, 
 #### `GET /api/v1/employees?documentNumber={documentNumber}` — Buscar por DNI
 #### `PUT /api/v1/employees/{employeeId}` — Actualizar Empleado
 #### `DELETE /api/v1/employees/{employeeId}` — Eliminar Empleado
+* **Autorización:** `POST` y `GET` aceptan `ADMIN`, el propio usuario o `ROLE_OWNER` (bypass de perfiles globales); `PUT` y `DELETE` solo aceptan `ADMIN` o el propio usuario (`validateSelfAccess`, sin bypass de `ROLE_OWNER`).
 
 ---
 
@@ -464,6 +465,7 @@ Cuando una petición falla (`400 Bad Request`, `404 Not Found`, `409 Conflict`, 
 #### `GET /api/v1/customers?userId={userId}` — Obtener Cliente por ID de Usuario
 #### `PUT /api/v1/customers/{customerId}` — Actualizar Cliente
 #### `DELETE /api/v1/customers/{customerId}` — Eliminar Cliente
+* **Autorización:** `POST` y `GET` aceptan `ADMIN`, el propio usuario o `ROLE_OWNER` (bypass de perfiles globales); `PUT` y `DELETE` solo aceptan `ADMIN` o el propio usuario (`validateSelfAccess`, sin bypass de `ROLE_OWNER`).
 
 ---
 
