@@ -49,6 +49,12 @@ public class QuoteRepositoryImpl implements QuoteRepository {
     }
 
     @Override
+    public Optional<Quote> findByIdForUpdate(UUID id) {
+        return persistenceRepository.findByIdForUpdate(id)
+                .map(QuotePersistenceAssembler::toAggregate);
+    }
+
+    @Override
     public List<Quote> findAllByBranchId(BranchId branchId) {
         return persistenceRepository.findAllByBranchId(branchId)
                 .stream()

@@ -136,16 +136,24 @@ Genera el comprobante y registra el pago total en una sola transacción (efectiv
 ```
 
 ### 3.2. Crear Preferencia de Mercado Pago (Create Mercado Pago Preference)
-Genera la preferencia de cobro derivada directamente desde la Cotización aprobada.
+Genera la preferencia de cobro derivada directamente desde la Cotización aprobada. Opcionalmente captura los datos fiscales del comprobante (`type`, `customerDocumentType`, `customerDocumentNumber`, `customerName`) para persistir una intención de cobro (`PaymentIntent`) que permite emitir el CPE en SUNAT de manera autónoma si el cliente cierra la pestaña del navegador tras pagar.
 
 - **Método:** `POST`
 - **Ruta:** `/api/v1/payments/mercadopago/preferences`
 - **Request Body:**
 ```json
 {
-  "quoteId": "3fa85f64-5717-4562-b3fc-2c963f66afa6"
+  "quoteId": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+  "type": "INVOICE",
+  "customerDocumentType": "RUC",
+  "customerDocumentNumber": "20601234567",
+  "customerName": "Transportes Lima S.A.C."
 }
 ```
+> **Reglas de Validación Fiscal:**
+> - Si `type` es `INVOICE` (Factura), `customerDocumentType` debe ser `RUC`, `customerDocumentNumber` debe constar exactamente de 11 dígitos numéricos, y `customerName` es obligatorio.
+> - Si `type` no se especifica, por defecto es `RECEIPT` (Boleta).
+
 - **Respuesta `201 Created`:**
 ```json
 {
@@ -160,6 +168,9 @@ Genera la preferencia de cobro derivada directamente desde la Cotización aproba
 
 ### 3.3. Confirmar Checkout con Mercado Pago (Process Mercado Pago Checkout)
 Verifica la validez, monto, moneda y pertenencia del pago en Mercado Pago, emite el comprobante fiscal en SUNAT y registra el pago con prevención de ataques de replay.
+
+- **Idempotencia y Recuperación:** Si el webhook de Mercado Pago ya emitió el comprobante previamente (por ejemplo, si el cliente demoró en regresar al frontend), este endpoint no genera error de conflicto ni duplica comprobantes en SUNAT: recupera y retorna exitosamente el `Voucher` ya emitido (`PAID`).
+- **Recuperación ante fallos:** Si un intento previo quedó en `EMISSION_FAILED`, este endpoint reintenta la emisión conservando el mismo correlativo fiscal para evitar saltos en la numeración de SUNAT.
 
 - **Método:** `POST`
 - **Ruta:** `/api/v1/checkouts/mercadopago`
@@ -178,8 +189,15 @@ Verifica la validez, monto, moneda y pertenencia del pago en Mercado Pago, emite
 ### 3.4. Webhooks / Notificaciones IPN de Mercado Pago
 Endpoint expuesto para la recepción asíncrona de cambios de estado de pagos desde los servidores de Mercado Pago.
 
+- **Seguridad HMAC Fail-Closed:** Valida la cabecera `x-signature` calculando el hash SHA-256 (`v1`) con el secreto configurado en `mercadopago.webhook.secret`. Si el secreto no está configurado, responde `503 Service Unavailable`.
+- **Protección contra Ataques de Repetición (Replay Prevention):** Valida la frescura temporal de la firma (`ts`); las solicitudes con un desfase superior a 5 minutos (300 segundos) son rechazadas con `401 Unauthorized`.
+- **Emisión Autónoma Asíncrona:** Si el pago es `approved` y el comprobante aún no fue emitido (el usuario cerró la pestaña), recupera la intención de facturación (`PaymentIntent`) y emite el comprobante en SUNAT de manera autónoma.
+- **Reintentos Automáticos de Mercado Pago:** Si la emisión externa en Factos falla, el webhook responde con código `503 Service Unavailable`, indicando a Mercado Pago que reintente la entrega de la notificación según su política de backoff exponencial.
+
 - **Método:** `POST`
-- **Ruta:** `/api/v1/payments/mercadopago/webhooks?type=payment&data.id=9988776655`
+- **Ruta:** `/api/v1/payments/mercadopago/webhooks`
+- **Query Params (opcionales):** `?type=payment&data.id=9988776655` o `?topic=payment&id=9988776655`
+- **Headers:** `x-signature`, `x-request-id`
 
 ---
 

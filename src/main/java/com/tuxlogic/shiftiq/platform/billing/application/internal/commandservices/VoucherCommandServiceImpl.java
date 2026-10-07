@@ -21,8 +21,8 @@ import com.tuxlogic.shiftiq.platform.operations.domain.model.queries.GetWorkOrde
 import com.tuxlogic.shiftiq.platform.operations.domain.model.valueobjects.WorkOrderId;
 import com.tuxlogic.shiftiq.platform.inventory.application.queryservices.ProductQueryService;
 import com.tuxlogic.shiftiq.platform.inventory.domain.model.queries.GetProductByIdQuery;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
@@ -37,11 +37,12 @@ import java.util.UUID;
 import lombok.extern.slf4j.Slf4j;
 import com.tuxlogic.shiftiq.platform.billing.application.outboundservices.PaymentGateway;
 
+import com.tuxlogic.shiftiq.platform.billing.infrastructure.persistence.jpa.repositories.PaymentIntentJpaRepository;
+import java.time.LocalDateTime;
+
 @Slf4j
 @Service
-@Transactional
 public class VoucherCommandServiceImpl implements VoucherCommandService {
-
 
     private final VoucherRepository voucherRepository;
     private final QuoteRepository quoteRepository;
@@ -51,7 +52,10 @@ public class VoucherCommandServiceImpl implements VoucherCommandService {
     private final PaymentGateway paymentGateway;
     private final WorkOrderQueryService workOrderQueryService;
     private final ProductQueryService productQueryService;
+    private final VoucherExecutionService voucherExecutionService;
+    private final PaymentIntentJpaRepository paymentIntentJpaRepository;
 
+    @Autowired
     public VoucherCommandServiceImpl(
             VoucherRepository voucherRepository,
             QuoteRepository quoteRepository,
@@ -60,7 +64,9 @@ public class VoucherCommandServiceImpl implements VoucherCommandService {
             FactosGateway factosGateway,
             PaymentGateway paymentGateway,
             WorkOrderQueryService workOrderQueryService,
-            ProductQueryService productQueryService) {
+            ProductQueryService productQueryService,
+            VoucherExecutionService voucherExecutionService,
+            PaymentIntentJpaRepository paymentIntentJpaRepository) {
         this.voucherRepository = voucherRepository;
         this.quoteRepository = quoteRepository;
         this.branchQueryService = branchQueryService;
@@ -69,10 +75,11 @@ public class VoucherCommandServiceImpl implements VoucherCommandService {
         this.paymentGateway = paymentGateway;
         this.workOrderQueryService = workOrderQueryService;
         this.productQueryService = productQueryService;
+        this.voucherExecutionService = voucherExecutionService;
+        this.paymentIntentJpaRepository = paymentIntentJpaRepository;
     }
 
     @Override
-    @Transactional
     public Result<Voucher, VoucherCommandFailure> handle(GenerateVoucherCommand command) {
         // 1. Get and validate Quote
         var quoteOpt = quoteRepository.findById(command.quoteId());
@@ -173,6 +180,7 @@ public class VoucherCommandServiceImpl implements VoucherCommandService {
     }
 
     @Override
+    @Transactional
     public Result<Voucher, VoucherCommandFailure> handle(com.tuxlogic.shiftiq.platform.billing.domain.model.commands.RemovePaymentCommand command) {
         var voucherOpt = voucherRepository.findById(command.voucherId());
         
@@ -194,7 +202,6 @@ public class VoucherCommandServiceImpl implements VoucherCommandService {
     }
 
     @Override
-    @Transactional
     public Result<Voucher, VoucherCommandFailure> handle(com.tuxlogic.shiftiq.platform.billing.domain.model.commands.ProcessCheckoutCommand command) {
         // 1. Get and validate Quote
         var quoteOpt = quoteRepository.findById(command.quoteId());
@@ -265,123 +272,57 @@ public class VoucherCommandServiceImpl implements VoucherCommandService {
 
     @Override
     public Result<Voucher, VoucherCommandFailure> handle(com.tuxlogic.shiftiq.platform.billing.domain.model.commands.ProcessMercadoPagoCheckoutCommand command) {
-        // 1. Validate Quote exists and is in APPROVED status FIRST (prevents info leakage/unauthorized replay probing)
-        var quoteOpt = quoteRepository.findById(command.quoteId());
-        if (quoteOpt.isEmpty()) {
-            return Result.failure(VoucherCommandFailure.QUOTE_NOT_FOUND);
-        }
-        var quote = quoteOpt.get();
-        if (quote.getStatus() != QuoteStatus.APPROVED) {
-            return Result.failure(VoucherCommandFailure.QUOTE_NOT_APPROVED);
+        if (voucherExecutionService == null) {
+            log.error("VoucherExecutionService is not configured");
+            return Result.failure(VoucherCommandFailure.FACTOS_ISSUANCE_FAILED);
         }
 
-        // 2. Ensure a voucher has not already been issued for this quote
-        var existingVoucherOpt = voucherRepository.findByQuoteId(command.quoteId());
-        if (existingVoucherOpt.isPresent()) {
-            var existingVoucher = existingVoucherOpt.get();
-            // Idempotent recovery: if this exact payment already created the voucher, return it directly
-            boolean paymentMatches = existingVoucher.getPayments().stream()
-                    .anyMatch(p -> command.paymentId().equals(p.getExternalPaymentId()));
-            if (paymentMatches && existingVoucher.getStatus() == VoucherStatus.PAID) {
-                log.info("Voucher for quote ID '{}' and payment ID '{}' already emitted. Returning existing voucher.", command.quoteId(), command.paymentId());
-                return Result.success(existingVoucher);
-            }
-            log.warn("Quote ID '{}' has already been invoiced", command.quoteId());
-            return Result.failure(VoucherCommandFailure.QUOTE_ALREADY_INVOICED);
+        // Phase 1: Isolated preparation transaction (committed in REQUIRES_NEW)
+        var prepResult = voucherExecutionService.prepareOrFindVoucher(command);
+        if (prepResult instanceof VoucherPreparationResult.Failed f) {
+            return Result.failure(f.failure());
         }
-
-        // 3. Replay prevention check: Ensure paymentId hasn't been consumed by another voucher
-        if (voucherRepository.existsByExternalPaymentId(command.paymentId())) {
-            log.warn("Mercado Pago payment ID '{}' has already been used for another voucher", command.paymentId());
-            return Result.failure(VoucherCommandFailure.PAYMENT_ALREADY_CONSUMED);
+        if (prepResult instanceof VoucherPreparationResult.AlreadyEmitted ae) {
+            return Result.success(ae.voucher());
         }
-
-        // 4. Verify Mercado Pago Payment status, amount, external reference, and currency
-        var paymentResultOpt = paymentGateway.getPaymentStatusByExternalId(command.paymentId());
-        if (paymentResultOpt.isEmpty()) {
-            return Result.failure(VoucherCommandFailure.PAYMENT_NOT_FOUND);
+        if (prepResult instanceof VoucherPreparationResult.InProgress) {
+            log.warn("Checkout for quote ID '{}' is already in progress. Rejecting concurrent attempt.", command.quoteId());
+            return Result.failure(VoucherCommandFailure.VOUCHER_EMISSION_IN_PROGRESS);
         }
-        var paymentResult = paymentResultOpt.get();
-        if (!"approved".equalsIgnoreCase(paymentResult.status()) && !"succeeded".equalsIgnoreCase(paymentResult.status())) {
-            log.warn("Payment status '{}' is not approved", paymentResult.status());
-            return Result.failure(VoucherCommandFailure.INVALID_VOUCHER_DATA);
-        }
-        if (paymentResult.amount().compareTo(quote.getTotalAmount().amount()) != 0) {
-            log.warn("Payment amount '{}' does not match quote total amount '{}'", paymentResult.amount(), quote.getTotalAmount().amount());
-            return Result.failure(VoucherCommandFailure.INVALID_VOUCHER_DATA);
-        }
-        if (paymentResult.externalReference() == null || !quote.getId().toString().equals(paymentResult.externalReference())) {
-            log.warn("Payment external reference '{}' does not match quote ID '{}'", paymentResult.externalReference(), quote.getId());
-            return Result.failure(VoucherCommandFailure.INVALID_VOUCHER_DATA);
-        }
-        if (paymentResult.currency() == null || !"PEN".equalsIgnoreCase(paymentResult.currency())) {
-            log.warn("Payment currency '{}' is invalid or not 'PEN'", paymentResult.currency());
-            return Result.failure(VoucherCommandFailure.INVALID_VOUCHER_DATA);
-        }
-
-        // 5. Query Core context for Issuer RUC (Tax ID)
-        var coreBranchId = new BranchId(quote.getBranchId().value());
-        var branchOpt = branchQueryService.handle(new GetBranchByIdQuery(coreBranchId));
-        if (branchOpt.isEmpty()) {
-            return Result.failure(VoucherCommandFailure.ISSUER_NOT_FOUND);
-        }
-
-        var workshopOpt = workshopQueryService.handle(new GetWorkshopByIdQuery(branchOpt.get().getWorkshopId()));
-        if (workshopOpt.isEmpty()) {
-            return Result.failure(VoucherCommandFailure.ISSUER_NOT_FOUND);
-        }
-        String issuerRuc = workshopOpt.get().getTaxId().value();
-
-        // 6. Step 1: Reserve Voucher in PENDING status and record payment locally
-        Voucher pendingVoucher;
-        try {
-            var voucher = new Voucher(
-                    command.quoteId(),
+        if (prepResult instanceof VoucherPreparationResult.ReadyToEmit ready) {
+            // Phase 2: Call Factos HTTP outside any database transaction
+            var invoiceResultOpt = factosGateway.issueVoucher(
+                    ready.issuerRuc(),
                     command.type(),
                     command.customerDocumentType(),
                     command.customerDocumentNumber(),
                     command.customerName(),
-                    quote.getTotalAmount(),
-                    null,
-                    null
+                    getDetailedBillingItems(ready.quote()),
+                    ready.correlative()
             );
 
-            voucher.recordPrepayment(
-                    quote.getTotalAmount(),
-                    com.tuxlogic.shiftiq.platform.billing.domain.model.valueobjects.PaymentMethod.CREDIT_CARD,
-                    quote.getBranchId().value(),
-                    "MERCADO_PAGO",
-                    command.paymentId()
-            );
+            // Phase 3: Transition status in isolated transaction (committed in REQUIRES_NEW)
+            if (invoiceResultOpt.isEmpty()) {
+                voucherExecutionService.markEmissionFailed(ready.voucher().getId());
+                return Result.failure(VoucherCommandFailure.FACTOS_ISSUANCE_FAILED);
+            }
 
-            pendingVoucher = voucherRepository.save(voucher);
-        } catch (IllegalArgumentException | IllegalStateException e) {
-            return Result.failure(VoucherCommandFailure.INVALID_VOUCHER_DATA);
+            var invoiceResult = invoiceResultOpt.get();
+            UUID externalInvoiceId = UUID.nameUUIDFromBytes((invoiceResult.series() + "-" + invoiceResult.correlative()).getBytes(StandardCharsets.UTF_8));
+            var savedVoucher = voucherExecutionService.markEmissionSuccess(ready.voucher().getId(), externalInvoiceId, invoiceResult.pdfUrl());
+
+            if (paymentIntentJpaRepository != null) {
+                paymentIntentJpaRepository.findByQuoteId(command.quoteId()).ifPresent(intent -> {
+                    intent.setStatus("COMPLETED");
+                    intent.setUpdatedAt(LocalDateTime.now());
+                    paymentIntentJpaRepository.save(intent);
+                });
+            }
+
+            return Result.success(savedVoucher);
         }
 
-        // 7. Step 2: Issue Voucher via Factos (SUNAT) outside local database transaction
-        var invoiceResultOpt = factosGateway.issueVoucher(
-                issuerRuc,
-                command.type(),
-                command.customerDocumentType(),
-                command.customerDocumentNumber(),
-                command.customerName(),
-                getDetailedBillingItems(quote)
-        );
-
-        // 8. Step 3: Confirm issuance and transition to PAID or mark EMISSION_FAILED
-        if (invoiceResultOpt.isEmpty()) {
-            pendingVoucher.markEmissionFailed();
-            voucherRepository.save(pendingVoucher);
-            return Result.failure(VoucherCommandFailure.FACTOS_ISSUANCE_FAILED);
-        }
-
-        var invoiceResult = invoiceResultOpt.get();
-        UUID externalInvoiceId = UUID.nameUUIDFromBytes((invoiceResult.series() + "-" + invoiceResult.correlative()).getBytes(StandardCharsets.UTF_8));
-
-        pendingVoucher.markEmissionSuccessful(externalInvoiceId, invoiceResult.pdfUrl());
-        var savedVoucher = voucherRepository.save(pendingVoucher);
-        return Result.success(savedVoucher);
+        return Result.failure(VoucherCommandFailure.INVALID_VOUCHER_DATA);
     }
 
 

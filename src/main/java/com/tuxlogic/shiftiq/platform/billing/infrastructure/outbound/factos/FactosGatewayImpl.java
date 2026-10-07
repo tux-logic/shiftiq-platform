@@ -50,12 +50,15 @@ public class FactosGatewayImpl implements FactosGateway {
             String customerDocumentType,
             String customerDocumentNumber,
             String customerName,
-            List<FactosItem> items
+            List<FactosItem> items,
+            String correlative
     ) {
         try {
             String cpeType = documentType == VoucherType.INVOICE ? "01" : "03";
             String series = documentType == VoucherType.INVOICE ? "F001" : "B001";
-            String correlative = fiscalCorrelativeService.nextCorrelative(series);
+            String targetCorrelative = (correlative != null && !correlative.isBlank())
+                    ? correlative
+                    : fiscalCorrelativeService.nextCorrelative(series);
             String issueDate = LocalDate.now().format(DateTimeFormatter.ISO_LOCAL_DATE);
 
             List<FactosIssueInvoiceRequest.Item> requestItems = items.stream()
@@ -70,7 +73,7 @@ public class FactosGatewayImpl implements FactosGateway {
 
             var requestDto = new FactosIssueInvoiceRequest(
                     series,
-                    correlative,
+                    targetCorrelative,
                     cpeType,
                     issueDate,
                     issuerRuc,

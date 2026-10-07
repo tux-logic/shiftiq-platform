@@ -170,6 +170,10 @@ public class CheckoutsController {
                 String message = messageSource.getMessage("billing.error.payment.alreadyConsumed", null, org.springframework.context.i18n.LocaleContextHolder.getLocale());
                 yield com.tuxlogic.shiftiq.platform.shared.interfaces.rest.transform.ErrorResponseAssembler.toErrorResponseFromApplicationError(com.tuxlogic.shiftiq.platform.shared.application.result.ApplicationError.conflict("checkout", message));
             }
+            case VOUCHER_EMISSION_IN_PROGRESS -> {
+                String message = messageSource.getMessage("billing.error.voucher.emissionInProgress", null, org.springframework.context.i18n.LocaleContextHolder.getLocale());
+                yield com.tuxlogic.shiftiq.platform.shared.interfaces.rest.transform.ErrorResponseAssembler.toErrorResponseFromApplicationError(com.tuxlogic.shiftiq.platform.shared.application.result.ApplicationError.conflict("checkout", message));
+            }
         };
     }
 }

@@ -31,6 +31,9 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
+import com.tuxlogic.shiftiq.platform.billing.application.outboundservices.FiscalCorrelativeService;
+import com.tuxlogic.shiftiq.platform.billing.infrastructure.persistence.jpa.repositories.PaymentIntentJpaRepository;
+
 @ExtendWith(MockitoExtension.class)
 class ProcessMercadoPagoCheckoutTest {
 
@@ -48,11 +51,24 @@ class ProcessMercadoPagoCheckoutTest {
     private PaymentGateway paymentGateway;
     @Mock
     private WorkOrderQueryService workOrderQueryService;
+    @Mock
+    private FiscalCorrelativeService fiscalCorrelativeService;
+    @Mock
+    private PaymentIntentJpaRepository paymentIntentJpaRepository;
 
+    private VoucherExecutionService voucherExecutionService;
     private VoucherCommandServiceImpl service;
 
     @BeforeEach
     void setUp() {
+        voucherExecutionService = new VoucherExecutionService(
+                voucherRepository,
+                quoteRepository,
+                paymentGateway,
+                branchQueryService,
+                workshopQueryService,
+                fiscalCorrelativeService
+        );
         service = new VoucherCommandServiceImpl(
                 voucherRepository,
                 quoteRepository,
@@ -61,7 +77,9 @@ class ProcessMercadoPagoCheckoutTest {
                 factosGateway,
                 paymentGateway,
                 workOrderQueryService,
-                null
+                null,
+                voucherExecutionService,
+                paymentIntentJpaRepository
         );
     }
 
@@ -309,6 +327,187 @@ class ProcessMercadoPagoCheckoutTest {
         assertThat(result.success().get()).isSameAs(existingVoucher);
         assertThat(result.success().get().getStatus()).isEqualTo(VoucherStatus.PAID);
         verify(voucherRepository, never()).save(any());
-        verify(factosGateway, never()).issueVoucher(any(), any(), any(), any(), any(), any());
+        verify(factosGateway, never()).issueVoucher(any(), any(), any(), any(), any(), any(), any());
+    }
+
+    @Test
+    @DisplayName("ProcessMercadoPagoCheckout retries successfully when voucher already exists in EMISSION_FAILED")
+    void processCheckoutRetriesSuccessfullyWhenVoucherIsInEmissionFailed() {
+        UUID quoteId = UUID.randomUUID();
+        UUID branchId = UUID.randomUUID();
+        UUID workshopId = UUID.randomUUID();
+        Quote quote = new Quote(quoteId, UUID.randomUUID(), new BranchId(branchId), new Money(new BigDecimal("100.00")), 0.0, new Money(new BigDecimal("100.00")), QuoteStatus.APPROVED);
+
+        Voucher failedVoucher = new Voucher(quoteId, VoucherType.RECEIPT, "DNI", "12345678", "Juan Perez", quote.getTotalAmount(), null, null);
+        failedVoucher.setCorrelative("00000042");
+        failedVoucher.recordPrepayment(quote.getTotalAmount(), PaymentMethod.CREDIT_CARD, branchId, "MERCADO_PAGO", "11223344");
+        failedVoucher.markEmissionFailed();
+
+        when(quoteRepository.findById(eq(quoteId))).thenReturn(Optional.of(quote));
+        when(voucherRepository.findByQuoteId(eq(quoteId))).thenReturn(Optional.of(failedVoucher));
+
+        PaymentResult mockPayment = new PaymentResult("11223344", quoteId.toString(), new BigDecimal("100.00"), "PEN", "approved");
+        when(paymentGateway.getPaymentStatusByExternalId(eq("11223344"))).thenReturn(Optional.of(mockPayment));
+
+        com.tuxlogic.shiftiq.platform.core.domain.model.aggregates.Branch mockBranch =
+                mock(com.tuxlogic.shiftiq.platform.core.domain.model.aggregates.Branch.class);
+        when(mockBranch.getWorkshopId()).thenReturn(new com.tuxlogic.shiftiq.platform.core.domain.model.valueobjects.WorkshopId(workshopId));
+        when(branchQueryService.handle(any(com.tuxlogic.shiftiq.platform.core.domain.model.queries.GetBranchByIdQuery.class)))
+                .thenReturn(Optional.of(mockBranch));
+
+        com.tuxlogic.shiftiq.platform.core.domain.model.aggregates.Workshop mockWorkshop =
+                mock(com.tuxlogic.shiftiq.platform.core.domain.model.aggregates.Workshop.class);
+        when(mockWorkshop.getTaxId()).thenReturn(new com.tuxlogic.shiftiq.platform.core.domain.model.valueobjects.TaxId("20123456789"));
+        when(workshopQueryService.handle(any(com.tuxlogic.shiftiq.platform.core.domain.model.queries.GetWorkshopByIdQuery.class)))
+                .thenReturn(Optional.of(mockWorkshop));
+
+        FactosGateway.FactosInvoiceResult invoiceResult =
+                new FactosGateway.FactosInvoiceResult("B001", "00000042", "http://pdf-url", new BigDecimal("100.00"));
+        when(factosGateway.issueVoucher(eq("20123456789"), eq(VoucherType.RECEIPT), eq("DNI"), eq("12345678"), eq("Juan Perez"), any(), eq("00000042")))
+                .thenReturn(Optional.of(invoiceResult));
+
+        when(voucherRepository.findById(failedVoucher.getId())).thenReturn(Optional.of(failedVoucher));
+        when(voucherRepository.save(failedVoucher)).thenReturn(failedVoucher);
+
+        ProcessMercadoPagoCheckoutCommand command = new ProcessMercadoPagoCheckoutCommand(
+                quoteId,
+                VoucherType.RECEIPT,
+                "DNI",
+                "12345678",
+                "Juan Perez",
+                "11223344"
+        );
+
+        Result<Voucher, VoucherCommandFailure> result = service.handle(command);
+
+        assertThat(result.isSuccess()).isTrue();
+        assertThat(result.success().get().getStatus()).isEqualTo(VoucherStatus.PAID);
+        assertThat(result.success().get().getCorrelative()).isEqualTo("00000042");
+        assertThat(result.success().get().getPdfUrl()).isEqualTo("http://pdf-url");
+        verify(fiscalCorrelativeService, never()).nextCorrelative(any());
+    }
+
+    @Test
+    @DisplayName("ProcessMercadoPagoCheckout fails with INVALID_VOUCHER_DATA when retrying EMISSION_FAILED but payment was refunded in MP")
+    void processCheckoutFailsWhenRetryingEmissionFailedWithRefundedPayment() {
+        UUID quoteId = UUID.randomUUID();
+        UUID branchId = UUID.randomUUID();
+        Quote quote = new Quote(quoteId, UUID.randomUUID(), new BranchId(branchId), new Money(new BigDecimal("100.00")), 0.0, new Money(new BigDecimal("100.00")), QuoteStatus.APPROVED);
+
+        Voucher failedVoucher = new Voucher(quoteId, VoucherType.RECEIPT, "DNI", "12345678", "Juan Perez", quote.getTotalAmount(), null, null);
+        failedVoucher.recordPrepayment(quote.getTotalAmount(), PaymentMethod.CREDIT_CARD, branchId, "MERCADO_PAGO", "11223344");
+        failedVoucher.markEmissionFailed();
+
+        when(quoteRepository.findById(eq(quoteId))).thenReturn(Optional.of(quote));
+        when(voucherRepository.findByQuoteId(eq(quoteId))).thenReturn(Optional.of(failedVoucher));
+
+        // MP returns refunded
+        PaymentResult refundedPayment = new PaymentResult("11223344", quoteId.toString(), new BigDecimal("100.00"), "PEN", "refunded");
+        when(paymentGateway.getPaymentStatusByExternalId(eq("11223344"))).thenReturn(Optional.of(refundedPayment));
+
+        ProcessMercadoPagoCheckoutCommand command = new ProcessMercadoPagoCheckoutCommand(
+                quoteId,
+                VoucherType.RECEIPT,
+                "DNI",
+                "12345678",
+                "Juan Perez",
+                "11223344"
+        );
+
+        Result<Voucher, VoucherCommandFailure> result = service.handle(command);
+
+        assertThat(result.isFailure()).isTrue();
+        assertThat(result.failure().get()).isEqualTo(VoucherCommandFailure.INVALID_VOUCHER_DATA);
+        verify(factosGateway, never()).issueVoucher(any(), any(), any(), any(), any(), any(), any());
+    }
+
+    @Test
+    @DisplayName("ProcessMercadoPagoCheckout recovers stale PENDING voucher (>=60s) with existing correlative")
+    void processCheckoutRecoversStalePendingVoucher() {
+        UUID quoteId = UUID.randomUUID();
+        UUID branchId = UUID.randomUUID();
+        UUID workshopId = UUID.randomUUID();
+        Quote quote = new Quote(quoteId, UUID.randomUUID(), new BranchId(branchId), new Money(new BigDecimal("100.00")), 0.0, new Money(new BigDecimal("100.00")), QuoteStatus.APPROVED);
+
+        // Stale voucher created 120s ago
+        java.time.Instant oldTime = java.time.Instant.now().minusSeconds(120);
+        Voucher staleVoucher = new Voucher(quoteId, VoucherType.RECEIPT, "DNI", "12345678", "Juan Perez", quote.getTotalAmount(), null, null);
+        staleVoucher.setCorrelative("00000088");
+        staleVoucher.setUpdatedAt(oldTime);
+        staleVoucher.recordPrepayment(quote.getTotalAmount(), PaymentMethod.CREDIT_CARD, branchId, "MERCADO_PAGO", "11223344");
+        staleVoucher.setUpdatedAt(oldTime);
+
+        when(quoteRepository.findById(eq(quoteId))).thenReturn(Optional.of(quote));
+        when(voucherRepository.findByQuoteId(eq(quoteId))).thenReturn(Optional.of(staleVoucher));
+
+        PaymentResult mockPayment = new PaymentResult("11223344", quoteId.toString(), new BigDecimal("100.00"), "PEN", "approved");
+        when(paymentGateway.getPaymentStatusByExternalId(eq("11223344"))).thenReturn(Optional.of(mockPayment));
+
+        com.tuxlogic.shiftiq.platform.core.domain.model.aggregates.Branch mockBranch =
+                mock(com.tuxlogic.shiftiq.platform.core.domain.model.aggregates.Branch.class);
+        when(mockBranch.getWorkshopId()).thenReturn(new com.tuxlogic.shiftiq.platform.core.domain.model.valueobjects.WorkshopId(workshopId));
+        when(branchQueryService.handle(any(com.tuxlogic.shiftiq.platform.core.domain.model.queries.GetBranchByIdQuery.class)))
+                .thenReturn(Optional.of(mockBranch));
+
+        com.tuxlogic.shiftiq.platform.core.domain.model.aggregates.Workshop mockWorkshop =
+                mock(com.tuxlogic.shiftiq.platform.core.domain.model.aggregates.Workshop.class);
+        when(mockWorkshop.getTaxId()).thenReturn(new com.tuxlogic.shiftiq.platform.core.domain.model.valueobjects.TaxId("20123456789"));
+        when(workshopQueryService.handle(any(com.tuxlogic.shiftiq.platform.core.domain.model.queries.GetWorkshopByIdQuery.class)))
+                .thenReturn(Optional.of(mockWorkshop));
+
+        FactosGateway.FactosInvoiceResult invoiceResult =
+                new FactosGateway.FactosInvoiceResult("B001", "00000088", "http://pdf-stale", new BigDecimal("100.00"));
+        when(factosGateway.issueVoucher(eq("20123456789"), eq(VoucherType.RECEIPT), eq("DNI"), eq("12345678"), eq("Juan Perez"), any(), eq("00000088")))
+                .thenReturn(Optional.of(invoiceResult));
+
+        when(voucherRepository.findById(staleVoucher.getId())).thenReturn(Optional.of(staleVoucher));
+        when(voucherRepository.save(staleVoucher)).thenReturn(staleVoucher);
+
+        ProcessMercadoPagoCheckoutCommand command = new ProcessMercadoPagoCheckoutCommand(
+                quoteId,
+                VoucherType.RECEIPT,
+                "DNI",
+                "12345678",
+                "Juan Perez",
+                "11223344"
+        );
+
+        Result<Voucher, VoucherCommandFailure> result = service.handle(command);
+
+        assertThat(result.isSuccess()).isTrue();
+        assertThat(result.success().get().getStatus()).isEqualTo(VoucherStatus.PAID);
+        assertThat(result.success().get().getCorrelative()).isEqualTo("00000088");
+        verify(fiscalCorrelativeService, never()).nextCorrelative(any());
+    }
+
+    @Test
+    @DisplayName("ProcessMercadoPagoCheckout returns VOUCHER_EMISSION_IN_PROGRESS when voucher is active PENDING (<60s)")
+    void processCheckoutReturnsEmissionInProgressWhenVoucherIsActivePending() {
+        UUID quoteId = UUID.randomUUID();
+        UUID branchId = UUID.randomUUID();
+        Quote quote = new Quote(quoteId, UUID.randomUUID(), new BranchId(branchId), new Money(new BigDecimal("100.00")), 0.0, new Money(new BigDecimal("100.00")), QuoteStatus.APPROVED);
+
+        // Active voucher created 5s ago
+        Voucher activeVoucher = new Voucher(quoteId, VoucherType.RECEIPT, "DNI", "12345678", "Juan Perez", quote.getTotalAmount(), null, null);
+        activeVoucher.setCorrelative("00000099");
+        activeVoucher.recordPrepayment(quote.getTotalAmount(), PaymentMethod.CREDIT_CARD, branchId, "MERCADO_PAGO", "11223344");
+
+        when(quoteRepository.findById(eq(quoteId))).thenReturn(Optional.of(quote));
+        when(voucherRepository.findByQuoteId(eq(quoteId))).thenReturn(Optional.of(activeVoucher));
+
+        ProcessMercadoPagoCheckoutCommand command = new ProcessMercadoPagoCheckoutCommand(
+                quoteId,
+                VoucherType.RECEIPT,
+                "DNI",
+                "12345678",
+                "Juan Perez",
+                "11223344"
+        );
+
+        Result<Voucher, VoucherCommandFailure> result = service.handle(command);
+
+        assertThat(result.isFailure()).isTrue();
+        assertThat(result.failure().get()).isEqualTo(VoucherCommandFailure.VOUCHER_EMISSION_IN_PROGRESS);
+        verify(factosGateway, never()).issueVoucher(any(), any(), any(), any(), any(), any(), any());
     }
 }

@@ -13,6 +13,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import com.tuxlogic.shiftiq.platform.billing.domain.model.events.VoucherPaidEvent;
+import java.time.Instant;
 import java.util.UUID;
 /**
  * Aggregate root representing a Voucher (Invoice or Receipt) in the billing context.
@@ -32,7 +33,11 @@ public class Voucher extends AbstractDomainAggregateRoot<Voucher> {
     private VoucherStatus status;
     private UUID externalInvoiceId; // ID returned by the Factos service
     private String pdfUrl;
+    private String correlative; // sequential fiscal correlative (e.g. 00000001)
     private List<Payment> payments = new ArrayList<>();
+    private Instant createdAt = Instant.now();
+    private Instant updatedAt = Instant.now();
+
     /**
      * Default constructor required by the persistence assembler and JPA.
      */
@@ -63,6 +68,8 @@ public class Voucher extends AbstractDomainAggregateRoot<Voucher> {
         this.status = VoucherStatus.PENDING;
         this.externalInvoiceId = externalInvoiceId;
         this.pdfUrl = pdfUrl;
+        this.createdAt = Instant.now();
+        this.updatedAt = Instant.now();
     }
 
     // For persistence rebuilding
@@ -82,6 +89,31 @@ public class Voucher extends AbstractDomainAggregateRoot<Voucher> {
         if (payments != null) {
             this.payments = payments;
         }
+    }
+
+    public Voucher(UUID id, UUID quoteId, VoucherType type, String customerDocumentType, 
+                   String customerDocumentNumber, String customerName, 
+                   Money totalAmount, VoucherStatus status, UUID externalInvoiceId, String pdfUrl,
+                   List<Payment> payments, String correlative) {
+        this(id, quoteId, type, customerDocumentType, customerDocumentNumber, customerName, totalAmount, status, externalInvoiceId, pdfUrl, payments);
+        this.correlative = correlative;
+    }
+
+    public Voucher(UUID id, UUID quoteId, VoucherType type, String customerDocumentType, 
+                   String customerDocumentNumber, String customerName, 
+                   Money totalAmount, VoucherStatus status, UUID externalInvoiceId, String pdfUrl,
+                   List<Payment> payments, String correlative, Instant createdAt, Instant updatedAt) {
+        this(id, quoteId, type, customerDocumentType, customerDocumentNumber, customerName, totalAmount, status, externalInvoiceId, pdfUrl, payments, correlative);
+        if (createdAt != null) this.createdAt = createdAt;
+        if (updatedAt != null) this.updatedAt = updatedAt;
+    }
+
+    public void setCorrelative(String correlative) {
+        this.correlative = correlative;
+    }
+
+    public void setUpdatedAt(Instant updatedAt) {
+        this.updatedAt = updatedAt;
     }
 
     /**
@@ -205,6 +237,7 @@ public class Voucher extends AbstractDomainAggregateRoot<Voucher> {
     public void markEmissionSuccessful(UUID externalInvoiceId, String pdfUrl) {
         this.externalInvoiceId = externalInvoiceId;
         this.pdfUrl = pdfUrl;
+        this.updatedAt = Instant.now();
         if (getTotalPaidAmount().compareTo(this.totalAmount.amount()) >= 0) {
             this.status = VoucherStatus.PAID;
             this.registerDomainEvent(new VoucherPaidEvent(this, this.id, this.quoteId));
@@ -216,6 +249,7 @@ public class Voucher extends AbstractDomainAggregateRoot<Voucher> {
      */
     public void markEmissionFailed() {
         this.status = VoucherStatus.EMISSION_FAILED;
+        this.updatedAt = Instant.now();
     }
 }
 

@@ -18,6 +18,18 @@ public interface FactosGateway {
             String customerDocumentType,
             String customerDocumentNumber,
             String customerName,
-            List<FactosItem> items
+            List<FactosItem> items,
+            String correlative
     );
+
+    default Optional<FactosInvoiceResult> issueVoucher(
+            String issuerRuc,
+            VoucherType documentType,
+            String customerDocumentType,
+            String customerDocumentNumber,
+            String customerName,
+            List<FactosItem> items
+    ) {
+        return issueVoucher(issuerRuc, documentType, customerDocumentType, customerDocumentNumber, customerName, items, null);
+    }
 }
