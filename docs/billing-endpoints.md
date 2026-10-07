@@ -89,8 +89,9 @@ Crea un comprobante a partir de una cotización aprobada y lo envía a SUNAT ví
 
 - **Respuestas:**
   - `201 Created`: Comprobante emitido correctamente.
-  - `409 Conflict`: La cotización no está en estado `APPROVED` o ya fue facturada.
-  - `500 Internal Server Error`: Falla en la integración con Factos.
+  - `404 Not Found`: La cotización no existe.
+  - `409 Conflict`: La cotización no está en estado `APPROVED` (`QUOTE_NOT_APPROVED`), ya fue facturada (`QUOTE_ALREADY_INVOICED`) o una emisión previa sigue en curso (`VOUCHER_EMISSION_IN_PROGRESS`).
+  - `500 Internal Server Error`: Falla en la integración con Factos. El comprobante queda en `EMISSION_FAILED` conservando su correlativo fiscal, de modo que un reintento reutiliza ese número en lugar de consumir uno nuevo.
 
 ### 2.2. Agregar un Pago Parcial/Total (Add Payment)
 Agrega un pago a un comprobante. Si la suma de los pagos alcanza el monto total, el comprobante pasa a `PAID`.
@@ -134,6 +135,12 @@ Genera el comprobante y registra el pago total en una sola transacción (efectiv
   "method": "CASH"
 }
 ```
+
+- **Respuestas:**
+  - `201 Created`: Comprobante emitido y pago total registrado.
+  - `404 Not Found`: La cotización no existe.
+  - `409 Conflict`: La cotización no está en estado `APPROVED`, ya fue facturada (`QUOTE_ALREADY_INVOICED`) o una emisión previa sigue en curso (`VOUCHER_EMISSION_IN_PROGRESS`).
+  - `500 Internal Server Error`: Falla en la integración con Factos; el comprobante queda en `EMISSION_FAILED` y un reintento reutiliza su correlativo fiscal.
 
 ### 3.2. Crear Preferencia de Mercado Pago (Create Mercado Pago Preference)
 Genera la preferencia de cobro derivada directamente desde la Cotización aprobada. Opcionalmente captura los datos fiscales del comprobante (`type`, `customerDocumentType`, `customerDocumentNumber`, `customerName`) para persistir una intención de cobro (`PaymentIntent`) que permite emitir el CPE en SUNAT de manera autónoma si el cliente cierra la pestaña del navegador tras pagar.
@@ -186,6 +193,13 @@ Verifica la validez, monto, moneda y pertenencia del pago en Mercado Pago, emite
 }
 ```
 
+- **Respuestas:**
+  - `201 Created`: Comprobante emitido y pago registrado.
+  - `400 Bad Request`: El pago en Mercado Pago no es válido (estado, monto, moneda o referencia externa).
+  - `404 Not Found`: La cotización o el pago no fueron encontrados.
+  - `409 Conflict`: El comprobante ya existe (`QUOTE_ALREADY_INVOICED`), el pago ya fue consumido (`PAYMENT_ALREADY_CONSUMED`) o una emisión previa sigue en curso (`VOUCHER_EMISSION_IN_PROGRESS`).
+  - `500 Internal Server Error`: Falla en la integración con Factos.
+
 ### 3.4. Webhooks / Notificaciones IPN de Mercado Pago
 Endpoint expuesto para la recepción asíncrona de cambios de estado de pagos desde los servidores de Mercado Pago.
 
@@ -193,6 +207,11 @@ Endpoint expuesto para la recepción asíncrona de cambios de estado de pagos de
 - **Protección contra Ataques de Repetición (Replay Prevention):** Valida la frescura temporal de la firma (`ts`); las solicitudes con un desfase superior a 5 minutos (300 segundos) son rechazadas con `401 Unauthorized`.
 - **Emisión Autónoma Asíncrona:** Si el pago es `approved` y el comprobante aún no fue emitido (el usuario cerró la pestaña), recupera la intención de facturación (`PaymentIntent`) y emite el comprobante en SUNAT de manera autónoma.
 - **Reintentos Automáticos de Mercado Pago:** Si la emisión externa en Factos falla, el webhook responde con código `503 Service Unavailable`, indicando a Mercado Pago que reintente la entrega de la notificación según su política de backoff exponencial.
+- **Respuestas:**
+  - `200 OK`: Notificación procesada. Incluye pagos no aprobados, comprobantes ya `PAID`, comprobantes en `PENDING` recientes (aún en emisión) y estados sin acción pendiente.
+  - `400 Bad Request`: El monto del pago no coincide con el registrado en la `PaymentIntent` asociada.
+  - `401 Unauthorized`: Firma HMAC inválida o desfase temporal de la firma (`ts`) superior a 5 minutos.
+  - `503 Service Unavailable`: HMAC sin secreto configurado; el comprobante está en `EMISSION_FAILED` o en `PENDING` obsoleto **sin una `PaymentIntent`** desde la que reconstruir la emisión; o bien la reconstrucción/la emisión falló. En todos los casos Mercado Pago reintentará la notificación.
 
 - **Método:** `POST`
 - **Ruta:** `/api/v1/payments/mercadopago/webhooks`

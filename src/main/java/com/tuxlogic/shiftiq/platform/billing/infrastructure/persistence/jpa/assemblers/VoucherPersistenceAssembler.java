@@ -24,6 +24,7 @@ public class VoucherPersistenceAssembler {
             entity.setId(aggregate.getId());
         }
         entity.setQuoteId(aggregate.getQuoteId());
+        entity.setBranchId(aggregate.getBranchId());
         entity.setType(aggregate.getType());
         entity.setCustomerDocumentType(aggregate.getCustomerDocumentType());
         entity.setCustomerDocumentNumber(aggregate.getCustomerDocumentNumber());
@@ -71,7 +72,7 @@ public class VoucherPersistenceAssembler {
                 ))
                 .collect(Collectors.toList()) : new java.util.ArrayList<Payment>();
 
-        return new Voucher(
+        var voucher = new Voucher(
                 entity.getId(),
                 entity.getQuoteId(),
                 entity.getType(),
@@ -87,6 +88,8 @@ public class VoucherPersistenceAssembler {
                 entity.getCreatedAt(),
                 entity.getUpdatedAt()
         );
+        voucher.setBranchId(entity.getBranchId());
+        return voucher;
     }
 }
 
