@@ -55,6 +55,11 @@ public class UserDetailsImpl implements UserDetails, AuthenticatedPrincipal {
         return branchId != null && branchIds != null && branchIds.contains(branchId);
     }
 
+    @Override
+    public Set<UUID> getBranchIds() {
+        return Collections.unmodifiableSet(branchIds != null ? branchIds : Collections.emptySet());
+    }
+
     public static UserDetailsImpl build(User user) {
         String roleName = user.getRole() != null ? user.getRole().name() : "ROLE_USER";
         GrantedAuthority authority = new SimpleGrantedAuthority(roleName);

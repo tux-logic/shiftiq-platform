@@ -10,9 +10,9 @@ import com.tuxlogic.shiftiq.platform.inventory.domain.model.events.StockMovement
 import com.tuxlogic.shiftiq.platform.inventory.domain.model.events.StockReleasedEvent;
 import com.tuxlogic.shiftiq.platform.inventory.domain.model.events.StockReservedEvent;
 import com.tuxlogic.shiftiq.platform.inventory.domain.model.valueobjects.*;
+import com.tuxlogic.shiftiq.platform.shared.domain.model.aggregates.AbstractDomainAggregateRoot;
 import com.tuxlogic.shiftiq.platform.shared.domain.model.valueobjects.BranchId;
 import com.tuxlogic.shiftiq.platform.shared.domain.model.valueobjects.Money;
-import org.springframework.data.domain.AbstractAggregateRoot;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -20,7 +20,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
-public class Product extends AbstractAggregateRoot<Product> {
+public class Product extends AbstractDomainAggregateRoot<Product> {
     private final UUID id;
     private final BranchId branchId;
     private ProductCategory category;

@@ -8,6 +8,7 @@ import com.tuxlogic.shiftiq.platform.fleet.infrastructure.persistence.jpa.entiti
 import com.tuxlogic.shiftiq.platform.fleet.infrastructure.persistence.jpa.repositories.AppointmentJpaRepository;
 import com.tuxlogic.shiftiq.platform.shared.domain.model.valueobjects.BranchId;
 import com.tuxlogic.shiftiq.platform.shared.domain.model.valueobjects.CustomerId;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Repository;
 
 import java.time.LocalDateTime;
@@ -20,9 +21,12 @@ import java.util.UUID;
 public class AppointmentRepositoryAdapter implements AppointmentRepository {
 
     private final AppointmentJpaRepository appointmentJpaRepository;
+    private final ApplicationEventPublisher eventPublisher;
 
-    public AppointmentRepositoryAdapter(AppointmentJpaRepository appointmentJpaRepository) {
+    public AppointmentRepositoryAdapter(AppointmentJpaRepository appointmentJpaRepository,
+                                        ApplicationEventPublisher eventPublisher) {
         this.appointmentJpaRepository = appointmentJpaRepository;
+        this.eventPublisher = eventPublisher;
     }
 
     @Override
@@ -36,6 +40,8 @@ public class AppointmentRepositoryAdapter implements AppointmentRepository {
         }
         AppointmentPersistenceAssembler.toEntityFromAggregate(appointment, entity);
         var savedEntity = appointmentJpaRepository.save(entity);
+        appointment.domainEvents().forEach(eventPublisher::publishEvent);
+        appointment.clearDomainEvents();
         return AppointmentPersistenceAssembler.toAggregateFromEntity(savedEntity);
     }
 

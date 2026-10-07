@@ -46,9 +46,9 @@ public class WorkshopsController {
 
     @Operation(summary = "Create a new workshop", description = "Creates a new workshop")
     @PostMapping
-    @PreAuthorize("isAuthenticated() and @multiTenancySecurityService.isAuthorizedForUser(#resource.ownerId())")
+    @PreAuthorize("isAuthenticated() and @multiTenancySecurityService.isAuthorizedForOwnerProfile(#resource.ownerId())")
     public ResponseEntity<WorkshopResource> createWorkshop(@Valid @RequestBody CreateWorkshopResource resource) {
-        multiTenancySecurityService.validateUserAccess(resource.ownerId());
+        multiTenancySecurityService.validateOwnerProfileAccess(resource.ownerId());
         var command = CreateWorkshopCommandFromResourceAssembler.toCommandFromResource(resource);
         var workshop = workshopCommandService.handle(command);
         if (workshop.isEmpty()) {
@@ -63,7 +63,7 @@ public class WorkshopsController {
     @PutMapping("/{workshopId}")
     public ResponseEntity<WorkshopResource> updateWorkshop(@PathVariable UUID workshopId, @Valid @RequestBody UpdateWorkshopResource resource) {
         var existing = workshopQueryService.handle(new GetWorkshopByIdQuery(new WorkshopId(workshopId)));
-        existing.ifPresent(w -> multiTenancySecurityService.validateUserAccess(w.getOwnerId().value()));
+        existing.ifPresent(w -> multiTenancySecurityService.validateOwnerProfileAccess(w.getOwnerId().value()));
 
         var command = UpdateWorkshopCommandFromResourceAssembler.toCommandFromResource(workshopId, resource);
         var workshop = workshopCommandService.handle(command);
@@ -84,7 +84,7 @@ public class WorkshopsController {
             return ResponseEntity.notFound().build();
         }
 
-        multiTenancySecurityService.validateUserAccess(workshop.get().getOwnerId().value());
+        multiTenancySecurityService.validateOwnerProfileAccess(workshop.get().getOwnerId().value());
         var workshopResource = WorkshopResourceFromEntityAssembler.toResourceFromEntity(workshop.get());
         return ResponseEntity.ok(workshopResource);
     }
@@ -92,7 +92,7 @@ public class WorkshopsController {
     @Operation(summary = "Get workshops by owner ID", description = "Retrieves all workshops belonging to a specific owner")
     @GetMapping
     public ResponseEntity<List<WorkshopResource>> getWorkshopsByOwnerId(@RequestParam(name = "ownerId") UUID ownerId) {
-        multiTenancySecurityService.validateUserAccess(ownerId);
+        multiTenancySecurityService.validateOwnerProfileAccess(ownerId);
         var query = new GetAllWorkshopsByOwnerIdQuery(new OwnerId(ownerId));
         var workshops = workshopQueryService.handle(query);
         
