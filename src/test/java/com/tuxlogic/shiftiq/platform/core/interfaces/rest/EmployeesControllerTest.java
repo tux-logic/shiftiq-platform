@@ -7,6 +7,7 @@ import com.tuxlogic.shiftiq.platform.core.domain.model.commands.UpdateEmployeeCo
 import com.tuxlogic.shiftiq.platform.core.domain.model.queries.GetEmployeeByIdQuery;
 import com.tuxlogic.shiftiq.platform.core.domain.model.valueobjects.UserId;
 import com.tuxlogic.shiftiq.platform.core.interfaces.rest.resources.UpdateEmployeeResource;
+import com.tuxlogic.shiftiq.platform.shared.infrastructure.security.AccountBranchScopeResolver;
 import com.tuxlogic.shiftiq.platform.shared.infrastructure.security.AuthenticatedPrincipal;
 import com.tuxlogic.shiftiq.platform.shared.infrastructure.security.MultiTenancySecurityService;
 import com.tuxlogic.shiftiq.platform.shared.infrastructure.security.TenantScopeResolver;
@@ -40,8 +41,10 @@ class EmployeesControllerTest {
         commandService = Mockito.mock(EmployeeCommandService.class);
         queryService = Mockito.mock(EmployeeQueryService.class);
         var tenantScopeResolver = Mockito.mock(TenantScopeResolver.class);
+        var accountBranchScopeResolver = Mockito.mock(AccountBranchScopeResolver.class);
         controller = new EmployeesController(
-                commandService, queryService, new MultiTenancySecurityService(tenantScopeResolver));
+                commandService, queryService,
+                new MultiTenancySecurityService(tenantScopeResolver, accountBranchScopeResolver));
     }
 
     @AfterEach

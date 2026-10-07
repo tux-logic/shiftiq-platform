@@ -13,7 +13,8 @@ public class CreateEmployeeRegistrationCommandFromResourceAssembler {
                 new BranchId(resource.branchId()),
                 resource.speciality(),
                 resource.specialityName(),
-                resource.salary()
+                resource.salary(),
+                resource.role()
         );
     }
 }

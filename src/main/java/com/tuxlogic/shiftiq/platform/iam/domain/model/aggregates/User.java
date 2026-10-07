@@ -112,6 +112,17 @@ public class User extends AbstractDomainAggregateRoot<User> {
         }
     }
 
+    public void replaceBranches(Set<UUID> newBranchIds) {
+        this.branchIds = new HashSet<>();
+        if (newBranchIds != null) {
+            for (UUID branchId : newBranchIds) {
+                if (branchId != null) {
+                    this.branchIds.add(branchId);
+                }
+            }
+        }
+    }
+
     public void deactivate() {
         if (this.status == UserStatus.INACTIVE) {
             return;

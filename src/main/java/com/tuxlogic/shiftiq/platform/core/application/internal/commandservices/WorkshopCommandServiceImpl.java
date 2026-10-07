@@ -1,6 +1,7 @@
 package com.tuxlogic.shiftiq.platform.core.application.internal.commandservices;
 
 import com.tuxlogic.shiftiq.platform.core.application.commandservices.WorkshopCommandService;
+import com.tuxlogic.shiftiq.platform.core.application.commandservices.WorkshopSpecialtyCommandService;
 import com.tuxlogic.shiftiq.platform.core.domain.model.aggregates.Workshop;
 import com.tuxlogic.shiftiq.platform.core.domain.model.commands.CreateWorkshopCommand;
 import com.tuxlogic.shiftiq.platform.core.domain.model.commands.UpdateWorkshopCommand;
@@ -21,10 +22,13 @@ public class WorkshopCommandServiceImpl implements WorkshopCommandService {
 
     private final WorkshopRepository workshopRepository;
     private final OwnerRepository ownerRepository;
+    private final WorkshopSpecialtyCommandService workshopSpecialtyCommandService;
 
-    public WorkshopCommandServiceImpl(WorkshopRepository workshopRepository, OwnerRepository ownerRepository) {
+    public WorkshopCommandServiceImpl(WorkshopRepository workshopRepository, OwnerRepository ownerRepository,
+                                      WorkshopSpecialtyCommandService workshopSpecialtyCommandService) {
         this.workshopRepository = workshopRepository;
         this.ownerRepository = ownerRepository;
+        this.workshopSpecialtyCommandService = workshopSpecialtyCommandService;
     }
 
     @Override
@@ -42,6 +46,7 @@ public class WorkshopCommandServiceImpl implements WorkshopCommandService {
         );
 
         var savedWorkshop = workshopRepository.save(workshop);
+        workshopSpecialtyCommandService.seedDefaultSpecialties(savedWorkshop.getId());
         log.info("Created Workshop ID '{}' for owner ID '{}'", savedWorkshop.getId().value(), command.ownerId().value());
         return Optional.of(savedWorkshop);
     }
