@@ -20,6 +20,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InOrder;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -556,5 +557,61 @@ class ProcessMercadoPagoCheckoutTest {
         assertThat(result.success().get().getCorrelative()).isEqualTo("00000007");
         assertThat(result.success().get().getStatus()).isNotNull();
         verify(fiscalCorrelativeService, never()).nextCorrelative(any());
+    }
+
+    @Test
+    @DisplayName("ProcessMercadoPagoCheckout verifies the Mercado Pago payment before acquiring the pessimistic quote lock")
+    void processCheckoutValidatesPaymentBeforeAcquiringQuoteLock() {
+        UUID quoteId = UUID.randomUUID();
+        UUID branchId = UUID.randomUUID();
+        UUID workshopId = UUID.randomUUID();
+        Quote quote = new Quote(quoteId, UUID.randomUUID(), new BranchId(branchId), new Money(new BigDecimal("100.00")), 0.0, new Money(new BigDecimal("100.00")), QuoteStatus.APPROVED);
+
+        when(quoteRepository.findById(eq(quoteId))).thenReturn(Optional.of(quote));
+        when(quoteRepository.findByIdForUpdate(eq(quoteId))).thenReturn(Optional.of(quote));
+        when(voucherRepository.findByQuoteId(eq(quoteId))).thenReturn(Optional.empty());
+
+        PaymentResult mockPayment = new PaymentResult("11223344", quoteId.toString(), new BigDecimal("100.00"), "PEN", "approved");
+        when(paymentGateway.getPaymentStatusByExternalId(eq("11223344"))).thenReturn(Optional.of(mockPayment));
+
+        com.tuxlogic.shiftiq.platform.core.domain.model.aggregates.Branch mockBranch =
+                mock(com.tuxlogic.shiftiq.platform.core.domain.model.aggregates.Branch.class);
+        when(mockBranch.getWorkshopId()).thenReturn(new com.tuxlogic.shiftiq.platform.core.domain.model.valueobjects.WorkshopId(workshopId));
+        when(branchQueryService.handle(any(com.tuxlogic.shiftiq.platform.core.domain.model.queries.GetBranchByIdQuery.class)))
+                .thenReturn(Optional.of(mockBranch));
+
+        com.tuxlogic.shiftiq.platform.core.domain.model.aggregates.Workshop mockWorkshop =
+                mock(com.tuxlogic.shiftiq.platform.core.domain.model.aggregates.Workshop.class);
+        when(mockWorkshop.getTaxId()).thenReturn(new com.tuxlogic.shiftiq.platform.core.domain.model.valueobjects.TaxId("20123456789"));
+        when(workshopQueryService.handle(any(com.tuxlogic.shiftiq.platform.core.domain.model.queries.GetWorkshopByIdQuery.class)))
+                .thenReturn(Optional.of(mockWorkshop));
+
+        when(fiscalCorrelativeService.nextCorrelative(eq("B001"))).thenReturn("00000001");
+
+        Voucher pendingVoucher = new Voucher(quoteId, VoucherType.RECEIPT, "DNI", "12345678", "Juan Perez", quote.getTotalAmount(), null, null);
+        when(voucherRepository.save(any(Voucher.class))).thenReturn(pendingVoucher);
+        when(voucherRepository.findById(pendingVoucher.getId())).thenReturn(Optional.of(pendingVoucher));
+
+        FactosGateway.FactosInvoiceResult invoiceResult =
+                new FactosGateway.FactosInvoiceResult("B001", "00000001", "http://pdf-url", new BigDecimal("100.00"));
+        when(factosGateway.issueVoucher(eq("20123456789"), eq(VoucherType.RECEIPT), eq("DNI"), eq("12345678"), eq("Juan Perez"), any(), eq("00000001")))
+                .thenReturn(Optional.of(invoiceResult));
+
+        ProcessMercadoPagoCheckoutCommand command = new ProcessMercadoPagoCheckoutCommand(
+                quoteId,
+                VoucherType.RECEIPT,
+                "DNI",
+                "12345678",
+                "Juan Perez",
+                "11223344"
+        );
+
+        Result<Voucher, VoucherCommandFailure> result = service.handle(command);
+
+        assertThat(result.isSuccess()).isTrue();
+        InOrder inOrder = inOrder(quoteRepository, paymentGateway);
+        inOrder.verify(quoteRepository).findById(eq(quoteId));
+        inOrder.verify(paymentGateway).getPaymentStatusByExternalId(eq("11223344"));
+        inOrder.verify(quoteRepository).findByIdForUpdate(eq(quoteId));
     }
 }

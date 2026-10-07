@@ -24,18 +24,19 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Duration;
 import java.time.Instant;
-import java.time.LocalDateTime;
 import java.util.UUID;
-import org.springframework.dao.DataIntegrityViolationException;
 
 /**
  * Service managing isolated, fine-grained database transactions for voucher lifecycle operations.
- * Enforces strict transactional decoupling around external SUNAT (Factos) invocations.
+ * Enforces strict transactional decoupling around external SUNAT (Factos) invocations and keeps
+ * outbound Mercado Pago verification outside the pessimistic quote lock.
  */
 @Service
 public class VoucherExecutionService {
 
     private static final Logger log = LoggerFactory.getLogger(VoucherExecutionService.class);
+
+    private static final long STALE_PENDING_SECONDS = 60;
 
     private final VoucherRepository voucherRepository;
     private final QuoteRepository quoteRepository;
@@ -61,12 +62,69 @@ public class VoucherExecutionService {
     }
 
     /**
-     * Executes the initial phase of voucher checkout in an isolated, immediately committed transaction.
-     * Prevents race conditions and guarantees that prepayment and sequential correlative allocation are persisted.
+     * Phase 1: read-only validation executed without acquiring any database lock. The outbound
+     * Mercado Pago verification happens here so a slow gateway response never blocks concurrent
+     * checkouts of the same quote.
+     */
+    @Transactional(propagation = Propagation.REQUIRES_NEW, readOnly = true)
+    public VoucherPreparationResult validateCheckout(ProcessMercadoPagoCheckoutCommand command) {
+        var quoteOpt = quoteRepository.findById(command.quoteId());
+        if (quoteOpt.isEmpty()) {
+            return new VoucherPreparationResult.Failed(VoucherCommandFailure.QUOTE_NOT_FOUND);
+        }
+        var quote = quoteOpt.get();
+        if (quote.getStatus() != QuoteStatus.APPROVED) {
+            return new VoucherPreparationResult.Failed(VoucherCommandFailure.QUOTE_NOT_APPROVED);
+        }
+
+        var existingVoucherOpt = voucherRepository.findByQuoteId(command.quoteId());
+        if (existingVoucherOpt.isPresent()) {
+            var existingVoucher = existingVoucherOpt.get();
+            if (!paymentMatches(existingVoucher, command.paymentId())) {
+                log.warn("Quote ID '{}' already invoiced under a different payment ID", command.quoteId());
+                return new VoucherPreparationResult.Failed(VoucherCommandFailure.QUOTE_ALREADY_INVOICED);
+            }
+
+            if (existingVoucher.getStatus() == VoucherStatus.PAID) {
+                log.info("Voucher for quote ID '{}' and payment ID '{}' already emitted. Returning existing voucher.",
+                        command.quoteId(), command.paymentId());
+                return new VoucherPreparationResult.AlreadyEmitted(existingVoucher);
+            }
+
+            if (existingVoucher.getStatus() == VoucherStatus.PENDING && !isStale(existingVoucher)) {
+                log.info("Voucher for quote ID '{}' is currently PENDING (<{}s in progress)",
+                        command.quoteId(), STALE_PENDING_SECONDS);
+                return new VoucherPreparationResult.InProgress(existingVoucher);
+            }
+
+            log.info("Voucher for quote ID '{}' is '{}'. Re-verifying payment with Mercado Pago before proceeding...",
+                    command.quoteId(), existingVoucher.getStatus());
+            var paymentError = validatePayment(quote, command.paymentId());
+            if (paymentError != null) {
+                return new VoucherPreparationResult.Failed(paymentError);
+            }
+            return new VoucherPreparationResult.Validated();
+        }
+
+        if (voucherRepository.existsByExternalPaymentId(command.paymentId())) {
+            log.warn("Mercado Pago payment ID '{}' has already been used for another voucher", command.paymentId());
+            return new VoucherPreparationResult.Failed(VoucherCommandFailure.PAYMENT_ALREADY_CONSUMED);
+        }
+
+        var paymentError = validatePayment(quote, command.paymentId());
+        if (paymentError != null) {
+            return new VoucherPreparationResult.Failed(paymentError);
+        }
+        return new VoucherPreparationResult.Validated();
+    }
+
+    /**
+     * Phase 2: isolated preparation transaction that acquires the pessimistic quote lock. Only
+     * local database work runs while the lock is held: the fiscal correlative allocation, the
+     * voucher reservation and the recovery of failed or stale emissions.
      */
     @Transactional(propagation = Propagation.REQUIRES_NEW)
-    public VoucherPreparationResult prepareOrFindVoucher(ProcessMercadoPagoCheckoutCommand command) {
-        // 1. Serialize quote access with pessimistic write lock (falls back to findById in tests if unstubbed)
+    public VoucherPreparationResult prepareValidatedVoucher(ProcessMercadoPagoCheckoutCommand command) {
         var quoteOpt = quoteRepository.findByIdForUpdate(command.quoteId())
                 .or(() -> quoteRepository.findById(command.quoteId()));
         if (quoteOpt.isEmpty()) {
@@ -77,14 +135,10 @@ public class VoucherExecutionService {
             return new VoucherPreparationResult.Failed(VoucherCommandFailure.QUOTE_NOT_APPROVED);
         }
 
-        // 2. Check existing voucher
         var existingVoucherOpt = voucherRepository.findByQuoteId(command.quoteId());
         if (existingVoucherOpt.isPresent()) {
             var existingVoucher = existingVoucherOpt.get();
-            boolean paymentMatches = existingVoucher.getPayments().stream()
-                    .anyMatch(p -> command.paymentId().equals(p.getExternalPaymentId()));
-
-            if (!paymentMatches) {
+            if (!paymentMatches(existingVoucher, command.paymentId())) {
                 log.warn("Quote ID '{}' already invoiced under a different payment ID", command.quoteId());
                 return new VoucherPreparationResult.Failed(VoucherCommandFailure.QUOTE_ALREADY_INVOICED);
             }
@@ -96,13 +150,8 @@ public class VoucherExecutionService {
             }
 
             if (existingVoucher.getStatus() == VoucherStatus.EMISSION_FAILED) {
-                log.info("Voucher for quote ID '{}' is in EMISSION_FAILED. Re-verifying payment with MP before retry...",
+                log.info("Voucher for quote ID '{}' is in EMISSION_FAILED. Recovering with its reserved correlative...",
                         command.quoteId());
-                var paymentError = validatePayment(quote, command.paymentId());
-                if (paymentError != null) {
-                    return new VoucherPreparationResult.Failed(paymentError);
-                }
-
                 String issuerRuc = getIssuerRuc(quote);
                 if (issuerRuc == null) {
                     return new VoucherPreparationResult.Failed(VoucherCommandFailure.ISSUER_NOT_FOUND);
@@ -110,8 +159,7 @@ public class VoucherExecutionService {
 
                 String correlative = existingVoucher.getCorrelative();
                 if (correlative == null || correlative.isBlank()) {
-                    String series = command.type() == VoucherType.INVOICE ? "F001" : "B001";
-                    correlative = fiscalCorrelativeService.nextCorrelative(series);
+                    correlative = fiscalCorrelativeService.nextCorrelative(seriesOf(command.type()));
                     existingVoucher.setCorrelative(correlative);
                 }
                 existingVoucher.setUpdatedAt(Instant.now());
@@ -119,52 +167,35 @@ public class VoucherExecutionService {
                 return new VoucherPreparationResult.ReadyToEmit(existingVoucher, quote, issuerRuc, correlative);
             }
 
-            if (existingVoucher.getStatus() == VoucherStatus.PENDING) {
-                Instant lastUpdate = existingVoucher.getUpdatedAt() != null ? existingVoucher.getUpdatedAt() : existingVoucher.getCreatedAt();
-                boolean isStale = lastUpdate != null && Duration.between(lastUpdate, Instant.now()).toSeconds() >= 60;
-                if (isStale) {
-                    log.info("Voucher for quote ID '{}' is stale PENDING (>=60s). Re-verifying payment with MP before recovery...",
-                            command.quoteId());
-                    var paymentError = validatePayment(quote, command.paymentId());
-                    if (paymentError != null) {
-                        return new VoucherPreparationResult.Failed(paymentError);
-                    }
-
-                    String issuerRuc = getIssuerRuc(quote);
-                    if (issuerRuc == null) {
-                        return new VoucherPreparationResult.Failed(VoucherCommandFailure.ISSUER_NOT_FOUND);
-                    }
-                    existingVoucher.setUpdatedAt(Instant.now());
-                    voucherRepository.save(existingVoucher);
-                    return new VoucherPreparationResult.ReadyToEmit(existingVoucher, quote, issuerRuc, existingVoucher.getCorrelative());
-                } else {
-                    log.info("Voucher for quote ID '{}' is currently PENDING (<60s in progress)", command.quoteId());
-                    return new VoucherPreparationResult.InProgress(existingVoucher);
+            if (existingVoucher.getStatus() == VoucherStatus.PENDING && isStale(existingVoucher)) {
+                log.info("Voucher for quote ID '{}' is stale PENDING (>={}s). Recovering with its reserved correlative...",
+                        command.quoteId(), STALE_PENDING_SECONDS);
+                String issuerRuc = getIssuerRuc(quote);
+                if (issuerRuc == null) {
+                    return new VoucherPreparationResult.Failed(VoucherCommandFailure.ISSUER_NOT_FOUND);
                 }
+                existingVoucher.setUpdatedAt(Instant.now());
+                voucherRepository.save(existingVoucher);
+                return new VoucherPreparationResult.ReadyToEmit(existingVoucher, quote, issuerRuc, existingVoucher.getCorrelative());
             }
+
+            if (existingVoucher.getStatus() == VoucherStatus.PENDING) {
+                log.info("Voucher for quote ID '{}' is currently PENDING (<{}s in progress)",
+                        command.quoteId(), STALE_PENDING_SECONDS);
+                return new VoucherPreparationResult.InProgress(existingVoucher);
+            }
+
+            log.warn("Voucher for quote ID '{}' is in unexpected status '{}'. Rejecting concurrent attempt.",
+                    command.quoteId(), existingVoucher.getStatus());
+            return new VoucherPreparationResult.InProgress(existingVoucher);
         }
 
-        // 3. Replay prevention check: Ensure paymentId hasn't been consumed by another voucher
-        if (voucherRepository.existsByExternalPaymentId(command.paymentId())) {
-            log.warn("Mercado Pago payment ID '{}' has already been used for another voucher", command.paymentId());
-            return new VoucherPreparationResult.Failed(VoucherCommandFailure.PAYMENT_ALREADY_CONSUMED);
-        }
-
-        // 4. Verify Mercado Pago Payment status, amount, external reference, and currency
-        var paymentError = validatePayment(quote, command.paymentId());
-        if (paymentError != null) {
-            return new VoucherPreparationResult.Failed(paymentError);
-        }
-
-        // 5. Query Core context for Issuer RUC (Tax ID)
         String issuerRuc = getIssuerRuc(quote);
         if (issuerRuc == null) {
             return new VoucherPreparationResult.Failed(VoucherCommandFailure.ISSUER_NOT_FOUND);
         }
 
-        // 6. Allocate fiscal correlative and reserve Voucher in PENDING status with prepayment
-        String series = command.type() == VoucherType.INVOICE ? "F001" : "B001";
-        String correlative = fiscalCorrelativeService.nextCorrelative(series);
+        String correlative = fiscalCorrelativeService.nextCorrelative(seriesOf(command.type()));
 
         try {
             var voucher = new Voucher(
@@ -188,21 +219,23 @@ public class VoucherExecutionService {
 
             var savedVoucher = voucherRepository.save(voucher);
             return new VoucherPreparationResult.ReadyToEmit(savedVoucher, quote, issuerRuc, correlative);
-        } catch (DataIntegrityViolationException dive) {
-            log.warn("Concurrent insert conflict on voucher for quote ID '{}': {}", command.quoteId(), dive.getMessage());
-            var conflictOpt = voucherRepository.findByQuoteId(command.quoteId());
-            if (conflictOpt.isPresent()) {
-                var cv = conflictOpt.get();
-                if (cv.getStatus() == VoucherStatus.PAID) {
-                    return new VoucherPreparationResult.AlreadyEmitted(cv);
-                }
-                return new VoucherPreparationResult.InProgress(cv);
-            }
-            return new VoucherPreparationResult.Failed(VoucherCommandFailure.QUOTE_ALREADY_INVOICED);
         } catch (IllegalArgumentException | IllegalStateException e) {
             log.error("Failed to construct voucher: {}", e.getMessage());
             return new VoucherPreparationResult.Failed(VoucherCommandFailure.INVALID_VOUCHER_DATA);
         }
+    }
+
+    private String seriesOf(VoucherType type) {
+        return type == VoucherType.INVOICE ? "F001" : "B001";
+    }
+
+    private boolean paymentMatches(Voucher voucher, String paymentId) {
+        return voucher.getPayments().stream().anyMatch(p -> paymentId.equals(p.getExternalPaymentId()));
+    }
+
+    private boolean isStale(Voucher voucher) {
+        Instant lastUpdate = voucher.getUpdatedAt() != null ? voucher.getUpdatedAt() : voucher.getCreatedAt();
+        return lastUpdate != null && Duration.between(lastUpdate, Instant.now()).toSeconds() >= STALE_PENDING_SECONDS;
     }
 
     private String getIssuerRuc(com.tuxlogic.shiftiq.platform.billing.domain.model.aggregates.Quote quote) {

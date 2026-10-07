@@ -22,6 +22,7 @@ import com.tuxlogic.shiftiq.platform.operations.domain.model.valueobjects.WorkOr
 import com.tuxlogic.shiftiq.platform.inventory.application.queryservices.ProductQueryService;
 import com.tuxlogic.shiftiq.platform.inventory.domain.model.queries.GetProductByIdQuery;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -285,8 +286,27 @@ public class VoucherCommandServiceImpl implements VoucherCommandService {
             return Result.failure(VoucherCommandFailure.FACTOS_ISSUANCE_FAILED);
         }
 
-        // Phase 1: Isolated preparation transaction (committed in REQUIRES_NEW)
-        var prepResult = voucherExecutionService.prepareOrFindVoucher(command);
+        // Phase 1: read-only validation (quote, voucher state, Mercado Pago) without any lock
+        var validation = voucherExecutionService.validateCheckout(command);
+        if (validation instanceof VoucherPreparationResult.Failed f) {
+            return Result.failure(f.failure());
+        }
+        if (validation instanceof VoucherPreparationResult.AlreadyEmitted ae) {
+            return Result.success(ae.voucher());
+        }
+        if (validation instanceof VoucherPreparationResult.InProgress) {
+            log.warn("Checkout for quote ID '{}' is already in progress. Rejecting concurrent attempt.", command.quoteId());
+            return Result.failure(VoucherCommandFailure.VOUCHER_EMISSION_IN_PROGRESS);
+        }
+
+        // Phase 2: isolated preparation transaction (quote lock held, local database work only)
+        VoucherPreparationResult prepResult;
+        try {
+            prepResult = voucherExecutionService.prepareValidatedVoucher(command);
+        } catch (DataIntegrityViolationException e) {
+            log.warn("Concurrent voucher insert conflict for quote ID '{}': {}", command.quoteId(), e.getMessage());
+            return resolveConcurrentVoucher(command);
+        }
         if (prepResult instanceof VoucherPreparationResult.Failed f) {
             return Result.failure(f.failure());
         }
@@ -331,6 +351,20 @@ public class VoucherCommandServiceImpl implements VoucherCommandService {
         }
 
         return Result.failure(VoucherCommandFailure.INVALID_VOUCHER_DATA);
+    }
+
+    private Result<Voucher, VoucherCommandFailure> resolveConcurrentVoucher(
+            com.tuxlogic.shiftiq.platform.billing.domain.model.commands.ProcessMercadoPagoCheckoutCommand command) {
+        var conflictOpt = voucherRepository.findByQuoteId(command.quoteId());
+        if (conflictOpt.isPresent()) {
+            var conflictingVoucher = conflictOpt.get();
+            boolean paymentMatches = conflictingVoucher.getPayments().stream()
+                    .anyMatch(p -> command.paymentId().equals(p.getExternalPaymentId()));
+            if (paymentMatches && conflictingVoucher.getStatus() == VoucherStatus.PAID) {
+                return Result.success(conflictingVoucher);
+            }
+        }
+        return Result.failure(VoucherCommandFailure.VOUCHER_EMISSION_IN_PROGRESS);
     }
 
 

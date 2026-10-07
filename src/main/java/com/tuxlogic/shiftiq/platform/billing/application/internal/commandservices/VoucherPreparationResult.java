@@ -11,7 +11,8 @@ public sealed interface VoucherPreparationResult permits
         VoucherPreparationResult.ReadyToEmit,
         VoucherPreparationResult.AlreadyEmitted,
         VoucherPreparationResult.InProgress,
-        VoucherPreparationResult.Failed {
+        VoucherPreparationResult.Failed,
+        VoucherPreparationResult.Validated {
 
     record ReadyToEmit(
             Voucher voucher,
@@ -31,4 +32,6 @@ public sealed interface VoucherPreparationResult permits
     record Failed(
             VoucherCommandFailure failure
     ) implements VoucherPreparationResult {}
+
+    record Validated() implements VoucherPreparationResult {}
 }
