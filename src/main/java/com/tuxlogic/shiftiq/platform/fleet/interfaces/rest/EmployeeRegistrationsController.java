@@ -58,9 +58,12 @@ public class EmployeeRegistrationsController {
     }
 
     @PostMapping
-    @Operation(summary = "Create a new employee registration", description = "Creates a new employee registration")
-    @PreAuthorize("isAuthenticated() and (hasRole('ADMIN') or @multiTenancySecurityService.isAuthorizedForBranch(#resource.branchId()))")
+    @Operation(summary = "Create a new employee registration", description = "Creates a new employee registration validating the workshop staff hierarchy")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<?> create(@Valid @RequestBody CreateEmployeeRegistrationResource resource) {
+        String targetRole = resource.role() != null && !resource.role().isBlank() ? resource.role() : "ROLE_EMPLOYEE";
+        multiTenancySecurityService.validateStaffManagement(targetRole, resource.branchId());
+
         var command = CreateEmployeeRegistrationCommandFromResourceAssembler.toCommandFromResource(resource);
         var result = commandService.handle(command);
         return result.fold(
@@ -199,9 +202,7 @@ public class EmployeeRegistrationsController {
             return ResponseEntity.notFound().build();
         }
         var registration = queryResult.success().get();
-        if (!multiTenancySecurityService.isAuthorizedForBranch(registration.getBranchId())) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
-        }
+        multiTenancySecurityService.validateStaffManagement("ROLE_EMPLOYEE", registration.getBranchId().value());
 
         var command = new ApproveEmployeeRegistrationCommand(new EmployeeId(id));
         var result = commandService.handle(command);
