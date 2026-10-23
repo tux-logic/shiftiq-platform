@@ -4,7 +4,7 @@
 
 - [x] 1.1 Add Brevo configuration properties (`brevo.api.key`, `brevo.api.url`, `brevo.sender.email`, `brevo.sender.name`) to `application.properties`, `application.prod.properties`, and `.env.template`.
 - [x] 1.2 Implement `BrevoEmailClient` adapter in `com.tuxlogic.shiftiq.platform.iam.infrastructure.email` using Spring `RestClient` to dispatch transactional emails to Brevo API v3.
-- [ ] 1.3 Add unit tests in `BrevoEmailClientTest` covering successful dispatch, invalid API key, and server timeout scenarios, verifying with `./mvnw test -Dtest=BrevoEmailClientTest`.
+- [x] 1.3 Add unit tests in `BrevoEmailClientTest` covering successful dispatch, invalid API key, and server timeout scenarios, verifying with `./mvnw test -Dtest=BrevoEmailClientTest`.
 
 ## 2. OTP Domain Model & Email Template
 
