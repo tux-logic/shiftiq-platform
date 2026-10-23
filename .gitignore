@@ -1,4 +1,4 @@
-HELP.md
+﻿HELP.md
 target/
 .mvn/wrapper/maven-wrapper.jar
 !**/src/main/**/target/
@@ -30,14 +30,13 @@ build/
 !**/src/test/**/build/
 
 ### VS Code ###
+.vscode/tasks.json
+.vscode/settings.json
+
+### Environment & Secrets ###
+.env
+.env.*
+!.env.example
 
 ### Others ###
 .gitattributes
-
-.agents/
-skills-lock.json
-branch_structure.json
-temp_auto_push.bat
-temp_interactive_push.bat
-.gitignore
-.env
