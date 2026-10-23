@@ -3,7 +3,7 @@
 ## 1. Configuration and External Service Port
 
 - [x] 1.1 Add `emailverify.api.url` and `emailverify.api.key` configurations to `application.properties`, `application.prod.properties`, and `.env.template` and verify property resolution.
-- [ ] 1.2 Define `EmailVerificationService` outbound port interface and `EmailVerificationResult` record in `com.tuxlogic.shiftiq.platform.iam.application.internal.outboundservices.email`.
+- [x] 1.2 Define `EmailVerificationService` outbound port interface and `EmailVerificationResult` record in `com.tuxlogic.shiftiq.platform.iam.application.internal.outboundservices.email`.
 
 ## 2. Infrastructure Client Implementation
 
