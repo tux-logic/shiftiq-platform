@@ -13,7 +13,7 @@
 
 ## 3. Application Services & Integration
 
-- [ ] 3.1 Implement `OtpCommandService` and `OtpCommandServiceImpl` orchestrating `EmailVerificationService` deliverability pre-check, OTP hash generation, and Brevo email dispatch.
+- [x] 3.1 Implement `OtpCommandService` and `OtpCommandServiceImpl` orchestrating `EmailVerificationService` deliverability pre-check, OTP hash generation, and Brevo email dispatch.
 - [ ] 3.2 Add i18n error and confirmation messages (`iam.error.otp.invalid`, `iam.error.otp.expired`, `iam.error.otp.sendFailed`) to `messages.properties` and `messages_es.properties`.
 - [ ] 3.3 Add unit tests in `OtpCommandServiceImplTest` verifying pre-check rejection, successful generation/dispatch, and verification validation.
 
