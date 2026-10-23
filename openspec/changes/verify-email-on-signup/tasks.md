@@ -7,7 +7,7 @@
 
 ## 2. Infrastructure Client Implementation
 
-- [ ] 2.1 Implement `EmailVerifyIoClient` adapter in `com.tuxlogic.shiftiq.platform.iam.infrastructure.email` using Spring `RestClient` with connection/read timeouts and payload deserialization.
+- [x] 2.1 Implement `EmailVerifyIoClient` adapter in `com.tuxlogic.shiftiq.platform.iam.infrastructure.email` using Spring `RestClient` with connection/read timeouts and payload deserialization.
 - [ ] 2.2 Add unit tests in `EmailVerifyIoClientTest` testing scenarios for valid email, invalid status, do-not-mail, and API timeout/errors, verifying with `./mvnw test -Dtest=EmailVerifyIoClientTest`.
 
 ## 3. Integration into IAM Command Workflows
