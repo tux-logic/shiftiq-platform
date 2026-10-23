@@ -20,4 +20,4 @@
 ## 4. REST Endpoints & Regression Verification
 
 - [x] 4.1 Expose `POST /api/v1/authentication/otp/send` and `POST /api/v1/authentication/otp/verify` in `AuthenticationController` with input validation resources and assemblers.
-- [ ] 4.2 Add controller unit tests and run the entire test suite with `./mvnw test` ensuring zero failures and clean compilation.
+- [x] 4.2 Add controller unit tests and run the entire test suite with `./mvnw test` ensuring zero failures and clean compilation.
