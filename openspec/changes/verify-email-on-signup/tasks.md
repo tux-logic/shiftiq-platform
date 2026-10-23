@@ -19,4 +19,4 @@
 ## 4. Regression and Integration Verification
 
 - [x] 4.1 Verify controller layer integration in `UsersControllerTest` with mocked verification service ensuring HTTP 400 is returned for invalid emails and HTTP 201 for valid emails.
-- [ ] 4.2 Execute the full test suite with `./mvnw test` ensuring zero failures, zero errors, and clean compilation across all bounded contexts.
+- [x] 4.2 Execute the full test suite with `./mvnw test` ensuring zero failures, zero errors, and clean compilation across all bounded contexts.
