@@ -8,7 +8,7 @@
 
 ## 2. OTP Domain Model & Email Template
 
-- [ ] 2.1 Create `EmailOtpVerification` domain entity and persistence repository tracking hashed OTPs, expiration timestamps, and attempt counts.
+- [x] 2.1 Create `EmailOtpVerification` domain entity and persistence repository tracking hashed OTPs, expiration timestamps, and attempt counts.
 - [ ] 2.2 Create responsive HTML email template for ShiftIQ OTP verification with branding, inline styling, and security notices.
 
 ## 3. Application Services & Integration
