@@ -1,5 +1,6 @@
 package com.tuxlogic.shiftiq.platform.iam.application.internal.commandservices;
 
+import com.tuxlogic.shiftiq.platform.iam.application.internal.outboundservices.email.EmailVerificationService;
 import com.tuxlogic.shiftiq.platform.iam.application.internal.outboundservices.hashing.HashingService;
 import com.tuxlogic.shiftiq.platform.iam.domain.model.aggregates.User;
 import com.tuxlogic.shiftiq.platform.iam.domain.model.commands.SignInCommand;
@@ -36,15 +37,18 @@ public class UserCommandServiceImpl implements UserCommandService {
     private final HashingService hashingService;
     private final SessionIssuer sessionIssuer;
     private final GoogleIdTokenVerifier googleVerifier;
+    private final EmailVerificationService emailVerificationService;
 
     public UserCommandServiceImpl(
             UserRepository userRepository,
             HashingService hashingService,
             SessionIssuer sessionIssuer,
+            EmailVerificationService emailVerificationService,
             @Value("${google.client.id:default-google-client-id}") String googleClientId) {
         this.userRepository = userRepository;
         this.hashingService = hashingService;
         this.sessionIssuer = sessionIssuer;
+        this.emailVerificationService = emailVerificationService;
         this.googleVerifier = new GoogleIdTokenVerifier.Builder(new NetHttpTransport(), new GsonFactory())
                 .setAudience(Collections.singletonList(googleClientId))
                 .build();
@@ -56,6 +60,17 @@ public class UserCommandServiceImpl implements UserCommandService {
             LOGGER.warn("Sign-up failed: email already in use {}", command.email().value());
             throw new IllegalArgumentException("iam.error.email.alreadyInUse");
         }
+
+        var verificationResult = emailVerificationService.verifyEmail(command.email().value());
+        if (!verificationResult.valid()) {
+            LOGGER.warn("Sign-up failed: email verification rejected {} (status={}, sub_status={})",
+                    command.email().value(), verificationResult.status(), verificationResult.subStatus());
+            if ("error".equalsIgnoreCase(verificationResult.status())) {
+                throw new IllegalArgumentException("iam.error.email.unverifiable");
+            }
+            throw new IllegalArgumentException("iam.error.email.invalidAddress");
+        }
+
         var user = new User(command.email(), new com.tuxlogic.shiftiq.platform.iam.domain.model.valueobjects.Password(hashingService.encode(command.password().value())));
         userRepository.save(user);
         LOGGER.info("User registered successfully with email: {}", command.email().value());
@@ -121,9 +136,21 @@ public class UserCommandServiceImpl implements UserCommandService {
         var user = userRepository.findById(command.userId().value())
                 .orElseThrow(() -> new IllegalArgumentException("iam.error.user.notFound"));
 
-        if (!user.getEmail().value().equals(command.newEmail().value()) && userRepository.existsByEmail(command.newEmail().value())) {
-            LOGGER.warn("Update email failed: email already in use {}", command.newEmail().value());
-            throw new IllegalArgumentException("iam.error.email.alreadyInUse");
+        if (!user.getEmail().value().equals(command.newEmail().value())) {
+            if (userRepository.existsByEmail(command.newEmail().value())) {
+                LOGGER.warn("Update email failed: email already in use {}", command.newEmail().value());
+                throw new IllegalArgumentException("iam.error.email.alreadyInUse");
+            }
+
+            var verificationResult = emailVerificationService.verifyEmail(command.newEmail().value());
+            if (!verificationResult.valid()) {
+                LOGGER.warn("Update email failed: email verification rejected {} (status={}, sub_status={})",
+                        command.newEmail().value(), verificationResult.status(), verificationResult.subStatus());
+                if ("error".equalsIgnoreCase(verificationResult.status())) {
+                    throw new IllegalArgumentException("iam.error.email.unverifiable");
+                }
+                throw new IllegalArgumentException("iam.error.email.invalidAddress");
+            }
         }
 
         user.changeEmail(command.newEmail());

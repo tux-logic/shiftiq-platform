@@ -12,7 +12,7 @@
 
 ## 3. Integration into IAM Command Workflows
 
-- [ ] 3.1 Inject `EmailVerificationService` into `UserCommandServiceImpl` and enforce email deliverability checks in `handle(SignUpCommand)` and `handle(UpdateUserEmailCommand)`.
+- [x] 3.1 Inject `EmailVerificationService` into `UserCommandServiceImpl` and enforce email deliverability checks in `handle(SignUpCommand)` and `handle(UpdateUserEmailCommand)`.
 - [ ] 3.2 Add i18n error keys and user-friendly localized messages (`iam.error.email.unverifiable`, `iam.error.email.invalidAddress`) to `messages.properties` and `messages_es.properties`.
 - [ ] 3.3 Add unit tests in `UserCommandServiceImplTest` verifying that invalid emails are rejected with an exception and valid emails proceed, running `./mvnw test -Dtest=UserCommandServiceImplTest`.
 
