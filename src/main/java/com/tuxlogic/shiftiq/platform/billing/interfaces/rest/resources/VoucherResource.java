@@ -15,6 +15,9 @@ public record VoucherResource(
         UUID externalInvoiceId,
         String pdfUrl,
         java.util.List<PaymentResource> payments,
-        BigDecimal totalPaid
+        BigDecimal totalPaid,
+        String series,
+        String correlative,
+        String documentNumber
 ) {
 }
