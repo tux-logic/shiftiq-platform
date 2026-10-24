@@ -16,7 +16,7 @@
 
 ## 3. Core Workshop Specialty History Implementation
 
-- [ ] 3.1 Define `WorkshopSpecialtyRevision` domain model and `WorkshopSpecialtyHistoryRepository` domain port in `core`.
+- [x] 3.1 Define `WorkshopSpecialtyRevision` domain model and `WorkshopSpecialtyHistoryRepository` domain port in `core`.
 - [ ] 3.2 Update `WorkshopSpecialtyCommandServiceImpl` to record revision snapshots on specialty creation, seeding, updates, and deactivations.
 - [ ] 3.3 Implement `WorkshopSpecialtyHistoryQueryService` and `GetWorkshopSpecialtyHistoryQuery` handler.
 - [ ] 3.4 Expose REST endpoint `GET /api/v1/workshops/{workshopId}/specialties/{specialtyId}/history` with resource assembler and multi-tenant security validation.
