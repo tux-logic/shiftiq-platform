@@ -3,6 +3,7 @@ package com.tuxlogic.shiftiq.platform.core.application.internal.commandservices;
 import com.tuxlogic.shiftiq.platform.core.domain.model.aggregates.WorkshopSpecialty;
 import com.tuxlogic.shiftiq.platform.core.domain.model.valueobjects.WorkshopId;
 import com.tuxlogic.shiftiq.platform.core.domain.repositories.WorkshopRepository;
+import com.tuxlogic.shiftiq.platform.core.domain.repositories.WorkshopSpecialtyHistoryRepository;
 import com.tuxlogic.shiftiq.platform.core.domain.repositories.WorkshopSpecialtyRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -33,13 +34,16 @@ class WorkshopSpecialtyCommandServiceImplTest {
     @Mock
     private WorkshopRepository workshopRepository;
 
+    @Mock
+    private WorkshopSpecialtyHistoryRepository historyRepository;
+
     private WorkshopSpecialtyCommandServiceImpl service;
 
     private final WorkshopId workshopId = new WorkshopId(UUID.randomUUID());
 
     @BeforeEach
     void setUp() {
-        service = new WorkshopSpecialtyCommandServiceImpl(specialtyRepository, workshopRepository);
+        service = new WorkshopSpecialtyCommandServiceImpl(specialtyRepository, workshopRepository, historyRepository);
     }
 
     @Test

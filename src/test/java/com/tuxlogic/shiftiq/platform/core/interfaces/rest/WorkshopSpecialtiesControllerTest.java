@@ -1,6 +1,7 @@
 package com.tuxlogic.shiftiq.platform.core.interfaces.rest;
 
 import com.tuxlogic.shiftiq.platform.core.application.commandservices.WorkshopSpecialtyCommandService;
+import com.tuxlogic.shiftiq.platform.core.application.queryservices.WorkshopSpecialtyHistoryQueryService;
 import com.tuxlogic.shiftiq.platform.core.application.queryservices.WorkshopSpecialtyQueryService;
 import com.tuxlogic.shiftiq.platform.core.domain.model.aggregates.WorkshopSpecialty;
 import com.tuxlogic.shiftiq.platform.core.domain.model.commands.CreateWorkshopSpecialtyCommand;
@@ -40,13 +41,16 @@ class WorkshopSpecialtiesControllerTest {
     private WorkshopSpecialtyQueryService queryService;
 
     @Mock
+    private WorkshopSpecialtyHistoryQueryService historyQueryService;
+
+    @Mock
     private MultiTenancySecurityService securityService;
 
     private WorkshopSpecialtiesController controller;
 
     @BeforeEach
     void setUp() {
-        controller = new WorkshopSpecialtiesController(commandService, queryService, securityService);
+        controller = new WorkshopSpecialtiesController(commandService, queryService, historyQueryService, securityService);
     }
 
     @Test
@@ -107,5 +111,25 @@ class WorkshopSpecialtiesControllerTest {
         var response = controller.deactivateSpecialty(workshopId, specialtyId);
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NO_CONTENT);
+    }
+
+    @Test
+    @DisplayName("getSpecialtyHistory returns revisions list on success")
+    void getSpecialtyHistoryReturnsList() {
+        UUID workshopId = UUID.randomUUID();
+        UUID specialtyId = UUID.randomUUID();
+        var revision = new com.tuxlogic.shiftiq.platform.core.domain.model.entities.WorkshopSpecialtyRevision(
+                UUID.randomUUID(), new WorkshopSpecialtyId(specialtyId), new WorkshopId(workshopId),
+                "Mecánica General", "GENERAL_MECHANIC", "Desc", true, "UPDATED", UUID.randomUUID(), java.time.Instant.now()
+        );
+
+        when(historyQueryService.handle(any())).thenReturn(List.of(revision));
+
+        var response = controller.getSpecialtyHistory(workshopId, specialtyId);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(response.getBody()).hasSize(1);
+        assertThat(response.getBody().get(0).code()).isEqualTo("GENERAL_MECHANIC");
+        verify(securityService).validateWorkshopAccess(workshopId);
     }
 }

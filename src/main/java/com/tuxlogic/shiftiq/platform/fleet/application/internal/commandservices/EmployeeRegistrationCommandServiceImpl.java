@@ -1,5 +1,9 @@
 package com.tuxlogic.shiftiq.platform.fleet.application.internal.commandservices;
 
+import com.tuxlogic.shiftiq.platform.fleet.domain.model.entities.StaffCareerSnapshot;
+import com.tuxlogic.shiftiq.platform.fleet.domain.repositories.StaffCareerHistoryRepository;
+import com.tuxlogic.shiftiq.platform.shared.infrastructure.security.AuthenticatedPrincipal;
+import org.springframework.security.core.context.SecurityContextHolder;
 import com.tuxlogic.shiftiq.platform.fleet.application.commandservices.EmployeeRegistrationCommandFailure;
 import com.tuxlogic.shiftiq.platform.fleet.application.commandservices.EmployeeRegistrationCommandService;
 import com.tuxlogic.shiftiq.platform.fleet.application.outboundservices.ExternalCoreService;
@@ -32,13 +36,16 @@ public class EmployeeRegistrationCommandServiceImpl implements EmployeeRegistrat
     private final EmployeeRegistrationRepository repository;
     private final ExternalCoreService externalCoreService;
     private final ExternalIamService externalIamService;
+    private final StaffCareerHistoryRepository historyRepository;
 
     public EmployeeRegistrationCommandServiceImpl(EmployeeRegistrationRepository repository,
                                                    ExternalCoreService externalCoreService,
-                                                   ExternalIamService externalIamService) {
+                                                   ExternalIamService externalIamService,
+                                                   StaffCareerHistoryRepository historyRepository) {
         this.repository = repository;
         this.externalCoreService = externalCoreService;
         this.externalIamService = externalIamService;
+        this.historyRepository = historyRepository;
     }
 
     @Override
@@ -75,6 +82,8 @@ public class EmployeeRegistrationCommandServiceImpl implements EmployeeRegistrat
 
             applyStaffAssignment(command.employeeId().value(), command.role());
 
+            recordHistory(saved, "CREATED", "Staff registration created");
+
             log.info("Employee registration created successfully with ID {}", saved.getId());
             return Result.success(saved);
         } catch (IllegalArgumentException ex) {
@@ -95,6 +104,8 @@ public class EmployeeRegistrationCommandServiceImpl implements EmployeeRegistrat
         registration.update(command.speciality(), command.specialityName(), command.salary());
 
         var savedRegistration = repository.save(registration);
+        recordHistory(savedRegistration, "UPDATED", "Staff assignment details updated");
+
         return Result.success(savedRegistration);
     }
 
@@ -111,6 +122,7 @@ public class EmployeeRegistrationCommandServiceImpl implements EmployeeRegistrat
         var savedRegistration = repository.save(registration);
 
         syncBranchMembership(registration.getEmployeeId());
+        recordHistory(savedRegistration, "DEACTIVATED", "Staff registration deactivated");
 
         return Result.success(savedRegistration);
     }
@@ -145,6 +157,8 @@ public class EmployeeRegistrationCommandServiceImpl implements EmployeeRegistrat
                     command.salary(),
                     EmployeeRegistrationStatus.PENDING_APPROVAL);
             var saved = repository.save(registration);
+            recordHistory(saved, "JOIN_REQUESTED", "Staff requested to join branch");
+
             log.info("Employee join request created successfully with ID {}", saved.getId());
             return Result.success(saved);
         } catch (IllegalArgumentException ex) {
@@ -172,6 +186,7 @@ public class EmployeeRegistrationCommandServiceImpl implements EmployeeRegistrat
         var savedRegistration = repository.save(registration);
 
         applyStaffAssignment(registration.getEmployeeId(), DEFAULT_STAFF_ROLE);
+        recordHistory(savedRegistration, "APPROVED", "Staff join request approved");
 
         log.info("Employee registration {} approved successfully", command.registrationId());
         return Result.success(savedRegistration);
@@ -194,8 +209,39 @@ public class EmployeeRegistrationCommandServiceImpl implements EmployeeRegistrat
         }
 
         var savedRegistration = repository.save(registration);
+        recordHistory(savedRegistration, "REJECTED", command.reason() != null ? command.reason() : "Staff join request rejected");
+
         log.info("Employee registration {} rejected successfully", command.registrationId());
         return Result.success(savedRegistration);
+    }
+
+    private void recordHistory(EmployeeRegistration registration, String changeType, String changeReason) {
+        try {
+            var snapshot = StaffCareerSnapshot.create(
+                    registration.getId().value(),
+                    registration.getEmployeeId(),
+                    registration.getBranchId(),
+                    registration.getSpeciality(),
+                    registration.getSpecialityName(),
+                    registration.getSalary(),
+                    registration.getStatus(),
+                    changeType,
+                    changeReason,
+                    getCurrentUserId()
+            );
+            historyRepository.save(snapshot);
+            log.debug("Recorded staff career history snapshot for registration {}", registration.getId());
+        } catch (Exception ex) {
+            log.error("Failed to record staff career history for registration {}: {}", registration.getId(), ex.getMessage());
+        }
+    }
+
+    private UUID getCurrentUserId() {
+        var authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication != null && authentication.getPrincipal() instanceof AuthenticatedPrincipal principal) {
+            return principal.getId();
+        }
+        return null;
     }
 
     /**

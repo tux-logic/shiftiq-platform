@@ -5,16 +5,21 @@ import com.tuxlogic.shiftiq.platform.core.domain.model.aggregates.WorkshopSpecia
 import com.tuxlogic.shiftiq.platform.core.domain.model.commands.CreateWorkshopSpecialtyCommand;
 import com.tuxlogic.shiftiq.platform.core.domain.model.commands.DeactivateWorkshopSpecialtyCommand;
 import com.tuxlogic.shiftiq.platform.core.domain.model.commands.UpdateWorkshopSpecialtyCommand;
+import com.tuxlogic.shiftiq.platform.core.domain.model.entities.WorkshopSpecialtyRevision;
 import com.tuxlogic.shiftiq.platform.core.domain.model.valueobjects.WorkshopId;
 import com.tuxlogic.shiftiq.platform.core.domain.repositories.WorkshopRepository;
+import com.tuxlogic.shiftiq.platform.core.domain.repositories.WorkshopSpecialtyHistoryRepository;
 import com.tuxlogic.shiftiq.platform.core.domain.repositories.WorkshopSpecialtyRepository;
+import com.tuxlogic.shiftiq.platform.shared.infrastructure.security.AuthenticatedPrincipal;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 @Service
 @Transactional
@@ -24,11 +29,14 @@ public class WorkshopSpecialtyCommandServiceImpl implements WorkshopSpecialtyCom
 
     private final WorkshopSpecialtyRepository specialtyRepository;
     private final WorkshopRepository workshopRepository;
+    private final WorkshopSpecialtyHistoryRepository historyRepository;
 
     public WorkshopSpecialtyCommandServiceImpl(WorkshopSpecialtyRepository specialtyRepository,
-                                              WorkshopRepository workshopRepository) {
+                                              WorkshopRepository workshopRepository,
+                                              WorkshopSpecialtyHistoryRepository historyRepository) {
         this.specialtyRepository = specialtyRepository;
         this.workshopRepository = workshopRepository;
+        this.historyRepository = historyRepository;
     }
 
     @Override
@@ -52,6 +60,7 @@ public class WorkshopSpecialtyCommandServiceImpl implements WorkshopSpecialtyCom
         );
 
         var saved = specialtyRepository.save(specialty);
+        recordHistory(saved, "CREATED");
         log.info("Created specialty {} ({}) for workshop {}",
                 saved.getName(), saved.getCode(), command.workshopId().value());
         return Optional.of(saved);
@@ -68,6 +77,7 @@ public class WorkshopSpecialtyCommandServiceImpl implements WorkshopSpecialtyCom
         var specialty = existing.get();
         specialty.update(command.name(), command.description());
         var saved = specialtyRepository.save(specialty);
+        recordHistory(saved, "UPDATED");
         log.info("Updated specialty id {}", command.specialtyId().value());
         return Optional.of(saved);
     }
@@ -83,6 +93,7 @@ public class WorkshopSpecialtyCommandServiceImpl implements WorkshopSpecialtyCom
         var specialty = existing.get();
         specialty.deactivate();
         specialtyRepository.save(specialty);
+        recordHistory(specialty, "DEACTIVATED");
         log.info("Deactivated specialty id {}", command.specialtyId().value());
         return true;
     }
@@ -96,10 +107,43 @@ public class WorkshopSpecialtyCommandServiceImpl implements WorkshopSpecialtyCom
             if (specialtyRepository.existsByWorkshopIdAndCode(workshopId, defaultSpecialty.code())) {
                 continue;
             }
-            specialtyRepository.save(new WorkshopSpecialty(
-                    workshopId, defaultSpecialty.name(), defaultSpecialty.code(), defaultSpecialty.description()));
+            var specialty = new WorkshopSpecialty(
+                    workshopId, defaultSpecialty.name(), defaultSpecialty.code(), defaultSpecialty.description());
+            var saved = specialtyRepository.save(specialty);
+            recordHistory(saved != null ? saved : specialty, "SEEDED");
         }
         log.info("Seeded default specialties for workshop {}", workshopId.value());
+    }
+
+    private void recordHistory(WorkshopSpecialty specialty, String changeType) {
+        if (specialty == null || specialty.getId() == null) {
+            return;
+        }
+        try {
+            var revision = WorkshopSpecialtyRevision.create(
+                    specialty.getId(),
+                    specialty.getWorkshopId(),
+                    specialty.getName(),
+                    specialty.getCode(),
+                    specialty.getDescription(),
+                    specialty.isActive(),
+                    changeType,
+                    getCurrentUserId()
+            );
+            historyRepository.save(revision);
+            log.debug("Recorded workshop specialty revision for specialty {}", specialty.getId());
+        } catch (Exception ex) {
+            log.error("Failed to record workshop specialty revision for specialty {}: {}",
+                    specialty.getId(), ex.getMessage());
+        }
+    }
+
+    private UUID getCurrentUserId() {
+        var authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication != null && authentication.getPrincipal() instanceof AuthenticatedPrincipal principal) {
+            return principal.getId();
+        }
+        return null;
     }
 
     private record DefaultSpecialty(String name, String code, String description) {}
