@@ -72,13 +72,13 @@ public class GlobalExceptionHandler {
     }
 
     /**
-     * Handles invalid request arguments such as malformed UUID path or payload values.
+     * Handles invalid request arguments and state conflicts such as malformed payload values or failed outbound actions.
      *
-     * @param ex the illegal argument exception
+     * @param ex the illegal argument or state exception
      * @return error response with BAD_REQUEST status
      */
-    @ExceptionHandler(IllegalArgumentException.class)
-    public ResponseEntity<?> handleIllegalArgumentException(IllegalArgumentException ex) {
+    @ExceptionHandler({IllegalArgumentException.class, IllegalStateException.class})
+    public ResponseEntity<?> handleIllegalArgumentException(RuntimeException ex) {
         var detailMessage = resolveClientSafeMessage(ex.getMessage());
         var applicationError = ApplicationError.validationError(
                 resolveMessageOrDefault("validation.request.argument", "request-argument"),
