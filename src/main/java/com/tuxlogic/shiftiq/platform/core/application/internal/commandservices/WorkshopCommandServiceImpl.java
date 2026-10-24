@@ -5,8 +5,10 @@ import com.tuxlogic.shiftiq.platform.core.application.commandservices.WorkshopSp
 import com.tuxlogic.shiftiq.platform.core.domain.model.aggregates.Workshop;
 import com.tuxlogic.shiftiq.platform.core.domain.model.commands.CreateWorkshopCommand;
 import com.tuxlogic.shiftiq.platform.core.domain.model.commands.UpdateWorkshopCommand;
+import com.tuxlogic.shiftiq.platform.core.domain.model.valueobjects.TaxId;
 import com.tuxlogic.shiftiq.platform.core.domain.repositories.OwnerRepository;
 import com.tuxlogic.shiftiq.platform.core.domain.repositories.WorkshopRepository;
+import com.tuxlogic.shiftiq.platform.shared.application.outboundservices.identity.IdentityValidationService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -23,12 +25,15 @@ public class WorkshopCommandServiceImpl implements WorkshopCommandService {
     private final WorkshopRepository workshopRepository;
     private final OwnerRepository ownerRepository;
     private final WorkshopSpecialtyCommandService workshopSpecialtyCommandService;
+    private final IdentityValidationService identityValidationService;
 
     public WorkshopCommandServiceImpl(WorkshopRepository workshopRepository, OwnerRepository ownerRepository,
-                                      WorkshopSpecialtyCommandService workshopSpecialtyCommandService) {
+                                      WorkshopSpecialtyCommandService workshopSpecialtyCommandService,
+                                      IdentityValidationService identityValidationService) {
         this.workshopRepository = workshopRepository;
         this.ownerRepository = ownerRepository;
         this.workshopSpecialtyCommandService = workshopSpecialtyCommandService;
+        this.identityValidationService = identityValidationService;
     }
 
     @Override
@@ -36,6 +41,8 @@ public class WorkshopCommandServiceImpl implements WorkshopCommandService {
         if (!ownerRepository.existsById(command.ownerId())) {
             throw new IllegalArgumentException("core.error.owner.notFound");
         }
+
+        validateTaxId(command.taxId());
 
         var workshop = new Workshop(
                 command.ownerId(),
@@ -56,6 +63,8 @@ public class WorkshopCommandServiceImpl implements WorkshopCommandService {
         var workshop = workshopRepository.findById(command.id())
                 .orElseThrow(() -> new IllegalArgumentException("core.error.workshop.notFound"));
 
+        validateTaxId(command.taxId());
+
         workshop.update(
             command.businessName(),
             command.brandName(),
@@ -66,5 +75,22 @@ public class WorkshopCommandServiceImpl implements WorkshopCommandService {
         var savedWorkshop = workshopRepository.save(workshop);
         log.info("Updated Workshop ID '{}'", savedWorkshop.getId().value());
         return Optional.of(savedWorkshop);
+    }
+
+    private void validateTaxId(TaxId taxId) {
+        if (taxId == null || taxId.value() == null) {
+            return;
+        }
+        var companyOpt = identityValidationService.validateRuc(taxId.value());
+        if (companyOpt.isEmpty()) {
+            throw new IllegalArgumentException("shared.error.identity.notFound");
+        }
+        var company = companyOpt.get();
+        if (!company.active()) {
+            throw new IllegalArgumentException("shared.error.identity.rucInactive");
+        }
+        if (!company.habido()) {
+            throw new IllegalArgumentException("shared.error.identity.rucNotHabido");
+        }
     }
 }

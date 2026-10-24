@@ -5,7 +5,10 @@ import com.tuxlogic.shiftiq.platform.core.domain.model.aggregates.Owner;
 import com.tuxlogic.shiftiq.platform.core.domain.model.commands.CreateOwnerCommand;
 import com.tuxlogic.shiftiq.platform.core.domain.model.commands.DeleteOwnerCommand;
 import com.tuxlogic.shiftiq.platform.core.domain.model.commands.UpdateOwnerCommand;
+import com.tuxlogic.shiftiq.platform.core.domain.model.valueobjects.Document;
+import com.tuxlogic.shiftiq.platform.core.domain.model.valueobjects.DocumentType;
 import com.tuxlogic.shiftiq.platform.core.domain.repositories.OwnerRepository;
+import com.tuxlogic.shiftiq.platform.shared.application.outboundservices.identity.IdentityValidationService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -20,9 +23,12 @@ public class OwnerCommandServiceImpl implements OwnerCommandService {
     private static final Logger log = LoggerFactory.getLogger(OwnerCommandServiceImpl.class);
 
     private final OwnerRepository ownerRepository;
+    private final IdentityValidationService identityValidationService;
 
-    public OwnerCommandServiceImpl(OwnerRepository ownerRepository) {
+    public OwnerCommandServiceImpl(OwnerRepository ownerRepository,
+                                   IdentityValidationService identityValidationService) {
         this.ownerRepository = ownerRepository;
+        this.identityValidationService = identityValidationService;
     }
 
     @Override
@@ -30,6 +36,8 @@ public class OwnerCommandServiceImpl implements OwnerCommandService {
         if (ownerRepository.existsByUserId(command.userId())) {
             throw new IllegalArgumentException("core.error.owner.profileAlreadyExists");
         }
+
+        validateDocument(command.document());
 
         var owner = new Owner(
                 command.userId(),
@@ -47,7 +55,9 @@ public class OwnerCommandServiceImpl implements OwnerCommandService {
     public Optional<Owner> handle(UpdateOwnerCommand command) {
         var owner = ownerRepository.findById(command.ownerId())
                 .orElseThrow(() -> new IllegalArgumentException("core.error.owner.notFound"));
-        
+
+        validateDocument(command.document());
+
         owner.update(
             command.name(),
             command.document(),
@@ -57,6 +67,34 @@ public class OwnerCommandServiceImpl implements OwnerCommandService {
         var savedOwner = ownerRepository.save(owner);
         log.info("Updated Owner profile ID '{}'", savedOwner.getId().value());
         return Optional.of(savedOwner);
+    }
+
+    private void validateDocument(Document document) {
+        if (document == null) {
+            return;
+        }
+        var docType = document.getDocumentType();
+        String docNumber = document.getDocumentNumber();
+
+        if (docType == DocumentType.DNI) {
+            var personOpt = identityValidationService.validateDni(docNumber);
+            if (personOpt.isEmpty()) {
+                throw new IllegalArgumentException("shared.error.identity.notFound");
+            }
+        } else if (docType == DocumentType.CE) {
+            var personOpt = identityValidationService.validateCe(docNumber);
+            if (personOpt.isEmpty()) {
+                throw new IllegalArgumentException("shared.error.identity.notFound");
+            }
+        } else if (docType == DocumentType.RUC) {
+            var companyOpt = identityValidationService.validateRuc(docNumber);
+            if (companyOpt.isEmpty()) {
+                throw new IllegalArgumentException("shared.error.identity.notFound");
+            }
+            if (!companyOpt.get().active()) {
+                throw new IllegalArgumentException("shared.error.identity.rucInactive");
+            }
+        }
     }
 
     @Override
