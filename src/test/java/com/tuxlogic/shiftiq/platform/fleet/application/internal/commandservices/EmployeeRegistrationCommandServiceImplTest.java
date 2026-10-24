@@ -11,6 +11,7 @@ import com.tuxlogic.shiftiq.platform.fleet.domain.model.commands.DeleteEmployeeR
 import com.tuxlogic.shiftiq.platform.fleet.domain.model.valueobjects.EmployeeRegistrationStatus;
 import com.tuxlogic.shiftiq.platform.fleet.domain.repositories.EmployeeRegistrationRepository;
 import com.tuxlogic.shiftiq.platform.shared.domain.model.valueobjects.BranchId;
+import com.tuxlogic.shiftiq.platform.fleet.domain.repositories.StaffCareerHistoryRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -43,6 +44,9 @@ class EmployeeRegistrationCommandServiceImplTest {
     @Mock
     private ExternalIamService externalIamService;
 
+    @Mock
+    private StaffCareerHistoryRepository historyRepository;
+
     private EmployeeRegistrationCommandServiceImpl service;
 
     private final UUID employeeId = UUID.randomUUID();
@@ -52,7 +56,7 @@ class EmployeeRegistrationCommandServiceImplTest {
 
     @BeforeEach
     void setUp() {
-        service = new EmployeeRegistrationCommandServiceImpl(repository, externalCoreService, externalIamService);
+        service = new EmployeeRegistrationCommandServiceImpl(repository, externalCoreService, externalIamService, historyRepository);
     }
 
     private CreateEmployeeRegistrationCommand createCommand(String role) {
