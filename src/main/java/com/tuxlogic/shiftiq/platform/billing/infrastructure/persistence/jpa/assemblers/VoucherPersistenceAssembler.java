@@ -33,6 +33,7 @@ public class VoucherPersistenceAssembler {
         entity.setStatus(aggregate.getStatus());
         entity.setExternalInvoiceId(aggregate.getExternalInvoiceId());
         entity.setPdfUrl(aggregate.getPdfUrl());
+        entity.setSeries(aggregate.getSeries());
         entity.setCorrelative(aggregate.getCorrelative());
 
 
@@ -85,6 +86,7 @@ public class VoucherPersistenceAssembler {
                 entity.getPdfUrl(),
                 payments,
                 entity.getCorrelative(),
+                entity.getSeries(),
                 entity.getCreatedAt(),
                 entity.getUpdatedAt()
         );

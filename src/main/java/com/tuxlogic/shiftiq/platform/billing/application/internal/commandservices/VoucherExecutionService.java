@@ -159,7 +159,8 @@ public class VoucherExecutionService {
 
                 String correlative = existingVoucher.getCorrelative();
                 if (correlative == null || correlative.isBlank()) {
-                    correlative = fiscalCorrelativeService.nextCorrelative(seriesOf(command.type()));
+                    UUID workshopId = getWorkshopId(quote);
+                    correlative = fiscalCorrelativeService.nextCorrelative(workshopId, seriesOf(command.type()));
                     existingVoucher.setCorrelative(correlative);
                 }
                 existingVoucher.setUpdatedAt(Instant.now());
@@ -195,7 +196,8 @@ public class VoucherExecutionService {
             return new VoucherPreparationResult.Failed(VoucherCommandFailure.ISSUER_NOT_FOUND);
         }
 
-        String correlative = fiscalCorrelativeService.nextCorrelative(seriesOf(command.type()));
+        UUID workshopId = getWorkshopId(quote);
+        String correlative = fiscalCorrelativeService.nextCorrelative(workshopId, seriesOf(command.type()));
 
         try {
             var voucher = new Voucher(
@@ -239,10 +241,34 @@ public class VoucherExecutionService {
      * number is never consumed without being recorded and never consumed twice.
      */
     @Transactional(propagation = Propagation.REQUIRES_NEW)
-    public Voucher reserveVoucher(Voucher voucher) {
-        String correlative = fiscalCorrelativeService.nextCorrelative(seriesOf(voucher.getType()));
+    public Voucher reserveVoucher(Voucher voucher, UUID workshopId) {
+        String correlative = fiscalCorrelativeService.nextCorrelative(workshopId, seriesOf(voucher.getType()));
         voucher.setCorrelative(correlative);
         return voucherRepository.save(voucher);
+    }
+
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public Voucher reserveVoucher(Voucher voucher) {
+        UUID workshopId = resolveWorkshopIdFromVoucher(voucher);
+        return reserveVoucher(voucher, workshopId);
+    }
+
+    public UUID getWorkshopId(com.tuxlogic.shiftiq.platform.billing.domain.model.aggregates.Quote quote) {
+        if (quote == null || quote.getBranchId() == null) {
+            return null;
+        }
+        var coreBranchId = new BranchId(quote.getBranchId().value());
+        var branchOpt = branchQueryService.handle(new GetBranchByIdQuery(coreBranchId));
+        return branchOpt.map(b -> b.getWorkshopId().value()).orElse(null);
+    }
+
+    public UUID resolveWorkshopIdFromVoucher(Voucher voucher) {
+        if (voucher == null || voucher.getBranchId() == null) {
+            return null;
+        }
+        var coreBranchId = new BranchId(voucher.getBranchId());
+        var branchOpt = branchQueryService.handle(new GetBranchByIdQuery(coreBranchId));
+        return branchOpt.map(b -> b.getWorkshopId().value()).orElse(null);
     }
 
     public boolean isStale(Voucher voucher) {

@@ -34,6 +34,7 @@ public class Voucher extends AbstractDomainAggregateRoot<Voucher> {
     private VoucherStatus status;
     private UUID externalInvoiceId; // ID returned by the Factos service
     private String pdfUrl;
+    private String series;
     private String correlative; // sequential fiscal correlative (e.g. 00000001)
     private List<Payment> payments = new ArrayList<>();
     private Instant createdAt = Instant.now();
@@ -58,6 +59,7 @@ public class Voucher extends AbstractDomainAggregateRoot<Voucher> {
         if (totalAmount == null || totalAmount.amount().compareTo(java.math.BigDecimal.ZERO) <= 0) {
             throw new IllegalArgumentException("billing.error.voucher.invalidTotalAmount");
         }
+        com.tuxlogic.shiftiq.platform.billing.domain.model.valueobjects.TaxDocumentValidator.validate(type, customerDocumentType, customerDocumentNumber);
         
         this.id = UUID.randomUUID();
         this.quoteId = quoteId;
@@ -107,6 +109,32 @@ public class Voucher extends AbstractDomainAggregateRoot<Voucher> {
         this(id, quoteId, type, customerDocumentType, customerDocumentNumber, customerName, totalAmount, status, externalInvoiceId, pdfUrl, payments, correlative);
         if (createdAt != null) this.createdAt = createdAt;
         if (updatedAt != null) this.updatedAt = updatedAt;
+    }
+
+    public Voucher(UUID id, UUID quoteId, VoucherType type, String customerDocumentType, 
+                   String customerDocumentNumber, String customerName, 
+                   Money totalAmount, VoucherStatus status, UUID externalInvoiceId, String pdfUrl,
+                   List<Payment> payments, String correlative, String series, Instant createdAt, Instant updatedAt) {
+        this(id, quoteId, type, customerDocumentType, customerDocumentNumber, customerName, totalAmount, status, externalInvoiceId, pdfUrl, payments, correlative, createdAt, updatedAt);
+        this.series = series;
+    }
+
+    public String getSeries() {
+        if (this.series != null && !this.series.isBlank()) {
+            return this.series;
+        }
+        return type == VoucherType.INVOICE ? "F001" : "B001";
+    }
+
+    public void setSeries(String series) {
+        this.series = series;
+    }
+
+    public String getDocumentNumber() {
+        if (correlative == null || correlative.isBlank()) {
+            return null;
+        }
+        return getSeries() + "-" + correlative;
     }
 
     public void setCorrelative(String correlative) {

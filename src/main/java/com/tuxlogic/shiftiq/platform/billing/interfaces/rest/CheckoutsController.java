@@ -64,20 +64,27 @@ public class CheckoutsController {
         VoucherType voucherType;
         PaymentMethod paymentMethod;
         try {
-            voucherType = resource.type() != null ? VoucherType.valueOf(resource.type().toUpperCase()) : VoucherType.RECEIPT;
+            voucherType = VoucherType.fromString(resource.type());
             paymentMethod = resource.method() != null ? PaymentMethod.valueOf(resource.method().toUpperCase()) : PaymentMethod.CASH;
         } catch (Exception e) {
             return ResponseEntity.badRequest().body("Invalid voucher type or payment method");
         }
 
-        var command = new ProcessCheckoutCommand(
-                resource.quoteId(),
-                voucherType,
-                resource.customerDocumentType(),
-                resource.customerDocumentNumber(),
-                resource.customerName(),
-                paymentMethod
-        );
+        ProcessCheckoutCommand command;
+        try {
+            command = new ProcessCheckoutCommand(
+                    resource.quoteId(),
+                    voucherType,
+                    resource.customerDocumentType(),
+                    resource.customerDocumentNumber(),
+                    resource.customerName(),
+                    paymentMethod
+            );
+        } catch (IllegalArgumentException e) {
+            String message = messageSource.getMessage(e.getMessage(), null, e.getMessage(), org.springframework.context.i18n.LocaleContextHolder.getLocale());
+            return com.tuxlogic.shiftiq.platform.shared.interfaces.rest.transform.ErrorResponseAssembler.toErrorResponseFromApplicationError(
+                    com.tuxlogic.shiftiq.platform.shared.application.result.ApplicationError.validationError("checkout", message));
+        }
 
         var result = commandService.handle(command);
 
@@ -95,19 +102,26 @@ public class CheckoutsController {
         validateQuoteAccess(resource.quoteId());
         VoucherType voucherType;
         try {
-            voucherType = resource.type() != null ? VoucherType.valueOf(resource.type().toUpperCase()) : VoucherType.RECEIPT;
+            voucherType = VoucherType.fromString(resource.type());
         } catch (Exception e) {
             return ResponseEntity.badRequest().body("Invalid voucher type");
         }
 
-        var command = new com.tuxlogic.shiftiq.platform.billing.domain.model.commands.ProcessMercadoPagoCheckoutCommand(
-                resource.quoteId(),
-                voucherType,
-                resource.customerDocumentType(),
-                resource.customerDocumentNumber(),
-                resource.customerName(),
-                resource.paymentId()
-        );
+        com.tuxlogic.shiftiq.platform.billing.domain.model.commands.ProcessMercadoPagoCheckoutCommand command;
+        try {
+            command = new com.tuxlogic.shiftiq.platform.billing.domain.model.commands.ProcessMercadoPagoCheckoutCommand(
+                    resource.quoteId(),
+                    voucherType,
+                    resource.customerDocumentType(),
+                    resource.customerDocumentNumber(),
+                    resource.customerName(),
+                    resource.paymentId()
+            );
+        } catch (IllegalArgumentException e) {
+            String message = messageSource.getMessage(e.getMessage(), null, e.getMessage(), org.springframework.context.i18n.LocaleContextHolder.getLocale());
+            return com.tuxlogic.shiftiq.platform.shared.interfaces.rest.transform.ErrorResponseAssembler.toErrorResponseFromApplicationError(
+                    com.tuxlogic.shiftiq.platform.shared.application.result.ApplicationError.validationError("checkout", message));
+        }
 
         var result = commandService.handle(command);
 
