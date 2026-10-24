@@ -12,7 +12,7 @@
 - [x] 2.2 Update `EmployeeRegistrationCommandServiceImpl` to record career snapshots on creation, specialty/salary updates, approvals, rejections, and deactivations.
 - [x] 2.3 Implement `StaffCareerHistoryQueryService` and `GetStaffCareerHistoryByEmployeeAndBranchQuery` handler.
 - [x] 2.4 Expose REST endpoint `GET /api/v1/branches/{branchId}/employees/{employeeId}/history` with resource assembler and multi-tenant security validation.
-- [ ] 2.5 Add unit tests in `StaffCareerHistoryTest` and `StaffCareerHistoryControllerTest` verifying snapshot recording and query endpoints.
+- [x] 2.5 Add unit tests in `StaffCareerHistoryTest` and `StaffCareerHistoryControllerTest` verifying snapshot recording and query endpoints.
 
 ## 3. Core Workshop Specialty History Implementation
 
