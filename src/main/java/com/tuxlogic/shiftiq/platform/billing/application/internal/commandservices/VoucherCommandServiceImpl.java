@@ -232,6 +232,9 @@ public class VoucherCommandServiceImpl implements VoucherCommandService {
             return Result.failure(VoucherCommandFailure.ISSUER_NOT_FOUND);
         }
         String issuerRuc = workshopOpt.get().getTaxId().value();
+        UUID workshopId = workshopOpt.get().getId() != null
+                ? workshopOpt.get().getId().value()
+                : (branchOpt.get().getWorkshopId() != null ? branchOpt.get().getWorkshopId().value() : null);
 
         // 3. Reserve the correlative in an isolated transaction before calling Factos
         if (voucherToEmit == null) {
@@ -258,7 +261,7 @@ public class VoucherCommandServiceImpl implements VoucherCommandService {
 
         if (voucherToEmit.getCorrelative() == null || voucherToEmit.getCorrelative().isBlank()) {
             try {
-                voucherToEmit = voucherExecutionService.reserveVoucher(voucherToEmit);
+                voucherToEmit = voucherExecutionService.reserveVoucher(voucherToEmit, workshopId);
             } catch (DataIntegrityViolationException e) {
                 log.warn("Concurrent voucher insert conflict for quote ID '{}': {}", quote.getId(), e.getMessage());
                 return Result.failure(VoucherCommandFailure.VOUCHER_EMISSION_IN_PROGRESS);

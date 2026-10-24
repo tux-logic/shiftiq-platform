@@ -524,9 +524,10 @@ class ProcessMercadoPagoCheckoutTest {
 
         when(quoteRepository.findById(eq(quoteId))).thenReturn(Optional.of(quote));
         when(voucherRepository.findByQuoteId(eq(quoteId))).thenReturn(Optional.empty());
-        stubIssuer("20123456789", UUID.randomUUID());
+        UUID workshopId = UUID.randomUUID();
+        stubIssuer("20123456789", workshopId);
 
-        when(fiscalCorrelativeService.nextCorrelative(eq("F001"))).thenReturn("00000007");
+        when(fiscalCorrelativeService.nextCorrelative(eq(workshopId), eq("F001"))).thenReturn("00000007");
         List<SavedVoucherState> savedStates = stubVoucherPersistence();
 
         FactosGateway.FactosInvoiceResult invoiceResult =
@@ -558,7 +559,7 @@ class ProcessMercadoPagoCheckoutTest {
         assertThat(reserved.status()).isEqualTo(VoucherStatus.PENDING);
 
         InOrder inOrder = inOrder(fiscalCorrelativeService, factosGateway);
-        inOrder.verify(fiscalCorrelativeService).nextCorrelative(eq("F001"));
+        inOrder.verify(fiscalCorrelativeService).nextCorrelative(eq(workshopId), eq("F001"));
         inOrder.verify(factosGateway).issueVoucher(any(), any(), any(), any(), any(), any(), any());
     }
 
@@ -571,9 +572,10 @@ class ProcessMercadoPagoCheckoutTest {
 
         when(quoteRepository.findById(eq(quoteId))).thenReturn(Optional.of(quote));
         when(voucherRepository.findByQuoteId(eq(quoteId))).thenReturn(Optional.empty());
-        stubIssuer("20123456789", UUID.randomUUID());
+        UUID workshopId = UUID.randomUUID();
+        stubIssuer("20123456789", workshopId);
 
-        when(fiscalCorrelativeService.nextCorrelative(eq("F001"))).thenReturn("00000007");
+        when(fiscalCorrelativeService.nextCorrelative(eq(workshopId), eq("F001"))).thenReturn("00000007");
         List<SavedVoucherState> savedStates = stubVoucherPersistence();
 
         when(factosGateway.issueVoucher(eq("20123456789"), eq(VoucherType.INVOICE), eq("RUC"), eq("20601234567"),
@@ -592,7 +594,7 @@ class ProcessMercadoPagoCheckoutTest {
 
         assertThat(result.isFailure()).isTrue();
         assertThat(result.failure().get()).isEqualTo(VoucherCommandFailure.FACTOS_ISSUANCE_FAILED);
-        verify(fiscalCorrelativeService).nextCorrelative(eq("F001"));
+        verify(fiscalCorrelativeService).nextCorrelative(eq(workshopId), eq("F001"));
 
         SavedVoucherState reserved = savedStates.get(0);
         assertThat(reserved.correlative()).isEqualTo("00000007");
@@ -656,6 +658,7 @@ class ProcessMercadoPagoCheckoutTest {
 
         com.tuxlogic.shiftiq.platform.core.domain.model.aggregates.Workshop mockWorkshop =
                 mock(com.tuxlogic.shiftiq.platform.core.domain.model.aggregates.Workshop.class);
+        when(mockWorkshop.getId()).thenReturn(new com.tuxlogic.shiftiq.platform.core.domain.model.valueobjects.WorkshopId(workshopId));
         when(mockWorkshop.getTaxId()).thenReturn(new com.tuxlogic.shiftiq.platform.core.domain.model.valueobjects.TaxId(taxId));
         when(workshopQueryService.handle(any(com.tuxlogic.shiftiq.platform.core.domain.model.queries.GetWorkshopByIdQuery.class)))
                 .thenReturn(Optional.of(mockWorkshop));
@@ -705,7 +708,7 @@ class ProcessMercadoPagoCheckoutTest {
         when(workshopQueryService.handle(any(com.tuxlogic.shiftiq.platform.core.domain.model.queries.GetWorkshopByIdQuery.class)))
                 .thenReturn(Optional.of(mockWorkshop));
 
-        when(fiscalCorrelativeService.nextCorrelative(eq("B001"))).thenReturn("00000001");
+        when(fiscalCorrelativeService.nextCorrelative(eq(workshopId), eq("B001"))).thenReturn("00000001");
 
         Voucher emittedVoucher = new Voucher(quoteId, VoucherType.RECEIPT, "DNI", "12345678", "Juan Perez", quote.getTotalAmount(), UUID.randomUUID(), "http://pdf-url");
         when(voucherRepository.save(any(Voucher.class))).thenAnswer(invocation -> invocation.getArgument(0));

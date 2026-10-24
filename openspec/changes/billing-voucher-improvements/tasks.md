@@ -7,9 +7,9 @@
 
 ## 2. Workshop-Scoped Fiscal Sequences
 
-- [ ] 2.1 Update `VoucherSequencePersistenceEntity` and `VoucherSequenceJpaRepository` to scope sequences by `(workshopId, series)` with composite primary key `VoucherSequenceId` and verify repository query methods.
-- [ ] 2.2 Update `FiscalCorrelativeService` interface and `FiscalCorrelativeServiceImpl` to allocate consecutive correlatives partitioned by `workshopId` and `series` with pessimistic locking, and verify with unit tests.
-- [ ] 2.3 Update `VoucherExecutionService` and `VoucherCommandServiceImpl` to resolve the quote's workshop ID and reserve workshop-scoped correlatives during voucher preparation and recovery.
+- [x] 2.1 Update `VoucherSequencePersistenceEntity` and `VoucherSequenceJpaRepository` to scope sequences by `(workshopId, series)` with composite primary key `VoucherSequenceId` and verify repository query methods.
+- [x] 2.2 Update `FiscalCorrelativeService` interface and `FiscalCorrelativeServiceImpl` to allocate consecutive correlatives partitioned by `workshopId` and `series` with pessimistic locking, and verify with unit tests.
+- [x] 2.3 Update `VoucherExecutionService` and `VoucherCommandServiceImpl` to resolve the quote's workshop ID and reserve workshop-scoped correlatives during voucher preparation and recovery.
 
 ## 3. Discount Prorating on Billing Line Items
 
