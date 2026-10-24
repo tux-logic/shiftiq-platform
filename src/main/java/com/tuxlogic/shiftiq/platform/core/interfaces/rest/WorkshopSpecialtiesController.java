@@ -1,18 +1,22 @@
 package com.tuxlogic.shiftiq.platform.core.interfaces.rest;
 
 import com.tuxlogic.shiftiq.platform.core.application.commandservices.WorkshopSpecialtyCommandService;
+import com.tuxlogic.shiftiq.platform.core.application.queryservices.WorkshopSpecialtyHistoryQueryService;
 import com.tuxlogic.shiftiq.platform.core.application.queryservices.WorkshopSpecialtyQueryService;
 import com.tuxlogic.shiftiq.platform.core.domain.model.commands.DeactivateWorkshopSpecialtyCommand;
 import com.tuxlogic.shiftiq.platform.core.domain.model.queries.GetWorkshopSpecialtiesByWorkshopIdQuery;
 import com.tuxlogic.shiftiq.platform.core.domain.model.queries.GetWorkshopSpecialtyByIdQuery;
+import com.tuxlogic.shiftiq.platform.core.domain.model.queries.GetWorkshopSpecialtyHistoryQuery;
 import com.tuxlogic.shiftiq.platform.core.domain.model.valueobjects.WorkshopId;
 import com.tuxlogic.shiftiq.platform.core.domain.model.valueobjects.WorkshopSpecialtyId;
 import com.tuxlogic.shiftiq.platform.core.interfaces.rest.resources.CreateWorkshopSpecialtyResource;
 import com.tuxlogic.shiftiq.platform.core.interfaces.rest.resources.UpdateWorkshopSpecialtyResource;
 import com.tuxlogic.shiftiq.platform.core.interfaces.rest.resources.WorkshopSpecialtyResource;
+import com.tuxlogic.shiftiq.platform.core.interfaces.rest.resources.WorkshopSpecialtyRevisionResource;
 import com.tuxlogic.shiftiq.platform.core.interfaces.rest.transform.CreateWorkshopSpecialtyCommandFromResourceAssembler;
 import com.tuxlogic.shiftiq.platform.core.interfaces.rest.transform.UpdateWorkshopSpecialtyCommandFromResourceAssembler;
 import com.tuxlogic.shiftiq.platform.core.interfaces.rest.transform.WorkshopSpecialtyResourceFromAggregateAssembler;
+import com.tuxlogic.shiftiq.platform.core.interfaces.rest.transform.WorkshopSpecialtyRevisionResourceFromEntityAssembler;
 import com.tuxlogic.shiftiq.platform.shared.infrastructure.security.MultiTenancySecurityService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -34,13 +38,16 @@ public class WorkshopSpecialtiesController {
 
     private final WorkshopSpecialtyCommandService commandService;
     private final WorkshopSpecialtyQueryService queryService;
+    private final WorkshopSpecialtyHistoryQueryService historyQueryService;
     private final MultiTenancySecurityService multiTenancySecurityService;
 
     public WorkshopSpecialtiesController(WorkshopSpecialtyCommandService commandService,
                                          WorkshopSpecialtyQueryService queryService,
+                                         WorkshopSpecialtyHistoryQueryService historyQueryService,
                                          MultiTenancySecurityService multiTenancySecurityService) {
         this.commandService = commandService;
         this.queryService = queryService;
+        this.historyQueryService = historyQueryService;
         this.multiTenancySecurityService = multiTenancySecurityService;
     }
 
@@ -119,5 +126,20 @@ public class WorkshopSpecialtiesController {
 
         boolean deactivated = commandService.handle(new DeactivateWorkshopSpecialtyCommand(new WorkshopSpecialtyId(specialtyId)));
         return deactivated ? ResponseEntity.noContent().build() : ResponseEntity.badRequest().build();
+    }
+
+    @GetMapping("/{specialtyId}/history")
+    @Operation(summary = "Get specialty revision history", description = "Retrieves the chronological audit history and modifications of a workshop specialty")
+    @PreAuthorize("isAuthenticated() and @multiTenancySecurityService.isAuthorizedForWorkshop(#workshopId)")
+    public ResponseEntity<List<WorkshopSpecialtyRevisionResource>> getSpecialtyHistory(
+            @PathVariable UUID workshopId,
+            @PathVariable UUID specialtyId) {
+        multiTenancySecurityService.validateWorkshopAccess(workshopId);
+        var query = new GetWorkshopSpecialtyHistoryQuery(new WorkshopId(workshopId), new WorkshopSpecialtyId(specialtyId));
+        var revisions = historyQueryService.handle(query);
+        var resources = revisions.stream()
+                .map(WorkshopSpecialtyRevisionResourceFromEntityAssembler::toResource)
+                .toList();
+        return ResponseEntity.ok(resources);
     }
 }
