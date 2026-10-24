@@ -75,4 +75,37 @@ class UsersControllerTest {
         assertNotNull(response);
         assertEquals(HttpStatus.OK, response.getStatusCode());
     }
+
+    @Test
+    void signUp_WhenValid_ShouldReturnCreated() {
+        var signUpResource = new com.tuxlogic.shiftiq.platform.iam.interfaces.rest.resources.SignUpResource("newuser@example.com", "Password123!");
+        User user = mock(User.class);
+        UUID userId = UUID.randomUUID();
+        when(user.getId()).thenReturn(new UserId(userId));
+        when(user.getEmail()).thenReturn(new EmailAddress("newuser@example.com"));
+        when(user.getRole()).thenReturn(Roles.ROLE_USER);
+
+        when(userCommandService.handle(any(com.tuxlogic.shiftiq.platform.iam.domain.model.commands.SignUpCommand.class)))
+                .thenReturn(Optional.of(user));
+
+        var response = controller.signUp(signUpResource);
+
+        assertNotNull(response);
+        assertEquals(HttpStatus.CREATED, response.getStatusCode());
+        assertNotNull(response.getBody());
+        assertEquals("newuser@example.com", response.getBody().email());
+    }
+
+    @Test
+    void signUp_WhenServiceReturnsEmpty_ShouldReturnBadRequest() {
+        var signUpResource = new com.tuxlogic.shiftiq.platform.iam.interfaces.rest.resources.SignUpResource("invalid@example.com", "Password123!");
+
+        when(userCommandService.handle(any(com.tuxlogic.shiftiq.platform.iam.domain.model.commands.SignUpCommand.class)))
+                .thenReturn(Optional.empty());
+
+        var response = controller.signUp(signUpResource);
+
+        assertNotNull(response);
+        assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
+    }
 }

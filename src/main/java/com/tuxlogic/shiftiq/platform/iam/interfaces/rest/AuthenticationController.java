@@ -1,5 +1,6 @@
 package com.tuxlogic.shiftiq.platform.iam.interfaces.rest;
 
+import com.tuxlogic.shiftiq.platform.iam.application.commandservices.OtpCommandService;
 import com.tuxlogic.shiftiq.platform.iam.application.commandservices.PasswordRecoveryCommandService;
 import com.tuxlogic.shiftiq.platform.iam.application.commandservices.SessionCommandService;
 import com.tuxlogic.shiftiq.platform.iam.application.commandservices.UserCommandService;
@@ -21,13 +22,16 @@ public class AuthenticationController {
     private final UserCommandService userCommandService;
     private final PasswordRecoveryCommandService passwordRecoveryCommandService;
     private final SessionCommandService sessionCommandService;
+    private final OtpCommandService otpCommandService;
 
     public AuthenticationController(UserCommandService userCommandService,
                                     PasswordRecoveryCommandService passwordRecoveryCommandService,
-                                    SessionCommandService sessionCommandService) {
+                                    SessionCommandService sessionCommandService,
+                                    OtpCommandService otpCommandService) {
         this.userCommandService = userCommandService;
         this.passwordRecoveryCommandService = passwordRecoveryCommandService;
         this.sessionCommandService = sessionCommandService;
+        this.otpCommandService = otpCommandService;
     }
 
     @PostMapping("/sessions")
@@ -89,6 +93,22 @@ public class AuthenticationController {
     public ResponseEntity<Void> resetPassword(@Valid @RequestBody ResetPasswordResource resource) {
         var command = ResetPasswordCommandFromResourceAssembler.toCommandFromResource(resource);
         passwordRecoveryCommandService.handle(command);
+        return ResponseEntity.ok().build();
+    }
+
+    @PostMapping("/otp/send")
+    @Operation(summary = "Send OTP code", description = "Validates deliverability and sends an OTP verification code via Brevo")
+    public ResponseEntity<Void> sendOtp(@Valid @RequestBody SendOtpResource resource) {
+        var command = SendOtpEmailCommandFromResourceAssembler.toCommandFromResource(resource);
+        otpCommandService.handle(command);
+        return ResponseEntity.ok().build();
+    }
+
+    @PostMapping("/otp/verify")
+    @Operation(summary = "Verify OTP code", description = "Verifies the submitted OTP code against the active verification record")
+    public ResponseEntity<Void> verifyOtp(@Valid @RequestBody VerifyOtpResource resource) {
+        var command = VerifyOtpCodeCommandFromResourceAssembler.toCommandFromResource(resource);
+        otpCommandService.handle(command);
         return ResponseEntity.ok().build();
     }
 }
