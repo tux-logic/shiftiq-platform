@@ -11,7 +11,7 @@
 
 - [x] 2.1 Add localized messages (`shared.error.identity.*`) to `messages.properties` and `messages_es.properties`.
 - [x] 2.2 Create `IdentityValidationsController` exposing `GET /api/v1/identity-validations/lookup` with request validation and `IdentityLookupResource` assembler.
-- [ ] 2.3 Add unit tests in `IdentityValidationsControllerTest` verifying lookup responses for DNI, RUC, CE, and invalid format handling.
+- [x] 2.3 Add unit tests in `IdentityValidationsControllerTest` verifying lookup responses for DNI, RUC, CE, and invalid format handling.
 
 ## 3. Profile Creation Validation & Integration
 
