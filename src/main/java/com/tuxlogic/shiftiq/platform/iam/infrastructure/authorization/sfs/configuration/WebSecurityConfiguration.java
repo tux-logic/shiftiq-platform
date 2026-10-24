@@ -99,6 +99,7 @@ public class WebSecurityConfiguration {
                                 "/",
                                 "/health",
                                 "/api/v1/authentication/**",
+                                "/api/v1/identity-validations/**",
                                 "/v3/api-docs/**",
                                 "/swagger-ui/**",
                                 "/swagger-ui.html"
