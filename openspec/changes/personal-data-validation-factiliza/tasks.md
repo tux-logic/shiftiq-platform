@@ -3,7 +3,7 @@
 ## 1. Configuration & Factiliza Outbound Client
 
 - [x] 1.1 Add Factiliza configuration properties (`factiliza.api.token`, `factiliza.api.url`) to `application.properties`, `application.prod.properties`, and `.env.template`.
-- [ ] 1.2 Define `IdentityValidationService` outbound port, `PersonIdentityResult`, and `CompanyIdentityResult` in `com.tuxlogic.shiftiq.platform.shared.application.internal.outboundservices.identity`.
+- [x] 1.2 Define `IdentityValidationService` outbound port, `PersonIdentityResult`, and `CompanyIdentityResult` in `com.tuxlogic.shiftiq.platform.shared.application.outboundservices.identity`.
 - [ ] 1.3 Implement `FactilizaClient` adapter in `com.tuxlogic.shiftiq.platform.shared.infrastructure.outbound.factiliza` using Spring `RestClient` to query DNI, RUC, and CE endpoints.
 - [ ] 1.4 Add unit tests in `FactilizaClientTest` verifying DNI, RUC, and CE responses, error codes, and timeout scenarios with `MockRestServiceServer`.
 
