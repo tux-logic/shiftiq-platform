@@ -22,4 +22,4 @@
 
 ## 5. Verification and Integration
 
-- [ ] 5.1 Run full billing test suite and `./gradlew test` to ensure zero regressions across billing, operations, and shared contexts.
+- [x] 5.1 Run full billing test suite and `./gradlew test` to ensure zero regressions across billing, operations, and shared contexts.
