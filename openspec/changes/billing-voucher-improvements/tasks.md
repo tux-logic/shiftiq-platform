@@ -17,8 +17,8 @@
 
 ## 4. Fiscal Identifiers on Domain and REST Resources
 
-- [ ] 4.1 Update `Voucher` aggregate and `VoucherPersistenceEntity` to store `series` alongside `correlative` and expose a formatted fiscal document identifier (e.g., `F001-00000001`).
-- [ ] 4.2 Update `VoucherResource`, `VoucherResourceFromAggregateAssembler`, and `VoucherPersistenceAssembler` to include `series`, `correlative`, and `documentNumber`, and verify with assembler tests.
+- [x] 4.1 Update `Voucher` aggregate and `VoucherPersistenceEntity` to store `series` alongside `correlative` and expose a formatted fiscal document identifier (e.g., `F001-00000001`).
+- [x] 4.2 Update `VoucherResource`, `VoucherResourceFromAggregateAssembler`, and `VoucherPersistenceAssembler` to include `series`, `correlative`, and `documentNumber`, and verify with assembler tests.
 
 ## 5. Verification and Integration
 

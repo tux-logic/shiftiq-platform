@@ -50,6 +50,9 @@ public class VoucherPersistenceEntity extends AuditableAbstractPersistenceEntity
     @Column(name = "external_invoice_id")
     private UUID externalInvoiceId;
 
+    @Column(name = "series", length = 10)
+    private String series;
+
     @Column(name = "correlative", length = 10)
     private String correlative;
 
