@@ -17,5 +17,5 @@
 
 - [x] 3.1 Integrate `IdentityValidationService` into `CustomerCommandServiceImpl` to validate natural (DNI/CE) and corporate (RUC) documents before saving customer profiles.
 - [x] 3.2 Integrate `IdentityValidationService` into `EmployeeCommandServiceImpl` and `OwnerCommandServiceImpl` to validate person documents before saving employee and owner profiles.
-- [ ] 3.3 Integrate `IdentityValidationService` into `WorkshopCommandServiceImpl` to validate workshop RUC (`taxId`) before creating workshops.
+- [x] 3.3 Integrate `IdentityValidationService` into `WorkshopCommandServiceImpl` to validate workshop RUC (`taxId`) before creating workshops.
 - [ ] 3.4 Add unit tests covering document validation in profile command services and run the full test suite with `./mvnw test` ensuring zero failures.
