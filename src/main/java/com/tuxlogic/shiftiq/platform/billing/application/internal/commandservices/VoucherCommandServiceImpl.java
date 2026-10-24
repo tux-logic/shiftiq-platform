@@ -396,7 +396,7 @@ public class VoucherCommandServiceImpl implements VoucherCommandService {
 
 
 
-    private List<FactosGateway.FactosItem> getDetailedBillingItems(com.tuxlogic.shiftiq.platform.billing.domain.model.aggregates.Quote quote) {
+    List<FactosGateway.FactosItem> getDetailedBillingItems(com.tuxlogic.shiftiq.platform.billing.domain.model.aggregates.Quote quote) {
         List<FactosGateway.FactosItem> items = new java.util.ArrayList<>();
         
         var workOrderOpt = workOrderQueryService.handle(new GetWorkOrderByIdQuery(new WorkOrderId(quote.getWorkOrderId())));
@@ -453,6 +453,54 @@ public class VoucherCommandServiceImpl implements VoucherCommandService {
                     BigDecimal.ONE,
                     quote.getTotalAmount().amount()
             ));
+            return items;
+        }
+
+        // Apply discount proportionally if discount was given on the quote
+        Double discountPercentage = quote.getDiscountPercentage();
+        if (discountPercentage != null && discountPercentage > 0.0) {
+            BigDecimal discountFactor = BigDecimal.valueOf(1.0 - (discountPercentage / 100.0));
+            BigDecimal targetTotal = quote.getTotalAmount().amount();
+            List<FactosGateway.FactosItem> proratedItems = new java.util.ArrayList<>();
+            BigDecimal currentSum = BigDecimal.ZERO;
+
+            for (var item : items) {
+                BigDecimal proratedUnit = item.unitPrice().multiply(discountFactor).setScale(2, java.math.RoundingMode.HALF_UP);
+                proratedItems.add(new FactosGateway.FactosItem(
+                        item.code(),
+                        item.description(),
+                        item.quantity(),
+                        proratedUnit
+                ));
+                currentSum = currentSum.add(item.quantity().multiply(proratedUnit));
+            }
+
+            // Adjust residual centavos on the first item with quantity 1 (or last item)
+            BigDecimal diff = targetTotal.subtract(currentSum);
+            if (diff.compareTo(BigDecimal.ZERO) != 0 && !proratedItems.isEmpty()) {
+                int targetIndex = -1;
+                for (int i = proratedItems.size() - 1; i >= 0; i--) {
+                    if (proratedItems.get(i).quantity().compareTo(BigDecimal.ONE) == 0) {
+                        targetIndex = i;
+                        break;
+                    }
+                }
+                if (targetIndex < 0) {
+                    targetIndex = proratedItems.size() - 1;
+                }
+
+                var itemToAdjust = proratedItems.get(targetIndex);
+                BigDecimal adjustedPrice = itemToAdjust.unitPrice().add(diff);
+                if (adjustedPrice.compareTo(BigDecimal.ZERO) >= 0) {
+                    proratedItems.set(targetIndex, new FactosGateway.FactosItem(
+                            itemToAdjust.code(),
+                            itemToAdjust.description(),
+                            itemToAdjust.quantity(),
+                            adjustedPrice
+                    ));
+                }
+            }
+            return proratedItems;
         }
         
         return items;

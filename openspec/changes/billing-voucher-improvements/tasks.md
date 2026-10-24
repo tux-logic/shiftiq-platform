@@ -13,7 +13,7 @@
 
 ## 3. Discount Prorating on Billing Line Items
 
-- [ ] 3.1 Update `getDetailedBillingItems` in `VoucherCommandServiceImpl` to prorate quote discounts across tasks and products with centavo residual correction so that `sum(items) == quote.getTotalAmount().amount()`, and verify with unit tests.
+- [x] 3.1 Update `getDetailedBillingItems` in `VoucherCommandServiceImpl` to prorate quote discounts across tasks and products with centavo residual correction so that `sum(items) == quote.getTotalAmount().amount()`, and verify with unit tests.
 
 ## 4. Fiscal Identifiers on Domain and REST Resources
 
