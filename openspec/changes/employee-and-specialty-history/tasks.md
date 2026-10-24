@@ -8,7 +8,7 @@
 
 ## 2. Fleet Staff Career History Implementation
 
-- [ ] 2.1 Define `StaffCareerSnapshot` domain model and `StaffCareerHistoryRepository` domain port in `fleet`.
+- [x] 2.1 Define `StaffCareerSnapshot` domain model and `StaffCareerHistoryRepository` domain port in `fleet`.
 - [ ] 2.2 Update `EmployeeRegistrationCommandServiceImpl` to record career snapshots on creation, specialty/salary updates, approvals, rejections, and deactivations.
 - [ ] 2.3 Implement `StaffCareerHistoryQueryService` and `GetStaffCareerHistoryByEmployeeAndBranchQuery` handler.
 - [ ] 2.4 Expose REST endpoint `GET /api/v1/branches/{branchId}/employees/{employeeId}/history` with resource assembler and multi-tenant security validation.
