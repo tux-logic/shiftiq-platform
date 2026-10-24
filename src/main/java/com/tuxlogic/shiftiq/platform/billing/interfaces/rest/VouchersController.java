@@ -63,7 +63,14 @@ public class VouchersController {
         var quote = quoteQueryService.handle(new com.tuxlogic.shiftiq.platform.billing.domain.model.queries.GetQuoteByIdQuery(resource.quoteId()));
         quote.ifPresent(q -> multiTenancySecurityService.validateBranchAccess(q.getBranchId().value()));
 
-        var command = GenerateVoucherCommandFromResourceAssembler.toCommandFromResource(resource);
+        com.tuxlogic.shiftiq.platform.billing.domain.model.commands.GenerateVoucherCommand command;
+        try {
+            command = GenerateVoucherCommandFromResourceAssembler.toCommandFromResource(resource);
+        } catch (IllegalArgumentException e) {
+            String message = messageSource.getMessage(e.getMessage(), null, e.getMessage(), org.springframework.context.i18n.LocaleContextHolder.getLocale());
+            return com.tuxlogic.shiftiq.platform.shared.interfaces.rest.transform.ErrorResponseAssembler.toErrorResponseFromApplicationError(
+                    com.tuxlogic.shiftiq.platform.shared.application.result.ApplicationError.validationError("voucher", message));
+        }
         var result = commandService.handle(command);
         
         if (result.isSuccess()) {

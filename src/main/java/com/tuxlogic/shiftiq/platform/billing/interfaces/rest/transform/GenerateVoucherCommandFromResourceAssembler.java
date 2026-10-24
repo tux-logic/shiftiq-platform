@@ -9,7 +9,7 @@ public class GenerateVoucherCommandFromResourceAssembler {
     public static GenerateVoucherCommand toCommandFromResource(GenerateVoucherResource resource) {
         VoucherType type;
         try {
-            type = resource.type() != null ? VoucherType.valueOf(resource.type().toUpperCase()) : VoucherType.RECEIPT;
+            type = VoucherType.fromString(resource.type());
         } catch (Exception e) {
             throw new IllegalArgumentException("billing.error.voucher.invalidType");
         }

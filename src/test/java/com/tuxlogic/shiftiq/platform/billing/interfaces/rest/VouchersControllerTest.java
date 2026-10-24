@@ -74,6 +74,27 @@ class VouchersControllerTest {
     }
 
     @Test
+    void generateVoucher_WhenInvalidInvoiceDocument_ShouldReturnBadRequest() {
+        UUID quoteId = UUID.randomUUID();
+        UUID branchId = UUID.randomUUID();
+        GenerateVoucherResource resource = new GenerateVoucherResource(quoteId, "INVOICE", "DNI", "12345678", "Empresa SAC");
+
+        Quote quote = new Quote(
+                new CreateQuoteCommand(UUID.randomUUID(), new BranchId(branchId), 0.0),
+                Money.of(100.0)
+        );
+
+        when(quoteQueryService.handle(any(GetQuoteByIdQuery.class))).thenReturn(Optional.of(quote));
+        when(messageSource.getMessage(eq("billing.error.invoice.ruc.documentType"), any(), any(), any()))
+                .thenReturn("For Invoices, the document type must be RUC.");
+
+        ResponseEntity<?> response = controller.generateVoucher(resource);
+
+        assertNotNull(response);
+        assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
+    }
+
+    @Test
     void removePayment_WhenSucceeds_ShouldReturnNoContent() {
         UUID voucherId = UUID.randomUUID();
         UUID paymentId = UUID.randomUUID();

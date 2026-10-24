@@ -58,6 +58,7 @@ public class Voucher extends AbstractDomainAggregateRoot<Voucher> {
         if (totalAmount == null || totalAmount.amount().compareTo(java.math.BigDecimal.ZERO) <= 0) {
             throw new IllegalArgumentException("billing.error.voucher.invalidTotalAmount");
         }
+        com.tuxlogic.shiftiq.platform.billing.domain.model.valueobjects.TaxDocumentValidator.validate(type, customerDocumentType, customerDocumentNumber);
         
         this.id = UUID.randomUUID();
         this.quoteId = quoteId;
