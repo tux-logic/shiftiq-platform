@@ -4,7 +4,7 @@
 
 - [x] 1.1 Create Flyway migration `V16__create_staff_and_specialty_history_tables.sql` defining `staff_career_history` and `workshop_specialty_history` with indexed foreign keys and timestamps.
 - [x] 1.2 Implement `StaffCareerHistoryPersistenceEntity` and Spring Data JPA `StaffCareerHistoryPersistenceRepository` in `fleet`.
-- [ ] 1.3 Implement `WorkshopSpecialtyHistoryPersistenceEntity` and Spring Data JPA `WorkshopSpecialtyHistoryPersistenceRepository` in `core`.
+- [x] 1.3 Implement `WorkshopSpecialtyHistoryPersistenceEntity` and Spring Data JPA `WorkshopSpecialtyHistoryPersistenceRepository` in `core`.
 
 ## 2. Fleet Staff Career History Implementation
 
