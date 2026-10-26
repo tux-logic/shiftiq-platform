@@ -5,6 +5,7 @@ import com.tuxlogic.shiftiq.platform.shared.application.outboundservices.identit
 import com.tuxlogic.shiftiq.platform.shared.application.outboundservices.identity.PersonIdentityResult;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatusCode;
@@ -31,17 +32,17 @@ public class FactilizaClient implements IdentityValidationService {
     private final String apiToken;
     private final RestClient restClient;
 
+    @Autowired
     public FactilizaClient(
             @Value("${factiliza.api.url:https://api.factiliza.com}") String apiUrl,
-            @Value("${factiliza.api.token:}") String apiToken,
-            RestClient.Builder restClientBuilder
+            @Value("${factiliza.api.token:}") String apiToken
     ) {
         this.apiUrl = apiUrl != null && apiUrl.endsWith("/") ? apiUrl.substring(0, apiUrl.length() - 1) : apiUrl;
         this.apiToken = apiToken;
         var requestFactory = new SimpleClientHttpRequestFactory();
         requestFactory.setConnectTimeout(CONNECT_TIMEOUT);
         requestFactory.setReadTimeout(READ_TIMEOUT);
-        this.restClient = restClientBuilder
+        this.restClient = RestClient.builder()
                 .requestFactory(requestFactory)
                 .build();
     }
