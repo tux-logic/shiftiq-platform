@@ -3,6 +3,7 @@ package com.tuxlogic.shiftiq.platform.iam.infrastructure.email;
 import com.tuxlogic.shiftiq.platform.iam.application.internal.outboundservices.email.TransactionalEmailService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.MediaType;
 import org.springframework.http.client.SimpleClientHttpRequestFactory;
@@ -28,12 +29,12 @@ public class BrevoEmailClient implements TransactionalEmailService {
     private final String senderName;
     private final RestClient restClient;
 
+    @Autowired
     public BrevoEmailClient(
             @Value("${brevo.api.url:https://api.brevo.com/v3/smtp/email}") String apiUrl,
             @Value("${brevo.api.key:}") String apiKey,
             @Value("${brevo.sender.email:no-reply@shiftiq.com}") String senderEmail,
-            @Value("${brevo.sender.name:ShiftIQ Platform}") String senderName,
-            RestClient.Builder restClientBuilder
+            @Value("${brevo.sender.name:ShiftIQ Platform}") String senderName
     ) {
         this.apiUrl = apiUrl;
         this.apiKey = apiKey;
@@ -42,7 +43,7 @@ public class BrevoEmailClient implements TransactionalEmailService {
         var requestFactory = new SimpleClientHttpRequestFactory();
         requestFactory.setConnectTimeout(CONNECT_TIMEOUT);
         requestFactory.setReadTimeout(READ_TIMEOUT);
-        this.restClient = restClientBuilder
+        this.restClient = RestClient.builder()
                 .requestFactory(requestFactory)
                 .build();
     }
