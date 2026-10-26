@@ -5,6 +5,7 @@ import com.tuxlogic.shiftiq.platform.iam.application.internal.outboundservices.e
 import com.tuxlogic.shiftiq.platform.iam.application.internal.outboundservices.email.EmailVerificationService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.stereotype.Service;
@@ -28,17 +29,17 @@ public class EmailVerifyIoClient implements EmailVerificationService {
     private final String apiKey;
     private final RestClient restClient;
 
+    @Autowired
     public EmailVerifyIoClient(
             @Value("${emailverify.api.url:https://app.emailverify.io/api/v1/validate}") String apiUrl,
-            @Value("${emailverify.api.key:}") String apiKey,
-            RestClient.Builder restClientBuilder
+            @Value("${emailverify.api.key:}") String apiKey
     ) {
         this.apiUrl = apiUrl;
         this.apiKey = apiKey;
         var requestFactory = new SimpleClientHttpRequestFactory();
         requestFactory.setConnectTimeout(CONNECT_TIMEOUT);
         requestFactory.setReadTimeout(READ_TIMEOUT);
-        this.restClient = restClientBuilder
+        this.restClient = RestClient.builder()
                 .requestFactory(requestFactory)
                 .build();
     }
