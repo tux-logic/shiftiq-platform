@@ -22,4 +22,4 @@
 ## 4. Commit and delivery
 
 - [x] 4.1 Commit with a conventional commit, e.g. `fix(persistence): align history tables with pluralized naming strategy`
-- [ ] 4.2 Push the branch and open a PR into `develop`
+- [x] 4.2 Push the branch and open a PR into `develop` — **PR #26: https://github.com/tux-logic/shiftiq-platform/pull/26**
