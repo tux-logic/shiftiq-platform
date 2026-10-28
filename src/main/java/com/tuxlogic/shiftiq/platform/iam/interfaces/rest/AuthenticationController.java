@@ -34,7 +34,7 @@ public class AuthenticationController {
         this.otpCommandService = otpCommandService;
     }
 
-    @PostMapping("/sessions")
+    @PostMapping({"/sessions", "/login"})
     @Operation(summary = "Sign in", description = "Authenticate a user and return an access token plus a refresh token")
     public ResponseEntity<AuthenticatedUserResource> signIn(@Valid @RequestBody SignInResource signInResource) {
         var signInCommand = SignInCommandFromResourceAssembler.toCommandFromResource(signInResource);

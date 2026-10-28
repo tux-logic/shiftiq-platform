@@ -46,7 +46,7 @@
 
 | Endpoint | Method | Auth | Description |
 |----------|--------|------|-------------|
-| `/api/v1/authentication/sessions` | POST | Public | Login (email/password) → tokens |
+| `/api/v1/authentication/sessions` (o `/login`) | POST | Public | Login (email/password) → tokens |
 | `/api/v1/authentication/sessions/google` | POST | Public | Google OAuth login → tokens |
 | `/api/v1/authentication/sessions/refresh` | POST | Public | Refresh token rotation |
 | `/api/v1/authentication/sessions` | DELETE | Public | Logout (revoke refresh token) |

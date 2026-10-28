@@ -5,9 +5,15 @@ import com.tuxlogic.shiftiq.platform.iam.application.commandservices.OtpCommandS
 import com.tuxlogic.shiftiq.platform.iam.application.commandservices.PasswordRecoveryCommandService;
 import com.tuxlogic.shiftiq.platform.iam.application.commandservices.SessionCommandService;
 import com.tuxlogic.shiftiq.platform.iam.application.commandservices.UserCommandService;
+import com.tuxlogic.shiftiq.platform.iam.domain.model.aggregates.User;
 import com.tuxlogic.shiftiq.platform.iam.domain.model.commands.SendOtpEmailCommand;
+import com.tuxlogic.shiftiq.platform.iam.domain.model.commands.SignInCommand;
 import com.tuxlogic.shiftiq.platform.iam.domain.model.commands.VerifyOtpCodeCommand;
+import com.tuxlogic.shiftiq.platform.iam.domain.model.queries.AuthenticatedUser;
+import com.tuxlogic.shiftiq.platform.iam.domain.model.valueobjects.EmailAddress;
+import com.tuxlogic.shiftiq.platform.iam.domain.model.valueobjects.Password;
 import com.tuxlogic.shiftiq.platform.iam.interfaces.rest.resources.SendOtpResource;
+import com.tuxlogic.shiftiq.platform.iam.interfaces.rest.resources.SignInResource;
 import com.tuxlogic.shiftiq.platform.iam.interfaces.rest.resources.VerifyOtpResource;
 import com.tuxlogic.shiftiq.platform.shared.interfaces.rest.GlobalExceptionHandler;
 import org.junit.jupiter.api.BeforeEach;
@@ -19,6 +25,8 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
+
+import java.util.Optional;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
@@ -210,5 +218,88 @@ class AuthenticationControllerTest {
                 .andExpect(jsonPath("$.code").value("VALIDATION_ERROR"));
 
         verify(otpCommandService, times(1)).handle(any(VerifyOtpCodeCommand.class));
+    }
+
+    @Test
+    @DisplayName("POST /sessions with valid credentials returns 200 OK and token resource")
+    void signIn_WithValidCredentials_ReturnsOk() throws Exception {
+        var resource = new SignInResource("user@example.com", "Password123!");
+        User mockUser = new User(new EmailAddress("user@example.com"), new Password("hashed-pwd"));
+        var authenticatedUser = new AuthenticatedUser(mockUser, "access-token-xyz", "refresh-token-abc", 900L);
+
+        when(userCommandService.handle(any(SignInCommand.class))).thenReturn(Optional.of(authenticatedUser));
+
+        mockMvc.perform(post("/api/v1/authentication/sessions")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(resource)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.email").value("user@example.com"))
+                .andExpect(jsonPath("$.token").value("access-token-xyz"))
+                .andExpect(jsonPath("$.refreshToken").value("refresh-token-abc"))
+                .andExpect(jsonPath("$.accessTokenExpiresInSeconds").value(900));
+
+        verify(userCommandService, times(1)).handle(any(SignInCommand.class));
+    }
+
+    @Test
+    @DisplayName("POST /sessions with invalid credentials returns 401 Unauthorized")
+    void signIn_WithInvalidCredentials_ReturnsUnauthorized() throws Exception {
+        var resource = new SignInResource("user@example.com", "WrongPassword!");
+
+        when(userCommandService.handle(any(SignInCommand.class))).thenReturn(Optional.empty());
+
+        mockMvc.perform(post("/api/v1/authentication/sessions")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(resource)))
+                .andExpect(status().isUnauthorized());
+
+        verify(userCommandService, times(1)).handle(any(SignInCommand.class));
+    }
+
+    @Test
+    @DisplayName("POST /login alias with valid credentials returns 200 OK")
+    void loginAlias_WithValidCredentials_ReturnsOk() throws Exception {
+        var resource = new SignInResource("user@example.com", "Password123!");
+        User mockUser = new User(new EmailAddress("user@example.com"), new Password("hashed-pwd"));
+        var authenticatedUser = new AuthenticatedUser(mockUser, "access-token-xyz", "refresh-token-abc", 900L);
+
+        when(userCommandService.handle(any(SignInCommand.class))).thenReturn(Optional.of(authenticatedUser));
+
+        mockMvc.perform(post("/api/v1/authentication/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(resource)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.token").value("access-token-xyz"));
+
+        verify(userCommandService, times(1)).handle(any(SignInCommand.class));
+    }
+
+    @Test
+    @DisplayName("POST /login alias with invalid credentials returns 401 Unauthorized")
+    void loginAlias_WithInvalidCredentials_ReturnsUnauthorized() throws Exception {
+        var resource = new SignInResource("user@example.com", "WrongPassword!");
+
+        when(userCommandService.handle(any(SignInCommand.class))).thenReturn(Optional.empty());
+
+        mockMvc.perform(post("/api/v1/authentication/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(resource)))
+                .andExpect(status().isUnauthorized());
+
+        verify(userCommandService, times(1)).handle(any(SignInCommand.class));
+    }
+
+    @Test
+    @DisplayName("POST /sessions with malformed email returns 400 Bad Request")
+    void signIn_WithMalformedEmail_ReturnsBadRequest() throws Exception {
+        var resource = new SignInResource("not-an-email", "Password123!");
+
+        mockMvc.perform(post("/api/v1/authentication/sessions")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(resource)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("VALIDATION_ERROR"));
+
+        verifyNoInteractions(userCommandService);
     }
 }

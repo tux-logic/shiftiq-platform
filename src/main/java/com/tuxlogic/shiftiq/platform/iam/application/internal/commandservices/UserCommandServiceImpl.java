@@ -79,15 +79,15 @@ public class UserCommandServiceImpl implements UserCommandService {
 
     @Override
     public Optional<AuthenticatedUser> handle(SignInCommand command) {
-        var user = userRepository.findByEmail(command.email().value())
-                .orElseThrow(() -> {
-                    LOGGER.warn("Sign-in failed: user with email {} not found", command.email().value());
-                    return new IllegalArgumentException("iam.error.credentials.invalid");
-                });
+        var user = userRepository.findByEmail(command.email().value()).orElse(null);
+        if (user == null) {
+            LOGGER.warn("Sign-in failed: user with email {} not found", command.email().value());
+            return Optional.empty();
+        }
 
         if (!hashingService.matches(command.password().value(), user.getPassword().value())) {
             LOGGER.warn("Sign-in failed: invalid password for email {}", command.email().value());
-            throw new IllegalArgumentException("iam.error.credentials.invalid");
+            return Optional.empty();
         }
 
         LOGGER.info("User authenticated successfully: {}", command.email().value());
@@ -100,7 +100,7 @@ public class UserCommandServiceImpl implements UserCommandService {
             GoogleIdToken idToken = googleVerifier.verify(command.idToken());
             if (idToken == null) {
                 LOGGER.warn("Google sign-in failed: invalid ID token");
-                throw new IllegalArgumentException("iam.error.googleToken.invalid");
+                return Optional.empty();
             }
 
             GoogleIdToken.Payload payload = idToken.getPayload();
@@ -127,7 +127,7 @@ public class UserCommandServiceImpl implements UserCommandService {
 
         } catch (Exception e) {
             LOGGER.error("Google sign-in exception: {}", e.getMessage());
-            throw new IllegalArgumentException("iam.error.googleToken.invalid");
+            return Optional.empty();
         }
     }
 
