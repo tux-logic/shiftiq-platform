@@ -63,13 +63,16 @@ public class EmailOtpVerification {
         return !isConsumed && !isVerified && attempts < maxAttempts && Instant.now().isBefore(expiresAt);
     }
 
+    public boolean isReadyForConsumption() {
+        return isVerified && !isConsumed && Instant.now().isBefore(expiresAt);
+    }
+
     public void incrementAttempts() {
         this.attempts++;
     }
 
     public void markVerified() {
         this.isVerified = true;
-        this.isConsumed = true;
     }
 
     public void markConsumed() {

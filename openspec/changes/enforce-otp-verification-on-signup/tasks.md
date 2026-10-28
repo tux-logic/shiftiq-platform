@@ -6,7 +6,7 @@
 
 ## 2. Domain Entity and Localization
 
-- [ ] 2.1 Refactor `EmailOtpVerification.java` to separate `markVerified()` from `markConsumed()`, add `isReadyForConsumption()` helper, and add `iam.error.otp.verificationRequired` to `messages.properties` and `messages_es.properties`
+- [x] 2.1 Refactor `EmailOtpVerification.java` to separate `markVerified()` from `markConsumed()`, add `isReadyForConsumption()` helper, and add `iam.error.otp.verificationRequired` to `messages.properties` and `messages_es.properties`
 
 ## 3. Application Service Implementation
 
