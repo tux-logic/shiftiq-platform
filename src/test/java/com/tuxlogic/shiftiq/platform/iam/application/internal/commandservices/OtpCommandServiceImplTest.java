@@ -152,7 +152,8 @@ class OtpCommandServiceImplTest {
 
         assertTrue(result);
         assertTrue(record.isVerified());
-        assertTrue(record.isConsumed());
+        assertFalse(record.isConsumed());
+        assertTrue(record.isReadyForConsumption());
         verify(otpRepository).save(record);
     }
 

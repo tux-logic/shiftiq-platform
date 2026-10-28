@@ -14,7 +14,7 @@
 
 ## 4. Unit Testing and Verification
 
-- [ ] 4.1 Update `UserCommandServiceImplTest.java` and `OtpCommandServiceImplTest.java` with test cases for successful OTP consumption, missing OTP, unverified OTP, and already consumed OTP
+- [x] 4.1 Update `UserCommandServiceImplTest.java` and `OtpCommandServiceImplTest.java` with test cases for successful OTP consumption, missing OTP, unverified OTP, and already consumed OTP
 - [ ] 4.2 Run `./mvnw clean test` to confirm compilation and 100% test pass rate across the platform suite
 
 ## 5. API Documentation
