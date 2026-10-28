@@ -48,8 +48,8 @@ class OtpCommandServiceImplTest {
                 otpRepository,
                 emailVerificationService,
                 transactionalEmailService,
-                10,
                 5,
+                3,
                 60
         );
     }
@@ -110,7 +110,7 @@ class OtpCommandServiceImplTest {
     @Test
     void handleSendOtp_WhenCooldownIsActive_ShouldThrowIllegalStateException() {
         var command = new SendOtpEmailCommand(new EmailAddress(TEST_EMAIL));
-        EmailOtpVerification recent = new EmailOtpVerification(TEST_EMAIL, "hash", 10, 5);
+        EmailOtpVerification recent = new EmailOtpVerification(TEST_EMAIL, "hash", 5, 3);
 
         when(otpRepository.findTopByEmailOrderByCreatedAtDesc(TEST_EMAIL)).thenReturn(Optional.of(recent));
 
@@ -143,7 +143,7 @@ class OtpCommandServiceImplTest {
     void handleVerifyOtp_WhenCodeMatches_ShouldMarkVerifiedAndReturnTrue() throws Exception {
         String code = "123456";
         String codeHash = sha256(code);
-        EmailOtpVerification record = new EmailOtpVerification(TEST_EMAIL, codeHash, 10, 5);
+        EmailOtpVerification record = new EmailOtpVerification(TEST_EMAIL, codeHash, 5, 3);
 
         when(otpRepository.findTopByEmailOrderByCreatedAtDesc(TEST_EMAIL)).thenReturn(Optional.of(record));
 
@@ -160,7 +160,7 @@ class OtpCommandServiceImplTest {
     @Test
     void handleVerifyOtp_WhenCodeDoesNotMatch_ShouldIncrementAttemptsAndThrow() throws Exception {
         String codeHash = sha256("123456");
-        EmailOtpVerification record = new EmailOtpVerification(TEST_EMAIL, codeHash, 10, 5);
+        EmailOtpVerification record = new EmailOtpVerification(TEST_EMAIL, codeHash, 5, 3);
 
         when(otpRepository.findTopByEmailOrderByCreatedAtDesc(TEST_EMAIL)).thenReturn(Optional.of(record));
 
@@ -194,10 +194,10 @@ class OtpCommandServiceImplTest {
                 UUID.randomUUID(),
                 TEST_EMAIL,
                 codeHash,
-                Instant.now().minus(20, ChronoUnit.MINUTES),
                 Instant.now().minus(10, ChronoUnit.MINUTES),
+                Instant.now().minus(5, ChronoUnit.MINUTES),
                 0,
-                5,
+                3,
                 false,
                 false
         );
@@ -210,6 +210,34 @@ class OtpCommandServiceImplTest {
         );
 
         assertEquals("iam.error.otp.expired", ex.getMessage());
+    }
+
+    @Test
+    void handleVerifyOtp_WhenMaxAttemptsExceeded_ShouldThrowMaxAttemptsExceeded() throws Exception {
+        String codeHash = sha256("123456");
+        EmailOtpVerification record = new EmailOtpVerification(
+                UUID.randomUUID(),
+                TEST_EMAIL,
+                codeHash,
+                Instant.now().minus(1, ChronoUnit.MINUTES),
+                Instant.now().plus(4, ChronoUnit.MINUTES),
+                2,
+                3,
+                false,
+                false
+        );
+
+        when(otpRepository.findTopByEmailOrderByCreatedAtDesc(TEST_EMAIL)).thenReturn(Optional.of(record));
+
+        var command = new VerifyOtpCodeCommand(new EmailAddress(TEST_EMAIL), "999999");
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () ->
+                otpCommandService.handle(command)
+        );
+
+        assertEquals("iam.error.otp.maxAttemptsExceeded", ex.getMessage());
+        assertEquals(3, record.getAttempts());
+        assertFalse(record.isVerified());
+        verify(otpRepository).save(record);
     }
 
     private String sha256(String raw) throws Exception {
