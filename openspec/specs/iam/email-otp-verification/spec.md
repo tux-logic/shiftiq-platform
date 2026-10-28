@@ -21,23 +21,23 @@ The system SHALL generate a secure 6-digit numeric OTP and send it via the Brevo
 - **THEN** the system throttles the request and returns HTTP 429 Too Many Requests or HTTP 400 Bad Request
 
 ### Requirement: OTP Code Verification
-The system SHALL verify the submitted OTP code against the active, unexpired OTP issued for that email address.
+The system SHALL verify the submitted OTP code against the active, unexpired OTP issued for that email address, enforcing a maximum validity window of 5 minutes and a maximum of 3 failed verification attempts before permanent invalidation.
 
 #### Scenario: Valid matching OTP code
-- **WHEN** a user submits the correct 6-digit code within the active validity window
-- **THEN** the system validates the OTP, marks it as consumed, and returns HTTP 200 OK
+- **WHEN** a user submits the correct 6-digit code within the 5-minute validity window
+- **THEN** the system validates the OTP, marks it as verified, and returns HTTP 200 OK
 
 #### Scenario: Incorrect OTP code
 - **WHEN** a user submits an incorrect code
 - **THEN** the system increments the failed attempts counter and returns HTTP 400 Bad Request
 
 #### Scenario: Expired OTP code
-- **WHEN** a user submits a code after the expiration period has elapsed
+- **WHEN** a user submits a code after the 5-minute expiration period has elapsed
 - **THEN** the system rejects the verification and returns HTTP 400 Bad Request
 
 #### Scenario: Max attempts exceeded
-- **WHEN** a user exceeds the maximum allowed failed verification attempts
-- **THEN** the system invalidates the OTP and returns HTTP 400 Bad Request
+- **WHEN** a user exceeds 3 failed verification attempts
+- **THEN** the system permanently invalidates the OTP and returns HTTP 400 Bad Request
 
 ### Requirement: Enforce OTP Verification on Registration
 The system SHALL require that an active, verified, and unconsumed OTP record exists for the registration email address before allowing new user account creation, and SHALL mark that OTP record as consumed upon successful account creation.

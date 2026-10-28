@@ -12,7 +12,7 @@
       - Rename `workshop_specialty_history` → `workshop_specialty_histories` (guarded with `IF EXISTS`)
       - Recreate indexes with pluralized names (drop old-named indexes that followed the rename)
       - Re-apply `COMMENT ON TABLE` for both plural tables
-- [ ] 2.2 Sanity-check the SQL against PostgreSQL (renames + indexes + comments syntax)
+- [x] 2.2 Sanity-check the SQL against PostgreSQL (renames + indexes + comments syntax)
 
 ## 3. Validation
 

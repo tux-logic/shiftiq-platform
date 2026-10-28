@@ -38,8 +38,8 @@ public class OtpCommandServiceImpl implements OtpCommandService {
             EmailOtpVerificationRepository otpRepository,
             EmailVerificationService emailVerificationService,
             TransactionalEmailService transactionalEmailService,
-            @Value("${iam.otp.expiration.minutes:10}") int expirationMinutes,
-            @Value("${iam.otp.max.attempts:5}") int maxAttempts,
+            @Value("${iam.otp.expiration.minutes:5}") int expirationMinutes,
+            @Value("${iam.otp.max.attempts:3}") int maxAttempts,
             @Value("${iam.otp.resend.cooldown.seconds:60}") int cooldownSeconds
     ) {
         this.otpRepository = otpRepository;
