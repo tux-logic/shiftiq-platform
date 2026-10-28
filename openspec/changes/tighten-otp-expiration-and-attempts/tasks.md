@@ -6,4 +6,4 @@
 
 ## 2. Unit Testing & Verification
 - [x] 2.1 Update test fixtures and expectations in `OtpCommandServiceImplTest.java` for 5-minute TTL and 3 attempts <!-- id: 2.1 -->
-- [ ] 2.2 Run complete test suite with `./mvnw test` to ensure clean build <!-- id: 2.2 -->
+- [x] 2.2 Run complete test suite with `./mvnw test` to ensure clean build <!-- id: 2.2 -->
