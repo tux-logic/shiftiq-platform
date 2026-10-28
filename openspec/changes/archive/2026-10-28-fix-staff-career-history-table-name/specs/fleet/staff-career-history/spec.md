@@ -1,6 +1,6 @@
 # Spec Delta: fleet/staff-career-history
 
-## MODIFIED Requirements
+## ADDED Requirements
 
 ### Requirement: Staff career snapshots persist under the pluralized physical table name
 
