@@ -1,6 +1,6 @@
 # Spec Delta: core/specialty-audit-history
 
-## MODIFIED Requirements
+## ADDED Requirements
 
 ### Requirement: Specialty revision entries persist under the pluralized physical table name
 
