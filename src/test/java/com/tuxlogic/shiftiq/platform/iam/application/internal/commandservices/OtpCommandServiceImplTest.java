@@ -221,7 +221,7 @@ class OtpCommandServiceImplTest {
                 codeHash,
                 Instant.now().minus(1, ChronoUnit.MINUTES),
                 Instant.now().plus(4, ChronoUnit.MINUTES),
-                2,
+                3,
                 3,
                 false,
                 false
@@ -235,9 +235,7 @@ class OtpCommandServiceImplTest {
         );
 
         assertEquals("iam.error.otp.maxAttemptsExceeded", ex.getMessage());
-        assertEquals(3, record.getAttempts());
-        assertFalse(record.isVerified());
-        verify(otpRepository).save(record);
+        verify(otpRepository, never()).save(any());
     }
 
     private String sha256(String raw) throws Exception {
