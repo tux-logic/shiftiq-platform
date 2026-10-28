@@ -24,6 +24,7 @@ import com.google.api.client.googleapis.auth.oauth2.GoogleIdToken;
 import com.google.api.client.googleapis.auth.oauth2.GoogleIdTokenVerifier;
 import com.google.api.client.http.javanet.NetHttpTransport;
 import com.google.api.client.json.gson.GsonFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 
 import org.springframework.transaction.annotation.Transactional;
@@ -41,6 +42,7 @@ public class UserCommandServiceImpl implements UserCommandService {
     private final EmailVerificationService emailVerificationService;
     private final EmailOtpVerificationRepository emailOtpVerificationRepository;
 
+    @Autowired
     public UserCommandServiceImpl(
             UserRepository userRepository,
             HashingService hashingService,
@@ -56,6 +58,16 @@ public class UserCommandServiceImpl implements UserCommandService {
         this.googleVerifier = new GoogleIdTokenVerifier.Builder(new NetHttpTransport(), new GsonFactory())
                 .setAudience(Collections.singletonList(googleClientId))
                 .build();
+    }
+
+    public UserCommandServiceImpl(
+            EmailOtpVerificationRepository emailOtpVerificationRepository,
+            UserRepository userRepository,
+            HashingService hashingService,
+            SessionIssuer sessionIssuer,
+            EmailVerificationService emailVerificationService,
+            String googleClientId) {
+        this(userRepository, hashingService, sessionIssuer, emailVerificationService, emailOtpVerificationRepository, googleClientId);
     }
 
     @Override
