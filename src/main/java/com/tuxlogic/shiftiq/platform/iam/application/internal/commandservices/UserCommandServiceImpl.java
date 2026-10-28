@@ -1,6 +1,7 @@
 package com.tuxlogic.shiftiq.platform.iam.application.internal.commandservices;
 
 import com.tuxlogic.shiftiq.platform.iam.application.internal.outboundservices.email.EmailVerificationService;
+import com.tuxlogic.shiftiq.platform.iam.domain.repositories.EmailOtpVerificationRepository;
 import com.tuxlogic.shiftiq.platform.iam.application.internal.outboundservices.hashing.HashingService;
 import com.tuxlogic.shiftiq.platform.iam.domain.model.aggregates.User;
 import com.tuxlogic.shiftiq.platform.iam.domain.model.commands.SignInCommand;
@@ -38,17 +39,20 @@ public class UserCommandServiceImpl implements UserCommandService {
     private final SessionIssuer sessionIssuer;
     private final GoogleIdTokenVerifier googleVerifier;
     private final EmailVerificationService emailVerificationService;
+    private final EmailOtpVerificationRepository emailOtpVerificationRepository;
 
     public UserCommandServiceImpl(
             UserRepository userRepository,
             HashingService hashingService,
             SessionIssuer sessionIssuer,
             EmailVerificationService emailVerificationService,
+            EmailOtpVerificationRepository emailOtpVerificationRepository,
             @Value("${google.client.id:default-google-client-id}") String googleClientId) {
         this.userRepository = userRepository;
         this.hashingService = hashingService;
         this.sessionIssuer = sessionIssuer;
         this.emailVerificationService = emailVerificationService;
+        this.emailOtpVerificationRepository = emailOtpVerificationRepository;
         this.googleVerifier = new GoogleIdTokenVerifier.Builder(new NetHttpTransport(), new GsonFactory())
                 .setAudience(Collections.singletonList(googleClientId))
                 .build();
@@ -71,8 +75,24 @@ public class UserCommandServiceImpl implements UserCommandService {
             throw new IllegalArgumentException("iam.error.email.invalidAddress");
         }
 
+        var otpRecord = emailOtpVerificationRepository.findTopByEmailOrderByCreatedAtDesc(command.email().value())
+                .orElseThrow(() -> {
+                    LOGGER.warn("Sign-up failed: no OTP verification found for email {}", command.email().value());
+                    return new IllegalArgumentException("iam.error.otp.verificationRequired");
+                });
+
+        if (!otpRecord.isReadyForConsumption()) {
+            LOGGER.warn("Sign-up failed: OTP not ready for consumption (verified={}, consumed={}, expired={}) for email {}",
+                    otpRecord.isVerified(), otpRecord.isConsumed(), java.time.Instant.now().isAfter(otpRecord.getExpiresAt()), command.email().value());
+            throw new IllegalArgumentException("iam.error.otp.verificationRequired");
+        }
+
         var user = new User(command.email(), new com.tuxlogic.shiftiq.platform.iam.domain.model.valueobjects.Password(hashingService.encode(command.password().value())));
         userRepository.save(user);
+
+        otpRecord.markConsumed();
+        emailOtpVerificationRepository.save(otpRecord);
+
         LOGGER.info("User registered successfully with email: {}", command.email().value());
         return userRepository.findByEmail(command.email().value());
     }

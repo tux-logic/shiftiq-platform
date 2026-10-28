@@ -10,7 +10,7 @@
 
 ## 3. Application Service Implementation
 
-- [ ] 3.1 Inject `EmailOtpVerificationRepository` into `UserCommandServiceImpl.java`, enforce verified unconsumed OTP check in `handle(SignUpCommand)`, and consume the OTP record upon account creation
+- [x] 3.1 Inject `EmailOtpVerificationRepository` into `UserCommandServiceImpl.java`, enforce verified unconsumed OTP check in `handle(SignUpCommand)`, and consume the OTP record upon account creation
 
 ## 4. Unit Testing and Verification
 
