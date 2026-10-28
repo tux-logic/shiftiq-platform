@@ -15,8 +15,8 @@
 ## 4. Unit Testing and Verification
 
 - [x] 4.1 Update `UserCommandServiceImplTest.java` and `OtpCommandServiceImplTest.java` with test cases for successful OTP consumption, missing OTP, unverified OTP, and already consumed OTP
-- [ ] 4.2 Run `./mvnw clean test` to confirm compilation and 100% test pass rate across the platform suite
+- [x] 4.2 Run `./mvnw clean test` to confirm compilation and 100% test pass rate across the platform suite (356 tests passed)
 
 ## 5. API Documentation
 
-- [ ] 5.1 Update `docs/api/iam/users.md` and `docs/api/iam/authentication.md` to document the enforced OTP verification prerequisite before signup
+- [x] 5.1 Update `docs/api/iam/users.md` and `docs/api/iam/authentication.md` to document the enforced OTP verification prerequisite before signup

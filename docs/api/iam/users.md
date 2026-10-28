@@ -9,22 +9,20 @@
 ## `POST /api/v1/users` — Registrar Nuevo Usuario (Sign Up)
 
 **Security**: `@PreAuthorize("permitAll()")` — Público  
-**Description**: Registra una nueva cuenta de usuario con rol inicial. Requiere verificación OTP previa si está habilitada.
+**Description**: Registra una nueva cuenta de usuario. Requiere que el correo haya sido verificado previamente mediante código OTP (`/api/v1/authentication/otp/send` y `/api/v1/authentication/otp/verify`).
 
 ### Request
 
 | Campo | Tipo | Requerido | Ubicación | Descripción |
 |-------|------|-----------|-----------|-------------|
-| `email` | string (email) | Sí | Body | Correo único (se valida entregabilidad) |
-| `password` | string | Sí | Body | Mín 8 chars, 1 mayús, 1 número, 1 especial |
-| `role` | string (enum) | Sí | Body | `ROLE_CUSTOMER`, `ROLE_EMPLOYEE`, o `ROLE_OWNER` |
+| `email` | string (email) | Sí | Body | Correo único verificado previamente por OTP |
+| `password` | string | Sí | Body | Mín 8 caracteres |
 
 **Request Example**:
 ```json
 {
   "email": "carlos.cliente@gmail.com",
-  "password": "Password123!",
-  "role": "ROLE_CUSTOMER"
+  "password": "Password123!"
 }
 ```
 
@@ -34,7 +32,7 @@
 {
   "id": "7b8f9e01-1234-4567-89ab-cdef01234567",
   "email": "carlos.cliente@gmail.com",
-  "role": "ROLE_CUSTOMER"
+  "role": "ROLE_USER"
 }
 ```
 
@@ -42,15 +40,14 @@
 
 | HTTP Code | Error Code | Descripción |
 |-----------|------------|-------------|
-| 400 | `VALIDATION_ERROR` | Email inválido, password débil, rol no permitido |
-| 409 | `CONFLICT` | Email ya registrado |
+| 400 | `VALIDATION_ERROR` | Correo no verificado con OTP (`iam.error.otp.verificationRequired`), formato inválido o password menor a 8 caracteres |
+| 400 | `VALIDATION_ERROR` | Correo ya en uso (`iam.error.email.alreadyInUse`) |
 
 ### Important Considerations
 
-- **Roles permitidos**: Solo `ROLE_CUSTOMER`, `ROLE_EMPLOYEE`, `ROLE_OWNER` — **NO** `ROLE_ADMIN` ni `ROLE_BRANCH_MANAGER` etc.
-- **Verificación OTP**: Si `email.verify.enabled=true`, requiere OTP verificado antes (ver `/authentication/otp/*`)
-- **Perfil asociado**: Según rol, frontend debe guiar a crear perfil en Core (`/owners`, `/employees`, `/customers`)
-- **Sin tokens**: Este endpoint **no** devuelve JWT — usuario debe hacer login aparte
+- **Verificación OTP Obligatoria**: Antes de invocar este endpoint, el frontend debe solicitar el código mediante `POST /api/v1/authentication/otp/send` y validarlo mediante `POST /api/v1/authentication/otp/verify`.
+- **Consumo de OTP**: Cada verificación OTP es de un solo uso; se consume automáticamente al crear la cuenta.
+- **Sin tokens**: Este endpoint crea la cuenta y devuelve los datos del usuario, tras lo cual se realiza el login en `POST /api/v1/authentication/sessions` (o `/login`).
 
 ---
 
