@@ -8,10 +8,12 @@ import com.tuxlogic.shiftiq.platform.iam.domain.model.aggregates.User;
 import com.tuxlogic.shiftiq.platform.iam.domain.model.commands.SignInCommand;
 import com.tuxlogic.shiftiq.platform.iam.domain.model.commands.SignUpCommand;
 import com.tuxlogic.shiftiq.platform.iam.domain.model.commands.UpdateUserEmailCommand;
+import com.tuxlogic.shiftiq.platform.iam.domain.model.entities.EmailOtpVerification;
 import com.tuxlogic.shiftiq.platform.iam.domain.model.queries.AuthenticatedUser;
 import com.tuxlogic.shiftiq.platform.iam.domain.model.valueobjects.EmailAddress;
 import com.tuxlogic.shiftiq.platform.iam.domain.model.valueobjects.Password;
 import com.tuxlogic.shiftiq.platform.iam.domain.model.valueobjects.UserId;
+import com.tuxlogic.shiftiq.platform.iam.domain.repositories.EmailOtpVerificationRepository;
 import com.tuxlogic.shiftiq.platform.iam.domain.repositories.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -19,6 +21,8 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -41,6 +45,9 @@ class UserCommandServiceImplTest {
     @Mock
     private EmailVerificationService emailVerificationService;
 
+    @Mock
+    private EmailOtpVerificationRepository emailOtpVerificationRepository;
+
     private UserCommandServiceImpl userCommandService;
 
     @BeforeEach
@@ -50,17 +57,31 @@ class UserCommandServiceImplTest {
                 hashingService,
                 sessionIssuer,
                 emailVerificationService,
+                emailOtpVerificationRepository,
                 "test-client-id"
         );
     }
 
     @Test
-    void handleSignUp_WhenEmailIsValid_ShouldCreateAndReturnUser() {
+    void handleSignUp_WhenEmailIsValidAndOtpVerified_ShouldCreateAndReturnUser() {
         var command = new SignUpCommand(new EmailAddress("valid@example.com"), new Password("Password123!"));
+        var otpRecord = new EmailOtpVerification(
+                UUID.randomUUID(),
+                "valid@example.com",
+                "hash",
+                Instant.now(),
+                Instant.now().plus(10, ChronoUnit.MINUTES),
+                1,
+                5,
+                true,
+                false
+        );
 
         when(userRepository.existsByEmail("valid@example.com")).thenReturn(false);
         when(emailVerificationService.verifyEmail("valid@example.com"))
                 .thenReturn(EmailVerificationResult.ofValid("valid", "permitted"));
+        when(emailOtpVerificationRepository.findTopByEmailOrderByCreatedAtDesc("valid@example.com"))
+                .thenReturn(Optional.of(otpRecord));
         when(hashingService.encode("Password123!")).thenReturn("hashed-pwd");
 
         User savedUser = new User(command.email(), new Password("hashed-pwd"));
@@ -70,7 +91,118 @@ class UserCommandServiceImplTest {
 
         assertTrue(result.isPresent());
         assertEquals("valid@example.com", result.get().getEmail().value());
+        assertTrue(otpRecord.isConsumed());
         verify(userRepository).save(any(User.class));
+        verify(emailOtpVerificationRepository).save(otpRecord);
+    }
+
+    @Test
+    void handleSignUp_WhenNoOtpRecordExists_ShouldThrowVerificationRequired() {
+        var command = new SignUpCommand(new EmailAddress("valid@example.com"), new Password("Password123!"));
+
+        when(userRepository.existsByEmail("valid@example.com")).thenReturn(false);
+        when(emailVerificationService.verifyEmail("valid@example.com"))
+                .thenReturn(EmailVerificationResult.ofValid("valid", "permitted"));
+        when(emailOtpVerificationRepository.findTopByEmailOrderByCreatedAtDesc("valid@example.com"))
+                .thenReturn(Optional.empty());
+
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () ->
+                userCommandService.handle(command)
+        );
+
+        assertEquals("iam.error.otp.verificationRequired", ex.getMessage());
+        verify(userRepository, never()).save(any());
+        verify(emailOtpVerificationRepository, never()).save(any());
+    }
+
+    @Test
+    void handleSignUp_WhenOtpNotVerified_ShouldThrowVerificationRequired() {
+        var command = new SignUpCommand(new EmailAddress("valid@example.com"), new Password("Password123!"));
+        var unverifiedOtp = new EmailOtpVerification(
+                UUID.randomUUID(),
+                "valid@example.com",
+                "hash",
+                Instant.now(),
+                Instant.now().plus(10, ChronoUnit.MINUTES),
+                0,
+                5,
+                false,
+                false
+        );
+
+        when(userRepository.existsByEmail("valid@example.com")).thenReturn(false);
+        when(emailVerificationService.verifyEmail("valid@example.com"))
+                .thenReturn(EmailVerificationResult.ofValid("valid", "permitted"));
+        when(emailOtpVerificationRepository.findTopByEmailOrderByCreatedAtDesc("valid@example.com"))
+                .thenReturn(Optional.of(unverifiedOtp));
+
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () ->
+                userCommandService.handle(command)
+        );
+
+        assertEquals("iam.error.otp.verificationRequired", ex.getMessage());
+        verify(userRepository, never()).save(any());
+        verify(emailOtpVerificationRepository, never()).save(any());
+    }
+
+    @Test
+    void handleSignUp_WhenOtpAlreadyConsumed_ShouldThrowVerificationRequired() {
+        var command = new SignUpCommand(new EmailAddress("valid@example.com"), new Password("Password123!"));
+        var consumedOtp = new EmailOtpVerification(
+                UUID.randomUUID(),
+                "valid@example.com",
+                "hash",
+                Instant.now(),
+                Instant.now().plus(10, ChronoUnit.MINUTES),
+                1,
+                5,
+                true,
+                true
+        );
+
+        when(userRepository.existsByEmail("valid@example.com")).thenReturn(false);
+        when(emailVerificationService.verifyEmail("valid@example.com"))
+                .thenReturn(EmailVerificationResult.ofValid("valid", "permitted"));
+        when(emailOtpVerificationRepository.findTopByEmailOrderByCreatedAtDesc("valid@example.com"))
+                .thenReturn(Optional.of(consumedOtp));
+
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () ->
+                userCommandService.handle(command)
+        );
+
+        assertEquals("iam.error.otp.verificationRequired", ex.getMessage());
+        verify(userRepository, never()).save(any());
+        verify(emailOtpVerificationRepository, never()).save(any());
+    }
+
+    @Test
+    void handleSignUp_WhenOtpExpired_ShouldThrowVerificationRequired() {
+        var command = new SignUpCommand(new EmailAddress("valid@example.com"), new Password("Password123!"));
+        var expiredOtp = new EmailOtpVerification(
+                UUID.randomUUID(),
+                "valid@example.com",
+                "hash",
+                Instant.now().minus(20, ChronoUnit.MINUTES),
+                Instant.now().minus(10, ChronoUnit.MINUTES),
+                1,
+                5,
+                true,
+                false
+        );
+
+        when(userRepository.existsByEmail("valid@example.com")).thenReturn(false);
+        when(emailVerificationService.verifyEmail("valid@example.com"))
+                .thenReturn(EmailVerificationResult.ofValid("valid", "permitted"));
+        when(emailOtpVerificationRepository.findTopByEmailOrderByCreatedAtDesc("valid@example.com"))
+                .thenReturn(Optional.of(expiredOtp));
+
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () ->
+                userCommandService.handle(command)
+        );
+
+        assertEquals("iam.error.otp.verificationRequired", ex.getMessage());
+        verify(userRepository, never()).save(any());
+        verify(emailOtpVerificationRepository, never()).save(any());
     }
 
     @Test
