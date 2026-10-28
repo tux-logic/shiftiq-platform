@@ -5,10 +5,10 @@
 
 ---
 
-## `POST /api/v1/authentication/sessions` — Iniciar Sesión (Login)
+## `POST /api/v1/authentication/sessions` (alias: `/api/v1/authentication/login`) — Iniciar Sesión (Login)
 
 **Security**: Público  
-**Description**: Autentica a un usuario mediante correo y contraseña. Devuelve Access Token (15 min) + Refresh Token (7 días, rotación single-use).
+**Description**: Autentica a un usuario mediante correo y contraseña (disponible tanto en `/sessions` como en el alias `/login`). Devuelve Access Token (15 min) + Refresh Token (7 días, rotación single-use).
 
 ### Request
 
