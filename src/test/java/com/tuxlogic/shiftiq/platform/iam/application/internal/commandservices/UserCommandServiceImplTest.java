@@ -5,6 +5,7 @@ import com.tuxlogic.shiftiq.platform.iam.application.internal.outboundservices.e
 import com.tuxlogic.shiftiq.platform.iam.application.internal.outboundservices.hashing.HashingService;
 import com.tuxlogic.shiftiq.platform.iam.application.internal.services.SessionIssuer;
 import com.tuxlogic.shiftiq.platform.iam.domain.model.aggregates.User;
+import com.tuxlogic.shiftiq.platform.iam.domain.model.commands.SignInCommand;
 import com.tuxlogic.shiftiq.platform.iam.domain.model.commands.SignUpCommand;
 import com.tuxlogic.shiftiq.platform.iam.domain.model.commands.UpdateUserEmailCommand;
 import com.tuxlogic.shiftiq.platform.iam.domain.model.queries.AuthenticatedUser;
@@ -154,5 +155,47 @@ class UserCommandServiceImplTest {
 
         assertEquals("iam.error.email.invalidAddress", ex.getMessage());
         verify(userRepository, never()).save(any());
+    }
+
+    @Test
+    void handleSignIn_WhenUserNotFound_ShouldReturnEmpty() {
+        var command = new SignInCommand(new EmailAddress("nonexistent@example.com"), new Password("Password123!"));
+        when(userRepository.findByEmail("nonexistent@example.com")).thenReturn(Optional.empty());
+
+        Optional<AuthenticatedUser> result = userCommandService.handle(command);
+
+        assertTrue(result.isEmpty());
+        verify(hashingService, never()).matches(any(), any());
+        verifyNoInteractions(sessionIssuer);
+    }
+
+    @Test
+    void handleSignIn_WhenPasswordDoesNotMatch_ShouldReturnEmpty() {
+        var command = new SignInCommand(new EmailAddress("user@example.com"), new Password("WrongPassword!"));
+        User existingUser = new User(new EmailAddress("user@example.com"), new Password("hashed-pwd"));
+
+        when(userRepository.findByEmail("user@example.com")).thenReturn(Optional.of(existingUser));
+        when(hashingService.matches("WrongPassword!", "hashed-pwd")).thenReturn(false);
+
+        Optional<AuthenticatedUser> result = userCommandService.handle(command);
+
+        assertTrue(result.isEmpty());
+        verifyNoInteractions(sessionIssuer);
+    }
+
+    @Test
+    void handleSignIn_WhenCredentialsAreValid_ShouldReturnAuthenticatedUser() {
+        var command = new SignInCommand(new EmailAddress("user@example.com"), new Password("Password123!"));
+        User existingUser = new User(new EmailAddress("user@example.com"), new Password("hashed-pwd"));
+        AuthenticatedUser mockSession = mock(AuthenticatedUser.class);
+
+        when(userRepository.findByEmail("user@example.com")).thenReturn(Optional.of(existingUser));
+        when(hashingService.matches("Password123!", "hashed-pwd")).thenReturn(true);
+        when(sessionIssuer.issue(existingUser)).thenReturn(mockSession);
+
+        Optional<AuthenticatedUser> result = userCommandService.handle(command);
+
+        assertTrue(result.isPresent());
+        assertSame(mockSession, result.get());
     }
 }
