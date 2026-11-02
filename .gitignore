@@ -19,8 +19,8 @@ target/
 *.iml
 *.ipr
 
-temp_auto_push.bat
 ### NetBeans ###
+temp_auto_push.bat
 /nbproject/private/
 /nbbuild/
 /dist/
@@ -41,5 +41,7 @@ build/
 .gitattributes
 
 ### VS Code Tasks Protection ###
+
+### VS Code Protection ###
 .gitignore
 branch_structure.json
