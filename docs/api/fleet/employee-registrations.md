@@ -345,7 +345,7 @@ Array de `EmployeeRegistrationResource`.
 
 ### Important Considerations
 
-- **Fuente**: Tabla `staff_career_history` (poblada por triggers/eventos en cambios de registro)
+- **Fuente**: Tabla `staff_career_histories` (poblada por triggers/eventos en cambios de registro)
 - **Orden**: Cronológico ascendente por `changedAt`
 - **Uso**: Auditoría, revisión salarial, compliance laboral
 - **Autorización**: `isAuthorizedForBranch(branchId)` — ADMIN, OWNER del taller, o staff asignado a la sede

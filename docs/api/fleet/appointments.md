@@ -44,7 +44,7 @@
   "vehicleId": "veh1veh2-veh3-veh4-veh5-veh6veh7veh8",
   "scheduledStart": "2026-10-15T09:00:00",
   "scheduledEnd": "2026-10-15T10:00:00",
-  "status": "SCHEDULED",
+  "status": "PENDING",
   "notes": "Mantenimiento preventivo 20,000 km y revisión frenos"
 }
 ```
@@ -61,7 +61,7 @@
 ### Important Considerations
 
 - **Validaciones**: `vehicleId` debe tener `CustomerRegistration` ACTIVE en `branchId` + `VehicleRegistration` ACTIVE (vinculado a cliente)
-- **Estado inicial**: `SCHEDULED` →可转 `CONFIRMED` → `IN_PROGRESS` → `COMPLETED`/`CANCELLED`
+- **Estado inicial**: `PENDING` → transiciona a `COMPLETED` o `CANCELED`
 - **Analytics**: Emite `AppointmentCreatedEvent` → `AnalyticsDeltaDispatcher` → `BranchAnalyticsSnapshot.totalAppointmentsCount++` (UPSERT atómico)
 - **Duración**: Default 1 hora si no se envía `scheduledEnd`
 
@@ -77,7 +77,7 @@
 | Parámetro | Tipo | Requerido | Descripción |
 |-----------|------|-----------|-------------|
 | `branchId` | UUID | No | Filtrar por sede (requiere `isAuthorizedForBranch`) |
-| `status` | string (enum) | No | `SCHEDULED`, `CONFIRMED`, `IN_PROGRESS`, `COMPLETED`, `CANCELLED` |
+| `status` | string (enum) | No | `PENDING`, `COMPLETED`, `CANCELED` |
 | `customerId` | UUID | No | Filtrar por cliente |
 | `vehicleId` | UUID | No | Filtrar por vehículo |
 
@@ -99,7 +99,7 @@
     "vehicleId": "veh1veh2-veh3-veh4-veh5-veh6veh7veh8",
     "scheduledStart": "2026-10-15T09:00:00",
     "scheduledEnd": "2026-10-15T10:00:00",
-    "status": "SCHEDULED",
+    "status": "PENDING",
     "notes": "Mantenimiento preventivo 20,000 km"
   }
 ]
@@ -142,9 +142,8 @@
 | `branchId` | UUID | Sí | Sede (puede cambiar si caller tiene acceso a ambas) |
 | `customerId` | UUID | Sí | Cliente |
 | `vehicleId` | UUID | Sí | Vehículo |
-| `scheduledStart` | ISO 8601 | Sí | Nuevo inicio |
-| `scheduledEnd` | ISO 8601 | No | Nuevo fin (default +1h) |
-| `status` | string (enum) | Sí | Nuevo estado |
+| `scheduledStart` | ISO 8601 | Sí | Nuevo inicio (`YYYY-MM-DDTHH:mm:ss`) |
+| `status` | string (enum) | Sí | Nuevo estado (`PENDING`, `COMPLETED`, `CANCELED`) |
 | `notes` | string | No | Nuevas notas |
 
 **Request Example**:
@@ -154,8 +153,7 @@
   "customerId": "cust1cust2-cust3-cust4-cust5-cust6cust7cu",
   "vehicleId": "veh1veh2-veh3-veh4-veh5-veh6veh7veh8",
   "scheduledStart": "2026-10-16T14:00:00",
-  "scheduledEnd": "2026-10-16T16:00:00",
-  "status": "CONFIRMED",
+  "status": "COMPLETED",
   "notes": "Cliente reprogramó para la tarde"
 }
 ```
@@ -176,7 +174,7 @@
 ### Important Considerations
 
 - **Cambio de sede**: Requiere acceso a **ambas** sedes (actual y nueva)
-- **Cambio de estado**: Validaciones de transición (ej: no `COMPLETED` → `SCHEDULED`)
+- **Cambio de estado**: `PENDING`, `COMPLETED`, `CANCELED`
 - **Analytics**: Cambios de estado emiten eventos correspondientes
 
 ---
@@ -184,7 +182,7 @@
 ## `DELETE /api/v1/appointments/{appointmentId}` — Cancelar Cita
 
 **Security**: Validación manual `isAuthorizedForBranch(cita.branchId)`  
-**Description**: Soft delete — estado `CANCELLED`. Libera slot horario.
+**Description**: Cancelación de cita — estado pasa a `CANCELED`. Libera slot horario.
 
 ### Success Response (204 NO CONTENT)
 
@@ -198,6 +196,6 @@
 
 ### Important Considerations
 
-- **No borrado físico**: Estado `CANCELLED` para auditoría
+- **No borrado físico**: Estado `CANCELED` para auditoría
 - **Work Order**: Si ya se creó OT desde esta cita, no se permite cancelar (409)
 - **Analytics**: `totalAppointmentsCount` no decrementa (snapshot histórico)
