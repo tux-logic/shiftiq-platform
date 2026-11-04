@@ -14,7 +14,7 @@ import java.time.Instant;
 import java.util.UUID;
 
 @Entity
-@Table(name = "staff_career_history")
+@Table(name = "staff_career_histories")
 @Getter
 @Setter
 @NoArgsConstructor
