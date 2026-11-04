@@ -17,25 +17,23 @@ public class CustomerRegistrationPersistenceAssembler {
                 entity.getStatus() != null ? new CustomerRegistrationStatus(entity.getStatus()) : null,
                 entity.getCreatedAt(),
                 entity.getUpdatedAt(),
-                entity.getDeletedAt()
+                entity.getDeletedAt(),
+                entity.getVersion()
         );
     }
 
     public static CustomerRegistrationPersistenceEntity toEntity(CustomerRegistration domain, CustomerRegistrationPersistenceEntity entity) {
         if (domain == null) return null;
         if (entity == null) entity = new CustomerRegistrationPersistenceEntity();
-        if (domain.getId() != null) {
-            entity.setId(domain.getId().value());
+        if (domain.getVersion() != null) {
+            entity.setId(domain.getId() != null ? domain.getId().value() : null);
+            entity.setCreatedAt(domain.getCreatedAt());
+            entity.setUpdatedAt(domain.getUpdatedAt());
+            entity.setVersion(domain.getVersion());
         }
         entity.setCustomerId(domain.getCustomerId());
         entity.setBranchId(domain.getBranchId() != null ? domain.getBranchId().value() : null);
         entity.setStatus(domain.getStatus() != null ? domain.getStatus().value() : null);
-        if (domain.getCreatedAt() != null) {
-            entity.setCreatedAt(domain.getCreatedAt());
-        }
-        if (domain.getUpdatedAt() != null) {
-            entity.setUpdatedAt(domain.getUpdatedAt());
-        }
         entity.setDeletedAt(domain.getDeletedAt());
         return entity;
     }

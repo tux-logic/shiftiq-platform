@@ -14,17 +14,19 @@ public class VehiclePersistenceAssembler {
             return null;
         }
         VehiclePersistenceEntity entity = new VehiclePersistenceEntity();
-        entity.setId(domain.getId() != null ? domain.getId().value() : null);
+        if (domain.getVersion() != null) {
+            entity.setId(domain.getId() != null ? domain.getId().value() : null);
+            entity.setCreatedAt(domain.getCreatedAt());
+            entity.setUpdatedAt(domain.getUpdatedAt());
+            entity.setVersion(domain.getVersion());
+        }
         entity.setPlateNumber(domain.getPlateNumber());
         entity.setBrand(domain.getBrand());
         entity.setModel(domain.getModel());
         entity.setYear(domain.getYear());
         entity.setVin(domain.getVin());
         entity.setPhotoUrl(domain.getPhotoUrl());
-        entity.setCreatedAt(domain.getCreatedAt());
-        entity.setUpdatedAt(domain.getUpdatedAt());
         entity.setDeletedAt(domain.getDeletedAt());
-        entity.setVersion(domain.getVersion());
         return entity;
     }
 

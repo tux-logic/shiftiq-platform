@@ -20,22 +20,26 @@ public class EmployeeRegistrationPersistenceAssembler {
                 entity.getStatus() != null ? new EmployeeRegistrationStatus(entity.getStatus()) : null,
                 entity.getCreatedAt(),
                 entity.getUpdatedAt(),
-                entity.getDeletedAt()
+                entity.getDeletedAt(),
+                entity.getVersion()
         );
     }
 
     public static EmployeeRegistrationPersistenceEntity toEntity(EmployeeRegistration domain, EmployeeRegistrationPersistenceEntity entity) {
         if (domain == null) return null;
         if (entity == null) entity = new EmployeeRegistrationPersistenceEntity();
-        entity.setId(domain.getId() != null ? domain.getId().value() : null);
+        if (domain.getVersion() != null) {
+            entity.setId(domain.getId() != null ? domain.getId().value() : null);
+            entity.setCreatedAt(domain.getCreatedAt());
+            entity.setUpdatedAt(domain.getUpdatedAt());
+            entity.setVersion(domain.getVersion());
+        }
         entity.setEmployeeId(domain.getEmployeeId());
         entity.setBranchId(domain.getBranchId() != null ? domain.getBranchId().value() : null);
         entity.setSpeciality(domain.getSpeciality());
         entity.setSpecialityName(domain.getSpecialityName());
         entity.setSalary(domain.getSalary());
         entity.setStatus(domain.getStatus() != null ? domain.getStatus().value() : null);
-        entity.setCreatedAt(domain.getCreatedAt());
-        entity.setUpdatedAt(domain.getUpdatedAt());
         entity.setDeletedAt(domain.getDeletedAt());
         return entity;
     }

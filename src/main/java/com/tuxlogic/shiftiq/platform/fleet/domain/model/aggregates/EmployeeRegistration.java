@@ -23,6 +23,7 @@ public class EmployeeRegistration extends AbstractDomainAggregateRoot<EmployeeRe
     private Instant createdAt;
     private Instant updatedAt;
     private Instant deletedAt;
+    private Long version;
 
     protected EmployeeRegistration() {
     }
@@ -36,8 +37,6 @@ public class EmployeeRegistration extends AbstractDomainAggregateRoot<EmployeeRe
         this.specialityName = specialityName;
         this.salary = salary;
         this.status = EmployeeRegistrationStatus.ACTIVE;
-        this.createdAt = Instant.now();
-        this.updatedAt = Instant.now();
         this.registerEvent(new com.tuxlogic.shiftiq.platform.fleet.domain.model.events.EmployeeRegistrationCreatedEvent(
                 this, this.id.value(), new EmployeeId(this.employeeId), this.branchId
         ));
@@ -46,7 +45,7 @@ public class EmployeeRegistration extends AbstractDomainAggregateRoot<EmployeeRe
     public EmployeeRegistration(EmployeeId id, UUID employeeId, BranchId branchId,
             String speciality, String specialityName, BigDecimal salary,
             EmployeeRegistrationStatus status,
-            Instant createdAt, Instant updatedAt, Instant deletedAt) {
+            Instant createdAt, Instant updatedAt, Instant deletedAt, Long version) {
         this.id = id;
         this.employeeId = employeeId;
         this.branchId = branchId;
@@ -57,6 +56,14 @@ public class EmployeeRegistration extends AbstractDomainAggregateRoot<EmployeeRe
         this.createdAt = createdAt;
         this.updatedAt = updatedAt;
         this.deletedAt = deletedAt;
+        this.version = version;
+    }
+
+    public EmployeeRegistration(EmployeeId id, UUID employeeId, BranchId branchId,
+            String speciality, String specialityName, BigDecimal salary,
+            EmployeeRegistrationStatus status,
+            Instant createdAt, Instant updatedAt, Instant deletedAt) {
+        this(id, employeeId, branchId, speciality, specialityName, salary, status, createdAt, updatedAt, deletedAt, null);
     }
 
     public EmployeeRegistration(UUID employeeId, BranchId branchId,
@@ -69,8 +76,6 @@ public class EmployeeRegistration extends AbstractDomainAggregateRoot<EmployeeRe
         this.specialityName = specialityName;
         this.salary = salary;
         this.status = initialStatus != null ? initialStatus : EmployeeRegistrationStatus.PENDING_APPROVAL;
-        this.createdAt = Instant.now();
-        this.updatedAt = Instant.now();
     }
 
     public void update(String speciality, String specialityName, BigDecimal salary) {
