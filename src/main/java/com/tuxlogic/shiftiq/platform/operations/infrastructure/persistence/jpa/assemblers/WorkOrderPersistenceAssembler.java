@@ -85,7 +85,7 @@ public final class WorkOrderPersistenceAssembler {
                 persistenceEntity.getTasks() != null ? persistenceEntity.getTasks().stream()
                         .map(WorkOrderTaskPersistenceAssembler::toDomainEntity)
                         .collect(Collectors.toList()) : Collections.emptyList(),
-                persistenceEntity.getEntryInspectionImages(),
+                persistenceEntity.getEntryInspectionImages() != null ? new ArrayList<>(persistenceEntity.getEntryInspectionImages()) : new ArrayList<>(),
                 persistenceEntity.getCreatedAt(),
                 persistenceEntity.getUpdatedAt(),
                 persistenceEntity.getDeletedAt(),
