@@ -13,7 +13,7 @@ import java.time.Instant;
 import java.util.UUID;
 
 @Entity
-@Table(name = "workshop_specialty_history")
+@Table(name = "workshop_specialty_histories")
 @Getter
 @Setter
 @NoArgsConstructor
