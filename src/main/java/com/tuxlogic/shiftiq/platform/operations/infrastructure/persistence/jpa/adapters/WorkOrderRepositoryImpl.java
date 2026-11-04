@@ -37,7 +37,14 @@ public class WorkOrderRepositoryImpl implements WorkOrderRepository {
     @Transactional
     public WorkOrder save(WorkOrder workOrder) {
         try {
-            WorkOrderPersistenceEntity entity = WorkOrderPersistenceAssembler.toPersistenceEntity(workOrder);
+            WorkOrderPersistenceEntity entity;
+            if (workOrder.getId() != null && workOrder.getVersion() != null) {
+                entity = workOrderPersistenceRepository.findById(workOrder.getId().value())
+                        .map(existing -> WorkOrderPersistenceAssembler.toPersistenceEntity(workOrder, existing))
+                        .orElseGet(() -> WorkOrderPersistenceAssembler.toPersistenceEntity(workOrder));
+            } else {
+                entity = WorkOrderPersistenceAssembler.toPersistenceEntity(workOrder);
+            }
             WorkOrderPersistenceEntity savedEntity = workOrderPersistenceRepository.save(entity);
             WorkOrder savedWorkOrder = WorkOrderPersistenceAssembler.toDomainEntity(savedEntity);
             workOrder.domainEvents().forEach(eventPublisher::publishEvent);

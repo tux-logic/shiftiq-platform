@@ -8,12 +8,15 @@ public final class WorkOrderTaskProductPersistenceAssembler {
 
     public WorkOrderTaskProductPersistenceAssembler() {}
 
-    public static WorkOrderTaskProductPersistenceEntity toPersistenceEntity(WorkOrderTaskProduct domainEntity) {
+    public static WorkOrderTaskProductPersistenceEntity toPersistenceEntity(WorkOrderTaskProduct domainEntity,
+                                                                           com.tuxlogic.shiftiq.platform.operations.infrastructure.persistence.jpa.entities.WorkOrderTaskPersistenceEntity taskEntity,
+                                                                           WorkOrderTaskProductPersistenceEntity persistenceEntity) {
         if (domainEntity == null) return null;
-        WorkOrderTaskProductPersistenceEntity persistenceEntity = new WorkOrderTaskProductPersistenceEntity();
+        if (persistenceEntity == null) persistenceEntity = new WorkOrderTaskProductPersistenceEntity();
         if (domainEntity.getVersion() != null) {
             persistenceEntity.setId(domainEntity.getId() != null ? domainEntity.getId().value() : null);
         }
+        persistenceEntity.setTask(taskEntity);
         persistenceEntity.setProductId(domainEntity.getProductId());
         persistenceEntity.setBranchId(domainEntity.getBranchId());
         persistenceEntity.setQuantity(domainEntity.getQuantity());
@@ -24,6 +27,10 @@ public final class WorkOrderTaskProductPersistenceAssembler {
         persistenceEntity.setDeletedAt(domainEntity.getDeletedAt());
         persistenceEntity.setVersion(domainEntity.getVersion());
         return persistenceEntity;
+    }
+
+    public static WorkOrderTaskProductPersistenceEntity toPersistenceEntity(WorkOrderTaskProduct domainEntity) {
+        return toPersistenceEntity(domainEntity, null, new WorkOrderTaskProductPersistenceEntity());
     }
 
     public static WorkOrderTaskProduct toDomainEntity(WorkOrderTaskProductPersistenceEntity persistenceEntity) {
