@@ -24,8 +24,11 @@ public class WorkshopSpecialtyPersistenceAssembler {
     }
 
     public static void toEntity(WorkshopSpecialty domain, WorkshopSpecialtyPersistenceEntity entity) {
-        if (domain.getId() != null) {
-            entity.setId(domain.getId().value());
+        if (domain.getVersion() != null) {
+            entity.setId(domain.getId() != null ? domain.getId().value() : null);
+            entity.setCreatedAt(domain.getCreatedAt());
+            entity.setUpdatedAt(domain.getUpdatedAt());
+            entity.setVersion(domain.getVersion());
         }
         if (domain.getWorkshopId() != null) {
             entity.setWorkshopId(domain.getWorkshopId().value());
