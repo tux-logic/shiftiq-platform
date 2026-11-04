@@ -36,8 +36,8 @@ COPY --from=build /app/target/*.jar app.jar
 # Step 3: Configure and run the application
 # Expose the port your Spring Boot application listens on (default is 8080)
 EXPOSE 8080
-# Define the command to run the Spring Boot application
-ENTRYPOINT ["java", "-jar", "app.jar"]
+# Define the command to run the Spring Boot application with JVM memory limits for container environments
+ENTRYPOINT ["java", "-XX:+UseContainerSupport", "-Xmx320m", "-Xms256m", "-XX:MaxMetaspaceSize=128m", "-jar", "app.jar"]
 
 # Note: The application will run with the 'prod' profile as set in the runtime stage.
 # This Dockerfile is designed to be used in a CI/CD pipeline or for local development.
