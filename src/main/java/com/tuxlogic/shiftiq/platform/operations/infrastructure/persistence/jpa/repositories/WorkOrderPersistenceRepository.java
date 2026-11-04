@@ -22,22 +22,24 @@ public interface WorkOrderPersistenceRepository extends JpaRepository<WorkOrderP
     @EntityGraph(attributePaths = {"tasks", "tasks.products"})
     Optional<WorkOrderPersistenceEntity> findById(UUID id);
 
-    List<WorkOrderPersistenceEntity> findAllByBranchId(BranchId branchId);
+    @Query("SELECT w FROM WorkOrderPersistenceEntity w WHERE w.branchId = :branchId")
+    List<WorkOrderPersistenceEntity> findAllByBranchId(@Param("branchId") BranchId branchId);
 
     @EntityGraph(attributePaths = {"tasks", "tasks.products"})
     Optional<WorkOrderPersistenceEntity> findByAppointmentId(AppointmentId appointmentId);
 
     boolean existsByAppointmentId(AppointmentId appointmentId);
 
-    List<WorkOrderPersistenceEntity> findAllByCustomerId(CustomerId customerId);
+    @Query("SELECT w FROM WorkOrderPersistenceEntity w WHERE w.customerId = :customerId")
+    List<WorkOrderPersistenceEntity> findAllByCustomerId(@Param("customerId") CustomerId customerId);
 
-    List<WorkOrderPersistenceEntity> findAllByVehicleId(VehicleId vehicleId);
+    @Query("SELECT w FROM WorkOrderPersistenceEntity w WHERE w.vehicleId = :vehicleId")
+    List<WorkOrderPersistenceEntity> findAllByVehicleId(@Param("vehicleId") VehicleId vehicleId);
 
     @EntityGraph(attributePaths = {"tasks", "tasks.products"})
     Optional<WorkOrderPersistenceEntity> findByInternalNumberAndBranchId(Integer internalNumber, BranchId branchId);
 
-    @EntityGraph(attributePaths = {"tasks", "tasks.products"})
-    @Query("SELECT w FROM WorkOrderPersistenceEntity w JOIN w.tasks t WHERE t.id = :taskId")
+    @Query("SELECT DISTINCT w FROM WorkOrderPersistenceEntity w JOIN w.tasks t WHERE t.id = :taskId")
     Optional<WorkOrderPersistenceEntity> findByTaskId(@Param("taskId") UUID taskId);
 
     @Query("SELECT COALESCE(MAX(w.internalNumber), 0) FROM WorkOrderPersistenceEntity w WHERE w.branchId = :branchId")
