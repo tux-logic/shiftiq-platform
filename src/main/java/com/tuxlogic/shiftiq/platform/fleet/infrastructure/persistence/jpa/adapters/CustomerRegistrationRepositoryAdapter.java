@@ -27,7 +27,7 @@ public class CustomerRegistrationRepositoryAdapter implements CustomerRegistrati
     @Override
     public CustomerRegistration save(CustomerRegistration registration) {
         CustomerRegistrationPersistenceEntity entity;
-        if (registration.getId() != null) {
+        if (registration.getId() != null && registration.getVersion() != null) {
             Optional<CustomerRegistrationPersistenceEntity> opt = persistenceRepository.findById(registration.getId().value());
             entity = opt.orElseGet(CustomerRegistrationPersistenceEntity::new);
         } else {

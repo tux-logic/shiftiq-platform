@@ -29,7 +29,7 @@ public class EmployeeRegistrationRepositoryAdapter implements EmployeeRegistrati
     @Override
     public EmployeeRegistration save(EmployeeRegistration registration) {
         EmployeeRegistrationPersistenceEntity entity;
-        if (registration.getId() != null) {
+        if (registration.getId() != null && registration.getVersion() != null) {
             entity = persistenceRepository.findById(registration.getId().value())
                     .orElseGet(EmployeeRegistrationPersistenceEntity::new);
         } else {

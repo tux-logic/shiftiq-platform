@@ -24,6 +24,7 @@ public class Obd2DeviceRegistration extends AbstractDomainAggregateRoot<Obd2Devi
     private Obd2RegistrationStatus status;
     private Instant createdAt;
     private Instant deletedAt;
+    private Long version;
 
     public Obd2DeviceRegistration() {
     }
@@ -34,10 +35,9 @@ public class Obd2DeviceRegistration extends AbstractDomainAggregateRoot<Obd2Devi
         this.branchId = branchId;
         this.vehicleId = vehicleId;
         this.status = Obd2RegistrationStatus.ACTIVE;
-        this.createdAt = Instant.now();
     }
 
-    public Obd2DeviceRegistration(Obd2DeviceRegistrationId id, Obd2DeviceId obd2DeviceId, BranchId branchId, VehicleId vehicleId, Obd2RegistrationStatus status, Instant createdAt, Instant deletedAt) {
+    public Obd2DeviceRegistration(Obd2DeviceRegistrationId id, Obd2DeviceId obd2DeviceId, BranchId branchId, VehicleId vehicleId, Obd2RegistrationStatus status, Instant createdAt, Instant deletedAt, Long version) {
         this.id = id;
         this.obd2DeviceId = obd2DeviceId;
         this.branchId = branchId;
@@ -45,6 +45,11 @@ public class Obd2DeviceRegistration extends AbstractDomainAggregateRoot<Obd2Devi
         this.status = status;
         this.createdAt = createdAt;
         this.deletedAt = deletedAt;
+        this.version = version;
+    }
+
+    public Obd2DeviceRegistration(Obd2DeviceRegistrationId id, Obd2DeviceId obd2DeviceId, BranchId branchId, VehicleId vehicleId, Obd2RegistrationStatus status, Instant createdAt, Instant deletedAt) {
+        this(id, obd2DeviceId, branchId, vehicleId, status, createdAt, deletedAt, null);
     }
 
     /**

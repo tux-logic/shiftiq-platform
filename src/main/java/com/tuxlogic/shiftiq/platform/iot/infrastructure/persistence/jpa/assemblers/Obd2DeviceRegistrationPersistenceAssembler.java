@@ -12,12 +12,15 @@ public class Obd2DeviceRegistrationPersistenceAssembler {
             return null;
         }
         Obd2DeviceRegistrationPersistenceEntity entity = new Obd2DeviceRegistrationPersistenceEntity();
-        entity.setId(domain.getId() != null ? domain.getId().value() : null);
+        if (domain.getVersion() != null) {
+            entity.setId(domain.getId() != null ? domain.getId().value() : null);
+            entity.setCreatedAt(domain.getCreatedAt());
+            entity.setVersion(domain.getVersion());
+        }
         entity.setObd2DeviceId(domain.getObd2DeviceId());
         entity.setBranchId(domain.getBranchId());
         entity.setVehicleId(domain.getVehicleId());
         entity.setStatus(domain.getStatus() != null ? domain.getStatus().value() : null);
-        entity.setCreatedAt(domain.getCreatedAt());
         entity.setDeletedAt(domain.getDeletedAt());
         return entity;
     }
@@ -33,7 +36,8 @@ public class Obd2DeviceRegistrationPersistenceAssembler {
                 entity.getVehicleId(),
                 entity.getStatus() != null ? new Obd2RegistrationStatus(entity.getStatus()) : null,
                 entity.getCreatedAt(),
-                entity.getDeletedAt()
+                entity.getDeletedAt(),
+                entity.getVersion()
         );
     }
 }
