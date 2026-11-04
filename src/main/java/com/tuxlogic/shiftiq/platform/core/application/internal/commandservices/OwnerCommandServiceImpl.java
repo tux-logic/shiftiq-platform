@@ -1,6 +1,7 @@
 package com.tuxlogic.shiftiq.platform.core.application.internal.commandservices;
 
 import com.tuxlogic.shiftiq.platform.core.application.commandservices.OwnerCommandService;
+import com.tuxlogic.shiftiq.platform.core.application.outboundservices.ExternalIamService;
 import com.tuxlogic.shiftiq.platform.core.domain.model.aggregates.Owner;
 import com.tuxlogic.shiftiq.platform.core.domain.model.commands.CreateOwnerCommand;
 import com.tuxlogic.shiftiq.platform.core.domain.model.commands.DeleteOwnerCommand;
@@ -24,11 +25,14 @@ public class OwnerCommandServiceImpl implements OwnerCommandService {
 
     private final OwnerRepository ownerRepository;
     private final IdentityValidationService identityValidationService;
+    private final ExternalIamService externalIamService;
 
     public OwnerCommandServiceImpl(OwnerRepository ownerRepository,
-                                   IdentityValidationService identityValidationService) {
+                                   IdentityValidationService identityValidationService,
+                                   ExternalIamService externalIamService) {
         this.ownerRepository = ownerRepository;
         this.identityValidationService = identityValidationService;
+        this.externalIamService = externalIamService;
     }
 
     @Override
@@ -47,6 +51,7 @@ public class OwnerCommandServiceImpl implements OwnerCommandService {
         );
 
         var savedOwner = ownerRepository.save(owner);
+        externalIamService.assignRole(command.userId().value(), "ROLE_OWNER");
         log.info("Created Owner profile ID '{}' for user ID '{}'", savedOwner.getId().value(), command.userId().value());
         return Optional.of(savedOwner);
     }
