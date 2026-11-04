@@ -32,6 +32,10 @@ public class WorkOrderTaskProductPersistenceEntity extends AuditableAbstractPers
         return getCreatedAt() == null;
     }
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "work_order_task_id", nullable = false)
+    private WorkOrderTaskPersistenceEntity task;
+
     @Embedded
     @AttributeOverride(name = "value", column = @Column(name = "product_id", nullable = false))
     private ProductId productId;

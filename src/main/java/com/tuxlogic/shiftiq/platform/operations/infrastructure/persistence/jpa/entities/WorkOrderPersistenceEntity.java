@@ -75,11 +75,10 @@ public class WorkOrderPersistenceEntity extends AuditableAbstractPersistenceEnti
     @Convert(converter = MoneyAttributeConverter.class)
     private Money totalAmount;
 
-    @OneToMany(cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
-    @JoinColumn(name = "work_order_id", nullable = false)
+    @OneToMany(mappedBy = "workOrder", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
     private List<WorkOrderTaskPersistenceEntity> tasks = new ArrayList<>();
 
-    @ElementCollection(fetch = FetchType.EAGER)
+    @ElementCollection(fetch = FetchType.LAZY)
     @CollectionTable(
             name = "work_order_entry_inspection_images",
             joinColumns = @JoinColumn(name = "work_order_id")

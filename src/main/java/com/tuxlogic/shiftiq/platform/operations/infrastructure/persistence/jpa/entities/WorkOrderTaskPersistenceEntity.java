@@ -65,11 +65,14 @@ public class WorkOrderTaskPersistenceEntity extends AuditableAbstractPersistence
 
     private Instant completedAt;
 
-    @OneToMany(cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
-    @JoinColumn(name = "work_order_task_id", nullable = false)
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "work_order_id", nullable = false)
+    private WorkOrderPersistenceEntity workOrder;
+
+    @OneToMany(mappedBy = "task", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
     private List<WorkOrderTaskProductPersistenceEntity> products = new ArrayList<>();
 
-    @ElementCollection(fetch = FetchType.EAGER)
+    @ElementCollection(fetch = FetchType.LAZY)
     @CollectionTable(
             name = "work_order_task_evidence_images",
             joinColumns = @JoinColumn(name = "work_order_task_id")

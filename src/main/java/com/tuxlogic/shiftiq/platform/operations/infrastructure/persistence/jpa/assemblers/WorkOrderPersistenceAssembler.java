@@ -4,6 +4,8 @@ import com.tuxlogic.shiftiq.platform.operations.domain.model.aggregates.WorkOrde
 import com.tuxlogic.shiftiq.platform.operations.domain.model.valueobjects.WorkOrderId;
 import com.tuxlogic.shiftiq.platform.operations.infrastructure.persistence.jpa.entities.WorkOrderPersistenceEntity;
 
+import java.util.ArrayList;
+import java.util.Objects;
 import java.util.stream.Collectors;
 import java.util.Collections;
 
@@ -11,9 +13,9 @@ public final class WorkOrderPersistenceAssembler {
 
     public WorkOrderPersistenceAssembler() {}
 
-    public static WorkOrderPersistenceEntity toPersistenceEntity(WorkOrder domainEntity) {
+    public static WorkOrderPersistenceEntity toPersistenceEntity(WorkOrder domainEntity, WorkOrderPersistenceEntity persistenceEntity) {
         if (domainEntity == null) return null;
-        WorkOrderPersistenceEntity persistenceEntity = new WorkOrderPersistenceEntity();
+        if (persistenceEntity == null) persistenceEntity = new WorkOrderPersistenceEntity();
         if (domainEntity.getVersion() != null) {
             persistenceEntity.setId(domainEntity.getId() != null ? domainEntity.getId().value() : null);
         }
@@ -26,17 +28,45 @@ public final class WorkOrderPersistenceAssembler {
         persistenceEntity.setDiagnosticSummary(domainEntity.getDiagnosticSummary());
         persistenceEntity.setMileageIn(domainEntity.getMileageIn());
         persistenceEntity.setTotalAmount(domainEntity.getTotalAmount());
-        persistenceEntity.setTasks(domainEntity.getTasks() != null ? domainEntity.getTasks().stream()
-                .map(WorkOrderTaskPersistenceAssembler::toPersistenceEntity)
-                .collect(Collectors.toList()) : Collections.emptyList());
-        persistenceEntity.setEntryInspectionImages(domainEntity.getEntryInspectionImages());
+        persistenceEntity.setEntryInspectionImages(domainEntity.getEntryInspectionImages() != null ? new ArrayList<>(domainEntity.getEntryInspectionImages()) : new ArrayList<>());
         persistenceEntity.setCreatedAt(domainEntity.getCreatedAt());
         persistenceEntity.setUpdatedAt(domainEntity.getUpdatedAt());
         persistenceEntity.setCreatedBy(domainEntity.getCreatedBy());
         persistenceEntity.setUpdatedBy(domainEntity.getUpdatedBy());
         persistenceEntity.setDeletedAt(domainEntity.getDeletedAt());
         persistenceEntity.setVersion(domainEntity.getVersion());
+
+        // Synchronize tasks
+        if (persistenceEntity.getTasks() == null) {
+            persistenceEntity.setTasks(new ArrayList<>());
+        }
+        if (domainEntity.getTasks() != null) {
+            var domainTaskIds = domainEntity.getTasks().stream()
+                    .map(t -> t.getId() != null ? t.getId().value() : null)
+                    .filter(Objects::nonNull)
+                    .collect(Collectors.toSet());
+            persistenceEntity.getTasks().removeIf(te -> te.getId() != null && !domainTaskIds.contains(te.getId()));
+
+            for (var dt : domainEntity.getTasks()) {
+                var existingTe = persistenceEntity.getTasks().stream()
+                        .filter(te -> te.getId() != null && dt.getId() != null && te.getId().equals(dt.getId().value()))
+                        .findFirst()
+                        .orElse(null);
+                if (existingTe == null) {
+                    existingTe = new com.tuxlogic.shiftiq.platform.operations.infrastructure.persistence.jpa.entities.WorkOrderTaskPersistenceEntity();
+                    persistenceEntity.getTasks().add(existingTe);
+                }
+                WorkOrderTaskPersistenceAssembler.toPersistenceEntity(dt, persistenceEntity, existingTe);
+            }
+        } else {
+            persistenceEntity.getTasks().clear();
+        }
+
         return persistenceEntity;
+    }
+
+    public static WorkOrderPersistenceEntity toPersistenceEntity(WorkOrder domainEntity) {
+        return toPersistenceEntity(domainEntity, new WorkOrderPersistenceEntity());
     }
 
     public static WorkOrder toDomainEntity(WorkOrderPersistenceEntity persistenceEntity) {
