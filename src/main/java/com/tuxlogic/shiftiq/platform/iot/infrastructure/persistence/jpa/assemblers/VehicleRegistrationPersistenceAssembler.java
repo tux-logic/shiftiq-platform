@@ -15,11 +15,14 @@ public class VehicleRegistrationPersistenceAssembler {
             return null;
         }
         VehicleRegistrationPersistenceEntity entity = new VehicleRegistrationPersistenceEntity();
-        entity.setId(domain.getId() != null ? domain.getId().value() : null);
+        if (domain.getVersion() != null) {
+            entity.setId(domain.getId() != null ? domain.getId().value() : null);
+            entity.setCreatedAt(domain.getCreatedAt());
+            entity.setVersion(domain.getVersion());
+        }
         entity.setUserId(domain.getUserId());
         entity.setVehicleId(domain.getVehicleId());
         entity.setStatus(domain.getStatus() != null ? domain.getStatus().value() : null);
-        entity.setCreatedAt(domain.getCreatedAt());
         entity.setDeletedAt(domain.getDeletedAt());
         return entity;
     }
@@ -34,7 +37,8 @@ public class VehicleRegistrationPersistenceAssembler {
                 entity.getVehicleId(),
                 entity.getStatus() != null ? new VehicleRegistrationStatus(entity.getStatus()) : null,
                 entity.getCreatedAt(),
-                entity.getDeletedAt()
+                entity.getDeletedAt(),
+                entity.getVersion()
         );
     }
 }

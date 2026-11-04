@@ -14,10 +14,10 @@ public class AppointmentPersistenceAssembler {
             targetEntity = new AppointmentPersistenceEntity();
         }
 
-        if (aggregate.getId() != null) {
-            targetEntity.setId(aggregate.getId());
-        }
         if (aggregate.getVersion() != null) {
+            targetEntity.setId(aggregate.getId());
+            targetEntity.setCreatedAt(aggregate.getCreatedAt());
+            targetEntity.setUpdatedAt(aggregate.getUpdatedAt());
             targetEntity.setVersion(aggregate.getVersion());
         }
         targetEntity.setBranchId(aggregate.getBranchId());
@@ -30,14 +30,6 @@ public class AppointmentPersistenceAssembler {
         targetEntity.setDeletedAt(aggregate.getDeletedAt());
         targetEntity.setCreatedBy(aggregate.getCreatedBy());
         targetEntity.setUpdatedBy(aggregate.getUpdatedBy());
-
-        if (aggregate.getCreatedAt() != null) {
-            targetEntity.setCreatedAt(aggregate.getCreatedAt());
-        }
-
-        if (aggregate.getUpdatedAt() != null) {
-            targetEntity.setUpdatedAt(aggregate.getUpdatedAt());
-        }
 
         return targetEntity;
     }

@@ -11,7 +11,6 @@ public class TelemetrySnapshotPersistenceAssembler {
             return null;
         }
         TelemetrySnapshotPersistenceEntity entity = new TelemetrySnapshotPersistenceEntity();
-        entity.setId(domain.getId() != null ? domain.getId().value() : null);
         entity.setObd2DeviceRegistrationId(domain.getObd2DeviceRegistrationId());
         entity.setBranchId(domain.getBranchId());
         entity.setRpm(domain.getRpm());
@@ -19,7 +18,6 @@ public class TelemetrySnapshotPersistenceAssembler {
         entity.setSpeedKmh(domain.getSpeedKmh());
         entity.setOdometerKm(domain.getOdometerKm());
         entity.setFuelLevelPercent(domain.getFuelLevelPercent());
-        entity.setCreatedAt(domain.getCreatedAt());
         return entity;
     }
 

@@ -16,13 +16,11 @@ public class DtcAlertPersistenceAssembler {
             return null;
         }
         DtcAlertPersistenceEntity entity = new DtcAlertPersistenceEntity();
-        entity.setId(domain.getId() != null ? domain.getId().value() : null);
         entity.setTelemetrySnapshotId(domain.getTelemetrySnapshotId().value());
         entity.setBranchId(domain.getBranchId());
         entity.setDtcCode(domain.getDtcCode());
         entity.setDescription(domain.getDescription());
         entity.setSeverity(domain.getSeverity() != null ? domain.getSeverity().value() : null);
-        entity.setCreatedAt(domain.getCreatedAt());
         return entity;
     }
 

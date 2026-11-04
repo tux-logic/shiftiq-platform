@@ -22,6 +22,7 @@ public class VehicleRegistration extends AbstractDomainAggregateRoot<VehicleRegi
     private VehicleRegistrationStatus status;
     private Instant createdAt;
     private Instant deletedAt;
+    private Long version;
 
     public VehicleRegistration() {
     }
@@ -31,7 +32,24 @@ public class VehicleRegistration extends AbstractDomainAggregateRoot<VehicleRegi
         this.userId = userId;
         this.vehicleId = vehicleId;
         this.status = VehicleRegistrationStatus.ACTIVE;
-        this.createdAt = Instant.now();
+    }
+
+    public VehicleRegistration(
+            VehicleRegistrationId id,
+            UUID userId,
+            VehicleId vehicleId,
+            VehicleRegistrationStatus status,
+            Instant createdAt,
+            Instant deletedAt,
+            Long version
+    ) {
+        this.id = id;
+        this.userId = userId;
+        this.vehicleId = vehicleId;
+        this.status = status;
+        this.createdAt = createdAt;
+        this.deletedAt = deletedAt;
+        this.version = version;
     }
 
     public VehicleRegistration(
@@ -42,12 +60,7 @@ public class VehicleRegistration extends AbstractDomainAggregateRoot<VehicleRegi
             Instant createdAt,
             Instant deletedAt
     ) {
-        this.id = id;
-        this.userId = userId;
-        this.vehicleId = vehicleId;
-        this.status = status;
-        this.createdAt = createdAt;
-        this.deletedAt = deletedAt;
+        this(id, userId, vehicleId, status, createdAt, deletedAt, null);
     }
 
     /**
