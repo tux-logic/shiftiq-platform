@@ -1,5 +1,6 @@
 package com.tuxlogic.shiftiq.platform.core.application.internal.commandservices;
 
+import com.tuxlogic.shiftiq.platform.core.application.outboundservices.ExternalIamService;
 import com.tuxlogic.shiftiq.platform.core.domain.model.aggregates.Owner;
 import com.tuxlogic.shiftiq.platform.core.domain.model.commands.CreateOwnerCommand;
 import com.tuxlogic.shiftiq.platform.core.domain.model.valueobjects.Document;
@@ -36,6 +37,9 @@ class OwnerCommandServiceImplTest {
     @Mock
     private IdentityValidationService identityValidationService;
 
+    @Mock
+    private ExternalIamService externalIamService;
+
     private OwnerCommandServiceImpl service;
 
     private final UserId userId = new UserId(UUID.randomUUID());
@@ -44,7 +48,7 @@ class OwnerCommandServiceImplTest {
 
     @BeforeEach
     void setUp() {
-        service = new OwnerCommandServiceImpl(ownerRepository, identityValidationService);
+        service = new OwnerCommandServiceImpl(ownerRepository, identityValidationService, externalIamService);
     }
 
     @Test
@@ -62,6 +66,7 @@ class OwnerCommandServiceImplTest {
         var result = service.handle(command);
         assertThat(result).isPresent();
         verify(ownerRepository).save(any(Owner.class));
+        verify(externalIamService).assignRole(userId.value(), "ROLE_OWNER");
     }
 
     @Test
@@ -79,6 +84,7 @@ class OwnerCommandServiceImplTest {
         var result = service.handle(command);
         assertThat(result).isPresent();
         verify(ownerRepository).save(any(Owner.class));
+        verify(externalIamService).assignRole(userId.value(), "ROLE_OWNER");
     }
 
     @Test
@@ -96,6 +102,7 @@ class OwnerCommandServiceImplTest {
         var result = service.handle(command);
         assertThat(result).isPresent();
         verify(ownerRepository).save(any(Owner.class));
+        verify(externalIamService).assignRole(userId.value(), "ROLE_OWNER");
     }
 
     @Test
