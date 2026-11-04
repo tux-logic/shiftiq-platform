@@ -36,7 +36,14 @@ public class Obd2DeviceRegistrationRepositoryImpl implements Obd2DeviceRegistrat
     @Override
     @Transactional
     public Obd2DeviceRegistration save(Obd2DeviceRegistration registration) {
-        Obd2DeviceRegistrationPersistenceEntity entity = Obd2DeviceRegistrationPersistenceAssembler.toPersistenceEntity(registration);
+        Obd2DeviceRegistrationPersistenceEntity entity;
+        if (registration.getId() != null && registration.getVersion() != null) {
+            Optional<Obd2DeviceRegistrationPersistenceEntity> opt = persistenceRepository.findById(registration.getId().value());
+            entity = opt.orElseGet(Obd2DeviceRegistrationPersistenceEntity::new);
+        } else {
+            entity = new Obd2DeviceRegistrationPersistenceEntity();
+        }
+        Obd2DeviceRegistrationPersistenceAssembler.toPersistenceEntity(registration, entity);
         Obd2DeviceRegistrationPersistenceEntity savedEntity = persistenceRepository.save(entity);
         Obd2DeviceRegistration savedRegistration = Obd2DeviceRegistrationPersistenceAssembler.toDomainEntity(savedEntity);
 

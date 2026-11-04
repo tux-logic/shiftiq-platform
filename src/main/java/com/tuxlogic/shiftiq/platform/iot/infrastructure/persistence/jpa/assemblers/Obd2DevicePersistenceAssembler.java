@@ -7,18 +7,26 @@ import com.tuxlogic.shiftiq.platform.iot.infrastructure.persistence.jpa.entities
 
 public class Obd2DevicePersistenceAssembler {
 
-    public static Obd2DevicePersistenceEntity toPersistenceEntity(Obd2Device domain) {
+    public static Obd2DevicePersistenceEntity toPersistenceEntity(Obd2Device domain, Obd2DevicePersistenceEntity entity) {
         if (domain == null) {
             return null;
         }
-        Obd2DevicePersistenceEntity entity = new Obd2DevicePersistenceEntity();
-        entity.setId(domain.getId() != null ? domain.getId().value() : null);
+        if (entity == null) {
+            entity = new Obd2DevicePersistenceEntity();
+        }
+        if (domain.getVersion() != null) {
+            entity.setId(domain.getId() != null ? domain.getId().value() : null);
+            entity.setVersion(domain.getVersion());
+        }
         entity.setBranchId(domain.getBranchId());
         entity.setMacAddress(domain.getMacAddress());
         entity.setLastPing(domain.getLastPing());
         entity.setStatus(domain.getStatus() != null ? domain.getStatus().value() : null);
-        entity.setVersion(domain.getVersion());
         return entity;
+    }
+
+    public static Obd2DevicePersistenceEntity toPersistenceEntity(Obd2Device domain) {
+        return toPersistenceEntity(domain, new Obd2DevicePersistenceEntity());
     }
 
     public static Obd2Device toDomainEntity(Obd2DevicePersistenceEntity entity) {
