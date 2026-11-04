@@ -22,7 +22,6 @@ public interface WorkOrderPersistenceRepository extends JpaRepository<WorkOrderP
     @EntityGraph(attributePaths = {"tasks", "tasks.products"})
     Optional<WorkOrderPersistenceEntity> findById(UUID id);
 
-    @EntityGraph(attributePaths = {"tasks", "tasks.products"})
     List<WorkOrderPersistenceEntity> findAllByBranchId(BranchId branchId);
 
     @EntityGraph(attributePaths = {"tasks", "tasks.products"})
@@ -30,10 +29,8 @@ public interface WorkOrderPersistenceRepository extends JpaRepository<WorkOrderP
 
     boolean existsByAppointmentId(AppointmentId appointmentId);
 
-    @EntityGraph(attributePaths = {"tasks", "tasks.products"})
     List<WorkOrderPersistenceEntity> findAllByCustomerId(CustomerId customerId);
 
-    @EntityGraph(attributePaths = {"tasks", "tasks.products"})
     List<WorkOrderPersistenceEntity> findAllByVehicleId(VehicleId vehicleId);
 
     @EntityGraph(attributePaths = {"tasks", "tasks.products"})
