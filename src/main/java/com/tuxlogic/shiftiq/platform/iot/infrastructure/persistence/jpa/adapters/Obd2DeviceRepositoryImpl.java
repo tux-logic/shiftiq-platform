@@ -32,7 +32,14 @@ public class Obd2DeviceRepositoryImpl implements Obd2DeviceRepository {
     @Override
     @Transactional
     public Obd2Device save(Obd2Device obd2Device) {
-        Obd2DevicePersistenceEntity entity = Obd2DevicePersistenceAssembler.toPersistenceEntity(obd2Device);
+        Obd2DevicePersistenceEntity entity;
+        if (obd2Device.getId() != null && obd2Device.getVersion() != null) {
+            Optional<Obd2DevicePersistenceEntity> opt = persistenceRepository.findById(obd2Device.getId().value());
+            entity = opt.orElseGet(Obd2DevicePersistenceEntity::new);
+        } else {
+            entity = new Obd2DevicePersistenceEntity();
+        }
+        Obd2DevicePersistenceAssembler.toPersistenceEntity(obd2Device, entity);
         Obd2DevicePersistenceEntity savedEntity = persistenceRepository.save(entity);
         Obd2Device savedDevice = Obd2DevicePersistenceAssembler.toDomainEntity(savedEntity);
 
