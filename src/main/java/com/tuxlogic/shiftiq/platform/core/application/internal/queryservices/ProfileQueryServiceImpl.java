@@ -2,9 +2,11 @@ package com.tuxlogic.shiftiq.platform.core.application.internal.queryservices;
 
 import com.tuxlogic.shiftiq.platform.core.application.queryservices.ProfileQueryService;
 import com.tuxlogic.shiftiq.platform.core.domain.model.queries.GetProfileRolesByUserIdQuery;
+import com.tuxlogic.shiftiq.platform.core.domain.model.valueobjects.UserId;
 import com.tuxlogic.shiftiq.platform.core.domain.repositories.CustomerRepository;
 import com.tuxlogic.shiftiq.platform.core.domain.repositories.EmployeeRepository;
 import com.tuxlogic.shiftiq.platform.core.domain.repositories.OwnerRepository;
+import com.tuxlogic.shiftiq.platform.core.interfaces.rest.resources.UserProfileContextResource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -70,5 +72,50 @@ public class ProfileQueryServiceImpl implements ProfileQueryService {
         }
 
         return Optional.empty();
+    }
+
+    @Override
+    public UserProfileContextResource getUserProfileContext(UserId userId) {
+        log.debug("Building full profile context for user ID: {}", userId);
+        List<String> roles = customerRepository.findProfileRolesByUserId(userId);
+
+        var ownerOpt = ownerRepository.findByUserId(userId).map(o ->
+                new UserProfileContextResource.OwnerSummaryResource(
+                        o.getId().value(),
+                        o.getName().firstName(),
+                        o.getName().lastName(),
+                        o.getDocument().getDocumentType().name(),
+                        o.getDocument().getDocumentNumber(),
+                        o.getPhone() != null ? o.getPhone().value() : null
+                )
+        ).orElse(null);
+
+        var employeeOpt = employeeRepository.findByUserId(userId).map(e ->
+                new UserProfileContextResource.EmployeeSummaryResource(
+                        e.getId().value(),
+                        e.getName().firstName(),
+                        e.getName().lastName(),
+                        e.getDocument().getDocumentType().name(),
+                        e.getDocument().getDocumentNumber(),
+                        e.getPhone() != null ? e.getPhone().value() : null,
+                        e.getProfileImageUrl()
+                )
+        ).orElse(null);
+
+        var customerOpt = customerRepository.findByUserId(userId).map(c ->
+                new UserProfileContextResource.CustomerSummaryResource(
+                        c.getId().value(),
+                        c.isCorporate(),
+                        c.getName() != null ? c.getName().firstName() : null,
+                        c.getName() != null ? c.getName().lastName() : null,
+                        c.getBusinessName(),
+                        c.getDocument().getDocumentType().name(),
+                        c.getDocument().getDocumentNumber(),
+                        c.getPhone() != null ? c.getPhone().value() : null,
+                        c.getProfileImageUrl()
+                )
+        ).orElse(null);
+
+        return new UserProfileContextResource(userId.value(), roles, ownerOpt, employeeOpt, customerOpt);
     }
 }

@@ -79,7 +79,7 @@ public class WorkOrderTasksController {
     }
 
     @PostMapping("/{taskId}/products")
-    @Operation(summary = "Add an inventory product/part to a task", description = "Adds a product from inventory to a specific mechanic task")
+    @Operation(summary = "Add an inventory product/part to a task", description = "Adds a product from inventory to a specific mechanic task. Returns the parent WorkOrderResource including updated tasks and recalculated totals.")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<?> addProductToTask(@PathVariable UUID taskId,
                                               @Valid @RequestBody AddProductResource resource) {
@@ -94,7 +94,7 @@ public class WorkOrderTasksController {
     }
 
     @PutMapping("/{taskId}/products/{productId}")
-    @Operation(summary = "Update a product's quantity in a task", description = "Updates the quantity of a product used in a specific mechanic task")
+    @Operation(summary = "Update a product's quantity in a task", description = "Updates the quantity of a product used in a specific mechanic task. Returns the parent WorkOrderResource including updated tasks and recalculated totals.")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<?> updateProductQuantityInTask(@PathVariable UUID taskId,
                                                          @PathVariable UUID productId,
@@ -125,7 +125,7 @@ public class WorkOrderTasksController {
     }
 
     @PostMapping("/{taskId}/start")
-    @Operation(summary = "Start executing a task", description = "Sets the task status to DOING and captures the startedAt timestamp")
+    @Operation(summary = "Start executing a task", description = "Sets the task status to DOING and captures the startedAt timestamp. Returns the parent WorkOrderResource.")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<?> startTask(@PathVariable UUID taskId) {
         try {
@@ -139,7 +139,7 @@ public class WorkOrderTasksController {
     }
 
     @PostMapping("/{taskId}/complete")
-    @Operation(summary = "Complete a task", description = "Sets the task status to COMPLETED and captures the completedAt timestamp")
+    @Operation(summary = "Complete a task", description = "Sets the task status to COMPLETED and captures the completedAt timestamp. Returns the parent WorkOrderResource.")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<?> completeTask(@PathVariable UUID taskId) {
         try {
@@ -153,7 +153,7 @@ public class WorkOrderTasksController {
     }
 
     @PostMapping("/{taskId}/reopen")
-    @Operation(summary = "Reopen a completed task", description = "Returns the task to DOING, clears completedAt, and keeps stock reserved")
+    @Operation(summary = "Reopen a completed task", description = "Returns the task to DOING, clears completedAt, and keeps stock reserved. Returns the parent WorkOrderResource.")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<?> reopenTask(@PathVariable UUID taskId) {
         try {
@@ -167,7 +167,7 @@ public class WorkOrderTasksController {
     }
 
     @PostMapping("/{taskId}/assign-mechanic")
-    @Operation(summary = "Assign a mechanic to a task", description = "Assigns or reassigns a mechanic/employee to a specific mechanic task")
+    @Operation(summary = "Assign a mechanic to a task", description = "Assigns or reassigns a mechanic/employee to a specific mechanic task. Accepts either employee registration ID or employee profile ID (automatically resolved). Returns the parent WorkOrderResource.")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<?> assignMechanicToTask(@PathVariable UUID taskId, @RequestParam UUID mechanicId) {
         try {

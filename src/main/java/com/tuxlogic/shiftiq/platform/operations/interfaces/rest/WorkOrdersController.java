@@ -27,7 +27,9 @@ import java.util.UUID;
 import org.springframework.security.access.prepost.PreAuthorize;
 
 import com.tuxlogic.shiftiq.platform.operations.domain.model.valueobjects.OperationsMessageKeys;
+import com.tuxlogic.shiftiq.platform.shared.application.result.ApplicationError;
 import com.tuxlogic.shiftiq.platform.shared.infrastructure.security.MultiTenancySecurityService;
+import com.tuxlogic.shiftiq.platform.shared.interfaces.rest.transform.ErrorResponseAssembler;
 
 /**
  * REST controller for managing workshop work orders and mechanic tasks. This controller provides endpoints for creating, updating, retrieving, and deleting work orders, as well as managing the tasks and products associated with those work orders. It uses a command-query separation approach, delegating command handling to the WorkOrderCommandService and query handling to the WorkOrderQueryService. The controller also utilizes a MessageSource for internationalization of response messages.
@@ -165,7 +167,8 @@ public class WorkOrdersController {
                     .toList();
             return ResponseEntity.ok(resources);
         } else {
-            return ResponseEntity.badRequest().body("Either branchId or vehicleId query parameter is required.");
+            return ErrorResponseAssembler.toErrorResponseFromApplicationError(
+                    new ApplicationError("VALIDATION_ERROR", "Either branchId or vehicleId query parameter is required."));
         }
     }
 
