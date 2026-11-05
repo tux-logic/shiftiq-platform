@@ -11,6 +11,7 @@ import com.tuxlogic.shiftiq.platform.iot.domain.model.queries.GetVehicleTelemetr
 import com.tuxlogic.shiftiq.platform.iot.domain.model.queries.GetVehicleByIdQuery;
 import com.tuxlogic.shiftiq.platform.iot.domain.repositories.Obd2DeviceRegistrationRepository;
 import com.tuxlogic.shiftiq.platform.iot.domain.repositories.VehicleRegistrationRepository;
+import com.tuxlogic.shiftiq.platform.iot.domain.services.CustomerDirectoryPort;
 import com.tuxlogic.shiftiq.platform.iot.interfaces.rest.resources.DtcAlertResource;
 import com.tuxlogic.shiftiq.platform.iot.interfaces.rest.resources.RegisterVehicleResource;
 import com.tuxlogic.shiftiq.platform.iot.interfaces.rest.resources.TelemetrySnapshotResource;
@@ -60,6 +61,7 @@ public class VehiclesController {
     private final MultiTenancySecurityService multiTenancySecurityService;
     private final Obd2DeviceRegistrationRepository obd2DeviceRegistrationRepository;
     private final VehicleRegistrationRepository vehicleRegistrationRepository;
+    private final CustomerDirectoryPort customerDirectoryPort;
 
     public VehiclesController(VehicleQueryService vehicleQueryService,
                               VehicleCommandService vehicleCommandService,
@@ -68,7 +70,8 @@ public class VehiclesController {
                               MessageSource messageSource,
                               MultiTenancySecurityService multiTenancySecurityService,
                               Obd2DeviceRegistrationRepository obd2DeviceRegistrationRepository,
-                              VehicleRegistrationRepository vehicleRegistrationRepository) {
+                              VehicleRegistrationRepository vehicleRegistrationRepository,
+                              CustomerDirectoryPort customerDirectoryPort) {
         this.vehicleQueryService = vehicleQueryService;
         this.vehicleCommandService = vehicleCommandService;
         this.telemetryQueryService = telemetryQueryService;
@@ -77,6 +80,7 @@ public class VehiclesController {
         this.multiTenancySecurityService = multiTenancySecurityService;
         this.obd2DeviceRegistrationRepository = obd2DeviceRegistrationRepository;
         this.vehicleRegistrationRepository = vehicleRegistrationRepository;
+        this.customerDirectoryPort = customerDirectoryPort;
     }
 
     /**
@@ -147,12 +151,18 @@ public class VehiclesController {
     }
 
     @PostMapping
-    @Operation(summary = "Register a client vehicle", description = "Registers a client vehicle and links it to the authenticated user")
+    @Operation(summary = "Register a client vehicle", description = "Registers a client vehicle and links it to the authenticated user, or to the specified customer if customerId is provided")
     public ResponseEntity<?> registerVehicle(
             @Valid @RequestBody RegisterVehicleResource resource,
             Authentication authentication) {
         var principal = (AuthenticatedPrincipal) authentication.getPrincipal();
         UUID userId = principal.getId();
+
+        if (resource.customerId() != null) {
+            UUID targetUserId = customerDirectoryPort.findUserIdByCustomerId(resource.customerId())
+                    .orElseThrow(() -> new IllegalArgumentException("Customer not found for ID: " + resource.customerId()));
+            userId = targetUserId;
+        }
 
         var command = RegisterVehicleCommandFromResourceAssembler.toCommandFromResource(userId, resource);
         var result = vehicleCommandService.handle(command);

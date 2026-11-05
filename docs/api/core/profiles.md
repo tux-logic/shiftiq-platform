@@ -6,6 +6,45 @@
 
 ---
 
+## `GET /api/v1/profiles/me` — Obtener Contexto Unificado del Usuario Autenticado
+
+**Security**: `isAuthenticated()`  
+**Description**: Retorna el contexto de perfil completo del usuario autenticado vía JWT, incluyendo sus roles activos y los perfiles existentes asociados (`owner`, `employee`, `customer`). Resuelve la necesidad del frontend de hacer múltiples llamadas para saber qué perfiles e identificadores de dominio tiene el usuario.
+
+### Request
+
+No requiere parámetros de query ni cuerpo. La identidad se resuelve a partir del token Bearer JWT.
+
+### Success Response (200 OK)
+
+```json
+{
+  "userId": "e4f8b2d1-9a7c-4e8b-8c2d-1a2b3c4d5e6f",
+  "roles": [
+    "ROLE_EMPLOYEE"
+  ],
+  "owner": null,
+  "employee": {
+    "employeeId": "a1b2c3d4-e5f6-7a8b-9c0d-1e2f3a4b5c6d",
+    "workshopId": "b2c3d4e5-f6a7-8b9c-0d1e-2f3a4b5c6d7e",
+    "firstName": "Luis",
+    "lastName": "Mendoza",
+    "documentType": "DNI",
+    "documentNumber": "71234567",
+    "phone": "+51912345678"
+  },
+  "customer": null
+}
+```
+
+### Error Responses
+
+| HTTP Code | Error Code | Descripción |
+|-----------|------------|-------------|
+| 401 | `UNAUTHORIZED` | Token JWT ausente o inválido |
+
+---
+
 ## `GET /api/v1/profiles/roles?userId={userId}` — Obtener Roles Activos del Usuario
 
 **Security**: Validación manual `validateUserAccess(userId)`  

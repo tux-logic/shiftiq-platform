@@ -30,13 +30,8 @@ build/
 !**/src/test/**/build/
 
 ### VS Code & Editors ###
-.vscode/tasks.json
-.vscode/settings.json
-.vscode/launch.json
 
 ### Environment & Secrets ###
-.env
-.env.*
 !.env.example
 
 ### Others ###
@@ -46,3 +41,5 @@ temp_auto_push.bat
 temp_interactive_push.bat
 public/
 reporte-pruebas-endpoints.md
+config.bat
+node_modules

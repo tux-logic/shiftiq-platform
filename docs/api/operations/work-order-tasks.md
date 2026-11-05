@@ -9,40 +9,67 @@
 ## `POST /api/v1/work-orders/{id}/tasks` — Agregar Tarea a la OT
 
 **Security**: `@PreAuthorize("isAuthenticated()")` + validación manual `isAuthorizedForBranch(ot.branchId)`  
-**Description**: Agrega tarea a OT existente. Estado inicial: `PENDING`.
+**Description**: Agrega tarea a OT existente. Estado inicial de la tarea: `PENDING`. Si la orden estaba `PENDING`, pasa a `IN_PROGRESS`.
 
 ### Request
 
 | Campo | Tipo | Requerido | Descripción |
 |-------|------|-----------|-------------|
 | `serviceId` | UUID | Sí | Servicio del catálogo (misma sede que OT) |
-| `description` | string | Sí | Descripción técnica |
+| `assignedMechanicId` | UUID | Sí | ID del mecánico. Puede ser el `id` de `employee_registrations` o el `id` de `employees` (perfil Core) — el backend lo resuelve automáticamente a la registración activa de la sede. |
+| `description` | string | Sí | Descripción técnica del trabajo (10 - 1000 caracteres) |
 | `evidenceImages` | string[] (URLs) | No | Fotos evidencia (Cloudinary) |
 
 **Request Example**:
 ```json
 {
-  "serviceId": "srv1srv2-srv3-srv4-srv5-srv6srv7srv8",
-  "description": "Rectificado de discos y cambio de pastillas delanteras",
+  "serviceId": "f287fa2e-43d7-4de6-901f-5ffaa85ca527",
+  "assignedMechanicId": "651ba739-427e-4fda-8ae0-c1bf6c4f8610",
+  "description": "Rectificado de discos y alineación dinamica",
   "evidenceImages": [
-    "https://res.cloudinary.com/shiftiq/image/upload/v1/tasks/disco-desgastado.jpg"
+    "https://res.cloudinary.com/shiftiq/image/upload/v1/tasks/laser.jpg"
   ]
 }
 ```
 
 ### Success Response (201 CREATED)
 
+Retorna la orden de trabajo actualizada (`WorkOrderResource`) con el arreglo de tareas actualizado y el nuevo `totalAmount`.
+
 ```json
 {
-  "id": "task1task2-task3-task4-task5task6task7",
-  "serviceId": "srv1srv2-srv3-srv4-srv5-srv6srv7srv8",
-  "serviceName": "Cambio pastillas freno delanteras",
-  "description": "Rectificado de discos y cambio de pastillas delanteras",
-  "status": "PENDING",
-  "evidenceImages": ["https://..."],
-  "products": [],
-  "totalAmount": 0.00,
-  "createdAt": "2026-10-15T11:00:00Z"
+  "id": "8279b895-82a9-454a-b67b-5e9ef5855223",
+  "appointmentId": "14d73f73-77d4-4cae-8047-816717c6ac4c",
+  "branchId": "bcf5acc6-5745-48bd-a133-611181b5ced0",
+  "vehicleId": "091fd95d-3012-4ed5-adab-40e88bf3c26b",
+  "customerId": "dd0d563d-51c0-4302-84ad-09c71bdf9303",
+  "internalNumber": 1,
+  "formattedNumber": "MOL-01-000001",
+  "status": "IN_PROGRESS",
+  "diagnosticSummary": "Diagnóstico inicial",
+  "mileageIn": 45300,
+  "totalAmount": 150.00,
+  "tasks": [
+    {
+      "id": "7b6ab543-674a-4598-83da-3b1c70dd113b",
+      "serviceId": "f287fa2e-43d7-4de6-901f-5ffaa85ca527",
+      "branchId": "bcf5acc6-5745-48bd-a133-611181b5ced0",
+      "assignedMechanicId": "651ba739-427e-4fda-8ae0-c1bf6c4f8610",
+      "status": "PENDING",
+      "description": "Rectificado de discos y alineación dinamica",
+      "price": 150.00,
+      "startedAt": null,
+      "completedAt": null,
+      "products": [],
+      "evidenceImages": [
+        "https://res.cloudinary.com/shiftiq/image/upload/v1/tasks/laser.jpg"
+      ],
+      "createdAt": "2026-11-04T19:48:42Z"
+    }
+  ],
+  "entryInspectionImages": [],
+  "createdAt": "2026-11-04T18:06:21Z",
+  "updatedAt": "2026-11-04T19:48:42Z"
 }
 ```
 
@@ -50,10 +77,10 @@
 
 | HTTP Code | Error Code | Descripción |
 |-----------|------------|-------------|
-| 400 | `VALIDATION_ERROR` | Servicio no existe o distinta sede |
+| 400 | `VALIDATION_ERROR` | Servicio no existe, mecánico no especificado o descripción inválida |
 | 403 | `ACCESS_DENIED` | Sin acceso a la sede de la OT |
 | 404 | `NOT_FOUND` | OT no existe |
-| 409 | `CONFLICT` | OT no está `OPEN` (ej: `COMPLETED`) |
+| 409 | `CONFLICT` | OT no admite adición de tareas en su estado actual (ej: `COMPLETED`) |
 
 ---
 
@@ -110,23 +137,23 @@
 ## `POST /api/v1/work-order-tasks/{taskId}/assign-mechanic` — Asignar Mecánico
 
 **Security**: Validación manual `isAuthorizedForBranch(ot.branchId)`  
-**Description**: Asigna empleado responsable de la tarea.
+**Description**: Asigna o reasigna el empleado/mecánico responsable de la tarea (`assignedMechanicId` apunta al `id` de `employee_registrations`). Acepta indistintamente el ID de registración o el ID de perfil de empleado `employees.id`, resolviéndolo automáticamente.
 
 ### Request
 
-| Parámetro | Tipo | Requerido | Descripción |
-|-----------|------|-----------|-------------|
-| `mechanicId` | UUID | Sí | EmployeeRegistration ID (ACTIVE en la sede) |
+| Parámetro | Tipo | Requerido | Ubicación | Descripción |
+|-----------|------|-----------|-----------|-------------|
+| `mechanicId` | UUID | Sí | Query | ID del mecánico: ID de registración (`employee_registrations`) o ID de perfil (`employees.id`) activo en la sede |
 
 ### Success Response (200 OK)
 
-`WorkOrderTaskResource` con `assignedMechanicId` y `mechanicName`.
+Retorna la orden de trabajo (`WorkOrderResource`) con la tarea asignada al nuevo mecánico.
 
 ### Error Responses
 
 | HTTP Code | Error Code | Descripción |
 |-----------|------------|-------------|
-| 400 | `VALIDATION_ERROR` | Empleado no ACTIVE en la sede |
+| 400 | `VALIDATION_ERROR` | Empleado no activo en la sede |
 | 403 | `ACCESS_DENIED` | Sin acceso a la sede |
 | 404 | `NOT_FOUND` | Task o Empleado no existe |
 
@@ -135,11 +162,11 @@
 ## `POST /api/v1/work-order-tasks/{taskId}/start` — Iniciar Tarea
 
 **Security**: Validación manual `isAuthorizedForBranch(ot.branchId)`  
-**Description**: Cambia estado `PENDING` → `DOING`, setea `startedAt = now()`.
+**Description**: Cambia estado de la tarea `PENDING` → `DOING` y setea `startedAt = now()`.
 
 ### Success Response (200 OK)
 
-`WorkOrderTaskResource` con `status: "DOING"`, `startedAt`.
+Retorna `WorkOrderResource` actualizado con la tarea en estado `DOING` y `startedAt` poblado.
 
 ### Error Responses
 
@@ -155,11 +182,11 @@
 ## `POST /api/v1/work-order-tasks/{taskId}/complete` — Finalizar Tarea
 
 **Security**: Validación manual `isAuthorizedForBranch(ot.branchId)`  
-**Description**: Cambia estado `DOING` → `COMPLETED`, setea `completedAt = now()`. **Requerido para completar OT**.
+**Description**: Cambia estado `DOING` → `COMPLETED` y setea `completedAt = now()`. Si todas las tareas de la orden están completadas, la orden pasa automáticamente a `COMPLETED`.
 
 ### Success Response (200 OK)
 
-`WorkOrderTaskResource` con `status: "COMPLETED"`, `completedAt`.
+Retorna `WorkOrderResource` actualizado con la tarea en `COMPLETED`.
 
 ### Error Responses
 
@@ -175,11 +202,11 @@
 ## `POST /api/v1/work-order-tasks/{taskId}/reopen` — Reabrir Tarea
 
 **Security**: Validación manual `isAuthorizedForBranch(ot.branchId)`  
-**Description**: Revierte `COMPLETED` → `DOING` (para ajustes). Limpia `completedAt`.
+**Description**: Revierte la tarea de `COMPLETED` → `DOING`. Limpia `completedAt` y regresa la orden de trabajo a `IN_PROGRESS` si estaba completada.
 
 ### Success Response (200 OK)
 
-`WorkOrderTaskResource` con `status: "DOING"`, `completedAt: null`.
+Retorna `WorkOrderResource` con la tarea de vuelta en `DOING` y `completedAt: null`.
 
 ### Error Responses
 
@@ -206,25 +233,14 @@
 **Request Example**:
 ```json
 {
-  "productId": "prod1prod2-prod3-prod4-prod5prod6prod7",
-  "quantity": 2
+  "productId": "bcc1523d-e945-4fcc-8634-748f67ee170d",
+  "quantity": 1
 }
 ```
 
 ### Success Response (201 CREATED)
 
-```json
-{
-  "id": "wp1wp2wp3-wp4-wp5-wp6-wp7wp8wp9wp0",
-  "productId": "prod1prod2-prod3-prod4-prod5prod6prod7",
-  "productName": "Pastillas Freno Delanteras",
-  "branchId": "c3d4e5f6-3333-4444-5555-666677778888",
-  "quantity": 2,
-  "unitPrice": 180.00,
-  "totalAmount": 360.00,
-  "createdAt": "2026-10-15T11:15:00Z"
-}
-```
+Retorna `WorkOrderResource` actualizado con el nuevo producto registrado dentro del arreglo `products` de la tarea correspondiente y el monto total recalculado.
 
 ### Error Responses
 
@@ -239,15 +255,15 @@
 
 - **Reserva inmediata**: `ProductBatch.availableQuantity -= quantity` (FIFO por lotes)
 - **Precio**: Se toma `Product.salePrice` al momento de agregar (no cambia si precio cambia después)
-- **Montos**: `task.totalAmount += unitPrice * quantity`; `ot.totalAmount` se recalcula
-- **Validación stock**: Suma `availableQuantity` across lotes ≥ quantity
+- **Montos**: El `price` de la tarea y el `totalAmount` de la OT se recalculan automáticamente
+- **Validación stock**: Suma de `availableQuantity` across lotes ≥ quantity
 
 ---
 
 ## `PUT /api/v1/work-order-tasks/{taskId}/products/{productId}` — Modificar Cantidad de Repuesto
 
 **Security**: Validación manual `isAuthorizedForBranch(ot.branchId)`  
-**Description**: Actualiza cantidad reservada. Ajusta reserva de stock (incrementa/decrementa).
+**Description**: Actualiza cantidad reservada. Ajusta reserva de stock (incrementa o decrementa).
 
 ### Request
 
@@ -257,7 +273,7 @@
 
 ### Success Response (200 OK)
 
-`WorkOrderTaskProductResource` actualizado con nuevos montos.
+Retorna `WorkOrderResource` con los montos actualizados.
 
 ### Error Responses
 

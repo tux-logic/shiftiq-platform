@@ -2,9 +2,11 @@ package com.tuxlogic.shiftiq.platform.operations.application.internal.commandser
 
 import com.tuxlogic.shiftiq.platform.operations.application.commandservices.WorkOrderCommandFailure;
 import com.tuxlogic.shiftiq.platform.operations.application.commandservices.WorkOrderCommandService;
+import com.tuxlogic.shiftiq.platform.operations.application.outboundservices.ExternalEmployeeService;
 import com.tuxlogic.shiftiq.platform.operations.application.outboundservices.ExternalProductService;
 import com.tuxlogic.shiftiq.platform.operations.domain.model.aggregates.WorkOrder;
 import com.tuxlogic.shiftiq.platform.operations.domain.model.commands.*;
+import com.tuxlogic.shiftiq.platform.operations.domain.model.valueobjects.MechanicId;
 import com.tuxlogic.shiftiq.platform.operations.domain.model.valueobjects.OperationsMessageKeys;
 import com.tuxlogic.shiftiq.platform.operations.domain.model.valueobjects.WorkOrderId;
 import com.tuxlogic.shiftiq.platform.operations.domain.repositories.ServiceRepository;
@@ -15,6 +17,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.UUID;
 import java.util.function.Supplier;
 
 /**
@@ -30,13 +33,16 @@ public class WorkOrderCommandServiceImpl implements WorkOrderCommandService {
     private final WorkOrderRepository workOrderRepository;
     private final ServiceRepository serviceRepository;
     private final ExternalProductService externalProductService;
+    private final ExternalEmployeeService externalEmployeeService;
 
     public WorkOrderCommandServiceImpl(WorkOrderRepository workOrderRepository,
                                        ServiceRepository serviceRepository,
-                                       ExternalProductService externalProductService) {
+                                       ExternalProductService externalProductService,
+                                       ExternalEmployeeService externalEmployeeService) {
         this.workOrderRepository = workOrderRepository;
         this.serviceRepository = serviceRepository;
         this.externalProductService = externalProductService;
+        this.externalEmployeeService = externalEmployeeService;
     }
 
     private Result<WorkOrder, WorkOrderCommandFailure> executeCommand(Supplier<WorkOrder> action) {
@@ -96,7 +102,9 @@ public class WorkOrderCommandServiceImpl implements WorkOrderCommandService {
             WorkOrder workOrder = findWorkOrderOrThrow(command.workOrderId());
             var service = serviceRepository.findById(command.serviceId())
                     .orElseThrow(() -> new IllegalArgumentException(OperationsMessageKeys.SERVICE_NOT_FOUND));
-            workOrder.addTask(command.serviceId(), command.mechanicId(), command.description(), service.getPrice(), command.evidenceImages());
+            UUID resolvedMechanicId = externalEmployeeService.resolveActiveRegistrationId(
+                    command.mechanicId().value(), workOrder.getBranchId().value());
+            workOrder.addTask(command.serviceId(), new MechanicId(resolvedMechanicId), command.description(), service.getPrice(), command.evidenceImages());
             return workOrderRepository.save(workOrder);
         });
     }
@@ -180,10 +188,13 @@ public class WorkOrderCommandServiceImpl implements WorkOrderCommandService {
             WorkOrder workOrder = findWorkOrderOrThrow(command.workOrderId());
             var service = serviceRepository.findById(command.serviceId())
                     .orElseThrow(() -> new IllegalArgumentException(OperationsMessageKeys.SERVICE_NOT_FOUND));
+            UUID resolvedMechanicId = command.mechanicId() != null
+                    ? externalEmployeeService.resolveActiveRegistrationId(command.mechanicId().value(), workOrder.getBranchId().value())
+                    : null;
             workOrder.updateTaskDetails(
                     command.taskId(),
                     command.serviceId(),
-                    command.mechanicId(),
+                    resolvedMechanicId != null ? new MechanicId(resolvedMechanicId) : null,
                     command.description(),
                     service.getPrice(),
                     command.evidenceImages()
@@ -231,7 +242,9 @@ public class WorkOrderCommandServiceImpl implements WorkOrderCommandService {
     public Result<WorkOrder, WorkOrderCommandFailure> handle(AssignMechanicToTaskCommand command) {
         return executeCommand(() -> {
             WorkOrder workOrder = findWorkOrderOrThrow(command.workOrderId());
-            workOrder.assignMechanicToTask(command.taskId(), command.mechanicId());
+            UUID resolvedMechanicId = externalEmployeeService.resolveActiveRegistrationId(
+                    command.mechanicId().value(), workOrder.getBranchId().value());
+            workOrder.assignMechanicToTask(command.taskId(), new MechanicId(resolvedMechanicId));
             return workOrderRepository.save(workOrder);
         });
     }

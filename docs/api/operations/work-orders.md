@@ -9,13 +9,13 @@
 ## `POST /api/v1/work-orders` — Crear Orden de Trabajo
 
 **Security**: `@PreAuthorize("isAuthenticated() and @multiTenancySecurityService.isAuthorizedForBranch(#resource.branchId())")`  
-**Description**: Abre OT desde cita agendada. Registra km inicial + fotos recepción. Estado inicial: `OPEN`.
+**Description**: Abre OT desde cita agendada. Registra km inicial + fotos recepción. Estado inicial: `PENDING`.
 
 ### Request
 
 | Campo | Tipo | Requerido | Descripción |
 |-------|------|-----------|-------------|
-| `appointmentId` | UUID | Sí | Cita origen (debe estar `SCHEDULED`/`CONFIRMED`) |
+| `appointmentId` | UUID | Sí | Cita origen (debe existir en la sede) |
 | `branchId` | UUID | Sí | Sede (caller debe tener acceso) |
 | `vehicleId` | UUID | Sí | Vehículo (debe coincidir con cita) |
 | `customerId` | UUID | Sí | Cliente (debe coincidir con cita) |
@@ -48,9 +48,9 @@
   "branchId": "c3d4e5f6-3333-4444-5555-666677778888",
   "vehicleId": "veh1veh2-veh3-veh4-veh5-veh6veh7veh8",
   "customerId": "cust1cust2-cust3-cust4-cust5-cust6cust7cu",
-  "internalNumber": 1042,
-  "formattedNumber": "OT-2026-001042",
-  "status": "OPEN",
+  "internalNumber": 1,
+  "formattedNumber": "MOL-01-000001",
+  "status": "PENDING",
   "diagnosticSummary": "Cliente reporta vibración en volante al frenar a 80 km/h",
   "mileageIn": 45200,
   "totalAmount": 0.00,
@@ -71,14 +71,14 @@
 | 400 | `VALIDATION_ERROR` | Cita inválida, km no numérico, IDs no coinciden |
 | 403 | `ACCESS_DENIED` | Sin acceso a la sede |
 | 404 | `NOT_FOUND` | Cita/Vehículo/Cliente/Sede no existe |
-| 409 | `CONFLICT` | Cita ya tiene OT, o cita `CANCELLED`/`COMPLETED` |
+| 409 | `CONFLICT` | Cita ya tiene OT, o cita cancelada |
 
 ### Important Considerations
 
-- **Numeración**: `internalNumber` secuencial por sede; `formattedNumber` = `OT-{AÑO}-{internalNumber:06d}`
-- **Cita origen**: Debe estar `SCHEDULED` o `CONFIRMED`; al crear OT, cita pasa a `IN_PROGRESS` (implícito)
+- **Numeración**: `internalNumber` secuencial por sede; `formattedNumber` = `{branchCode}-{internalNumber:06d}` (ej: `MOL-01-000001`)
+- **Estados**: `PENDING` → `IN_PROGRESS` → `COMPLETED` → `PAID`
 - **Stock**: No reserva stock al crear OT (se reserva al agregar productos a tasks)
-- **Analytics**: No emite evento aún (solo al completar)
+- **Analytics**: Emite evento al completar la orden
 
 ---
 
@@ -106,13 +106,16 @@
     "branchId": "c3d4e5f6-3333-4444-5555-666677778888",
     "vehicleId": "veh1veh2-veh3-veh4-veh5-veh6veh7veh8",
     "customerId": "cust1cust2-cust3-cust4-cust5-cust6cust7cu",
-    "internalNumber": 1042,
-    "formattedNumber": "OT-2026-001042",
-    "status": "OPEN",
+    "internalNumber": 1,
+    "formattedNumber": "MOL-01-000001",
+    "status": "IN_PROGRESS",
     "diagnosticSummary": "Vibración al frenar",
     "mileageIn": 45200,
-    "totalAmount": 0.00,
-    "createdAt": "2026-10-15T10:30:00Z"
+    "totalAmount": 200.00,
+    "tasks": [ ... ],
+    "entryInspectionImages": [ "https://..." ],
+    "createdAt": "2026-10-15T10:30:00Z",
+    "updatedAt": "2026-10-15T11:00:00Z"
   }
 ]
 ```
@@ -120,15 +123,15 @@
 ### Important Considerations
 
 - **Filtro branchId**: Valida `isAuthorizedForBranch(branchId)`
-- **Filtro vehicleId**: Busca OTs → filtra post-query `isAuthorizedForBranch(ot.branchId)`
-- **Sin paginación**: Retorna todas (considerar para volúmenes altos)
+- **Filtro vehicleId**: Busca OTs del vehículo y valida que el caller tenga acceso a la sede de cada OT
+- **Sin paginación**: Retorna todas las órdenes asociadas con sus tareas y repuestos
 
 ---
 
 ## `GET /api/v1/work-orders/{id}` — Detalle Completo de OT
 
 **Security**: Validación manual `isAuthorizedForBranch(ot.branchId)`  
-**Description**: **Endpoint principal** — retorna OT con tareas, mecánicos, repuestos, fotos, montos.
+**Description**: **Endpoint principal** — retorna OT con tareas, mecánicos asignados, repuestos, fotos y montos consolidados.
 
 ### Success Response (200 OK)
 
@@ -139,41 +142,41 @@
   "branchId": "c3d4e5f6-3333-4444-5555-666677778888",
   "vehicleId": "veh1veh2-veh3-veh4-veh5-veh6veh7veh8",
   "customerId": "cust1cust2-cust3-cust4-cust5-cust6cust7cu",
-  "internalNumber": 1042,
-  "formattedNumber": "OT-2026-001042",
-  "status": "OPEN",
+  "internalNumber": 1,
+  "formattedNumber": "MOL-01-000001",
+  "status": "IN_PROGRESS",
   "diagnosticSummary": "Vibración al frenar",
   "mileageIn": 45200,
-  "totalAmount": 1250.00,
+  "totalAmount": 200.00,
   "tasks": [
     {
       "id": "task1task2-task3-task4-task5task6task7",
       "serviceId": "srv1srv2-srv3-srv4-srv5-srv6srv7srv8",
-      "serviceName": "Cambio pastillas freno delanteras",
+      "branchId": "c3d4e5f6-3333-4444-5555-666677778888",
+      "assignedMechanicId": "ereg1ereg2-ereg3-ereg4-ereg5ereg6ereg7",
+      "status": "DOING",
       "description": "Rectificado discos + pastillas",
-      "status": "COMPLETED",
-      "assignedMechanicId": "emp1emp2-emp3-emp4-emp5-emp6emp7emp8",
-      "mechanicName": "Luis Mendoza",
-      "evidenceImages": ["https://..."],
+      "price": 200.00,
+      "startedAt": "2026-10-15T11:00:00Z",
+      "completedAt": null,
       "products": [
         {
-          "id": "prod1prod2-prod3-prod4-prod5prod6prod7",
+          "id": "wp1wp2wp3-wp4-wp5-wp6-wp7wp8wp9wp0",
           "productId": "prod1prod2-prod3-prod4-prod5prod6prod7",
-          "productName": "Pastillas Freno Delanteras",
+          "branchId": "c3d4e5f6-3333-4444-5555-666677778888",
           "quantity": 1,
-          "unitPrice": 180.00,
-          "totalAmount": 180.00
+          "unitPrice": 50.00,
+          "totalAmount": 50.00,
+          "createdAt": "2026-10-15T11:15:00Z"
         }
       ],
-      "totalAmount": 260.00,
-      "startedAt": "2026-10-15T11:00:00Z",
-      "completedAt": "2026-10-15T13:30:00Z"
+      "evidenceImages": ["https://..."],
+      "createdAt": "2026-10-15T10:45:00Z"
     }
   ],
   "entryInspectionImages": ["https://..."],
-  "exitInspectionImages": [],
   "createdAt": "2026-10-15T10:30:00Z",
-  "updatedAt": "2026-10-15T14:00:00Z"
+  "updatedAt": "2026-10-15T11:15:00Z"
 }
 ```
 
