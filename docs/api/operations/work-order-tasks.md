@@ -16,7 +16,7 @@
 | Campo | Tipo | Requerido | Descripción |
 |-------|------|-----------|-------------|
 | `serviceId` | UUID | Sí | Servicio del catálogo (misma sede que OT) |
-| `assignedMechanicId` | UUID | Sí | EmployeeRegistration ID del mecánico asignado (debe estar `ACTIVE` en la sede) |
+| `assignedMechanicId` | UUID | Sí | ID del mecánico. Puede ser el `id` de `employee_registrations` o el `id` de `employees` (perfil Core) — el backend lo resuelve automáticamente a la registración activa de la sede. |
 | `description` | string | Sí | Descripción técnica del trabajo (10 - 1000 caracteres) |
 | `evidenceImages` | string[] (URLs) | No | Fotos evidencia (Cloudinary) |
 
@@ -137,13 +137,13 @@ Retorna la orden de trabajo actualizada (`WorkOrderResource`) con el arreglo de 
 ## `POST /api/v1/work-order-tasks/{taskId}/assign-mechanic` — Asignar Mecánico
 
 **Security**: Validación manual `isAuthorizedForBranch(ot.branchId)`  
-**Description**: Asigna o reasigna el empleado/mecánico responsable de la tarea (`assignedMechanicId` apunta al `id` de `employee_registrations`).
+**Description**: Asigna o reasigna el empleado/mecánico responsable de la tarea (`assignedMechanicId` apunta al `id` de `employee_registrations`). Acepta indistintamente el ID de registración o el ID de perfil de empleado `employees.id`, resolviéndolo automáticamente.
 
 ### Request
 
 | Parámetro | Tipo | Requerido | Ubicación | Descripción |
 |-----------|------|-----------|-----------|-------------|
-| `mechanicId` | UUID | Sí | Query | EmployeeRegistration ID del mecánico (activo en la sede) |
+| `mechanicId` | UUID | Sí | Query | ID del mecánico: ID de registración (`employee_registrations`) o ID de perfil (`employees.id`) activo en la sede |
 
 ### Success Response (200 OK)
 

@@ -21,6 +21,7 @@
 | `year` | integer | Sí | Año (ej: `2023`) |
 | `vin` | string (17 chars) | No | VIN (17 caracteres alfanuméricos) |
 | `photoUrl` | string (URL) | No | URL foto (Cloudinary) |
+| `customerId` | UUID | No | ID de perfil `Customer` (permite a recepcionistas/dueños registrar un vehículo a nombre de un cliente presencial). Si se omite, se asocia al `userId` del JWT autenticado. |
 
 **Request Example**:
 ```json
@@ -30,7 +31,8 @@
   "model": "Corolla Cross",
   "year": 2023,
   "vin": "9BRBL3HE2P0123456",
-  "photoUrl": "https://res.cloudinary.com/shiftiq/image/upload/v1728329482/vehicles/corolla.jpg"
+  "photoUrl": "https://res.cloudinary.com/shiftiq/image/upload/v1728329482/vehicles/corolla.jpg",
+  "customerId": "c1c2c3c4-c5c6-7c8c-9c0c-1c2c3c4c5c6c"
 }
 ```
 

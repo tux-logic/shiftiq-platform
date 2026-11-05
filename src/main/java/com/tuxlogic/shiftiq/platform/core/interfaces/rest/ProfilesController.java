@@ -3,10 +3,13 @@ package com.tuxlogic.shiftiq.platform.core.interfaces.rest;
 import com.tuxlogic.shiftiq.platform.core.application.queryservices.ProfileQueryService;
 import com.tuxlogic.shiftiq.platform.core.domain.model.queries.GetProfileRolesByUserIdQuery;
 import com.tuxlogic.shiftiq.platform.core.domain.model.valueobjects.UserId;
+import com.tuxlogic.shiftiq.platform.core.interfaces.rest.resources.UserProfileContextResource;
+import com.tuxlogic.shiftiq.platform.shared.infrastructure.security.AuthenticatedPrincipal;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -29,6 +32,15 @@ public class ProfilesController {
     public ProfilesController(ProfileQueryService profileQueryService, MultiTenancySecurityService multiTenancySecurityService) {
         this.profileQueryService = profileQueryService;
         this.multiTenancySecurityService = multiTenancySecurityService;
+    }
+
+    @GetMapping("/me")
+    @Operation(summary = "Get current authenticated user's complete profile context",
+               description = "Returns the caller's complete profile context including roles, owner profile, employee profile, and customer profile in a single unified call.")
+    public ResponseEntity<UserProfileContextResource> getCurrentUserProfile(Authentication authentication) {
+        var principal = (AuthenticatedPrincipal) authentication.getPrincipal();
+        var context = profileQueryService.getUserProfileContext(new UserId(principal.getId()));
+        return ResponseEntity.ok(context);
     }
 
     @GetMapping("/roles")

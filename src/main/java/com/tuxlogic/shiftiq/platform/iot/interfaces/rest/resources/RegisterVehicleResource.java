@@ -4,6 +4,7 @@ import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import java.util.UUID;
 
 /**
  * Resource representing the request body to register a client vehicle.
@@ -26,6 +27,11 @@ public record RegisterVehicleResource(
         @NotBlank(message = "VIN is required")
         String vin,
 
-        String photoUrl
+        String photoUrl,
+
+        UUID customerId
 ) {
+    public RegisterVehicleResource(String plateNumber, String brand, String model, Integer year, String vin, String photoUrl) {
+        this(plateNumber, brand, model, year, vin, photoUrl, null);
+    }
 }
