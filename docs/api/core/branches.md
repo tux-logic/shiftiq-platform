@@ -71,10 +71,10 @@
 | Parámetro | Tipo | Requerido | Ubicación | Descripción |
 |-----------|------|-----------|-----------|-------------|
 | `branchId` | UUID | Sí | Path | ID de la sede |
-| `code` | string | No | Body | Nuevo código |
-| `name` | string | No | Body | Nuevo nombre |
-| `address` | string | No | Body | Nueva dirección |
-| `phone` | string | No | Body | Nuevo teléfono |
+| `code` | string | Sí | Body | Código único de la sede (ej: `BR-SURCO-01`) |
+| `name` | string | Sí | Body | Nombre de la sede |
+| `address` | string | Sí | Body | Dirección física |
+| `phone` | string | Sí | Body | Teléfono de contacto |
 
 **Request Example**:
 ```json
@@ -177,12 +177,20 @@
 | `branchId` | UUID | Sí | Path | Sede destino |
 | `planId` | UUID | Sí | Body | Plan de suscripción |
 | `billingCycle` | string (enum) | Sí | Body | `MONTHLY` o `ANNUAL` |
+| `cardNumber` | string (16 dígitos) | Sí | Body | Número de tarjeta de crédito/débito |
+| `cardHolderName` | string | Sí | Body | Nombre del titular de la tarjeta |
+| `expirationDate` | string (MM/YY) | Sí | Body | Fecha de expiración de la tarjeta |
+| `cvv` | string (3-4 dígitos) | Sí | Body | Código de seguridad CVV |
 
 **Request Example**:
 ```json
 {
   "planId": "f1e2d3c4-9999-8888-7777-666655554444",
-  "billingCycle": "MONTHLY"
+  "billingCycle": "MONTHLY",
+  "cardNumber": "4532015698451234",
+  "cardHolderName": "Carlos Mendoza",
+  "expirationDate": "12/28",
+  "cvv": "123"
 }
 ```
 

@@ -125,12 +125,12 @@
 
 | Campo | Tipo | Requerido | Descripción |
 |-------|------|-----------|-------------|
-| `firstName` | string | No | Nombres |
-| `lastName` | string | No | Apellidos |
-| `businessName` | string | No | Razón social |
-| `documentType` | string | No | Tipo documento |
-| `documentNumber` | string | No | Número documento (único) |
-| `phone` | string | No | Teléfono |
+| `firstName` | string | No | Nombres (persona natural) |
+| `lastName` | string | No | Apellidos (persona natural) |
+| `businessName` | string | No | Razón social (persona jurídica) |
+| `documentType` | string | Sí | Tipo de documento (`DNI`, `RUC`, etc.) |
+| `documentNumber` | string | Sí | Número de documento (único) |
+| `phone` | string | Sí | Teléfono de contacto |
 
 ### Success Response (200 OK)
 

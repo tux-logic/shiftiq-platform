@@ -84,8 +84,8 @@
 
 | Campo | Tipo | Requerido | Descripción |
 |-------|------|-----------|-------------|
-| `name` | string | No | Nuevo nombre |
-| `price` | number | No | Nuevo precio |
+| `name` | string | Sí | Nombre del servicio técnico |
+| `price` | number (> 0) | Sí | Precio unitario del servicio |
 
 **Request Example**:
 ```json

@@ -146,11 +146,11 @@
 
 | Campo | Tipo | Requerido | Descripción |
 |-------|------|-----------|-------------|
-| `firstName` | string | No | Nombres |
-| `lastName` | string | No | Apellidos |
-| `documentType` | string | No | Tipo documento |
-| `documentNumber` | string | No | Número documento (único) |
-| `phone` | string | No | Teléfono |
+| `firstName` | string | Sí | Nombres |
+| `lastName` | string | Sí | Apellidos |
+| `documentType` | string | Sí | Tipo de documento |
+| `documentNumber` | string | Sí | Número de documento (único) |
+| `phone` | string | Sí | Teléfono de contacto |
 
 ### Success Response (200 OK)
 
