@@ -168,12 +168,12 @@ Mismo formato que listado principal.
 
 | Campo | Tipo | Requerido | Descripción |
 |-------|------|-----------|-------------|
-| `name` | string | No | Nuevo nombre |
-| `category` | string | No | Nueva categoría |
-| `sku` | string | No | Nuevo SKU (único en sede) |
-| `description` | string | No | Nueva descripción |
-| `salePrice` | number | No | Nuevo precio venta |
-| `minimumStock` | integer | No | Nuevo stock mínimo |
+| `name` | string (max 50 chars) | Sí | Nombre del producto/repuesto |
+| `category` | string (max 50 chars) | Sí | Categoría del producto |
+| `sku` | string (max 50 chars) | Sí | Código SKU (único por sede) |
+| `description` | string (max 500 chars) | No | Descripción técnica detallada |
+| `salePrice` | number (decimal >= 0.01) | Sí | Precio unitario de venta al público |
+| `minimumStock` | integer (>= 0) | Sí | Nivel de stock mínimo para alertas |
 
 ### Success Response (200 OK)
 

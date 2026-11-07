@@ -156,7 +156,7 @@ Array de `VoucherResource` (resumen).
 }
 ```
 
-### Success Response (201 CREATED)
+### Success Response (200 OK)
 
 `VoucherResource` actualizado con `status: "PAID"` si cubre total.
 
