@@ -191,8 +191,20 @@
 
 | Campo | Tipo | Requerido | Descripción |
 |-------|------|-----------|-------------|
-| `diagnosticSummary` | string | No | Nuevo diagnóstico |
-| `mileageIn` | integer | No | Nuevo km entrada |
+| `diagnosticSummary` | string (5-2000 chars) | Sí | Resumen del diagnóstico técnico inicial |
+| `mileageIn` | integer | Sí | Kilometraje de ingreso del vehículo |
+| `entryInspectionImages` | string[] (URLs) | No | URLs de fotos tomadas durante la inspección visual inicial |
+
+**Request Example**:
+```json
+{
+  "diagnosticSummary": "Mantenimiento preventivo general, cambio de aceite y pastillas de freno delanteras",
+  "mileageIn": 45200,
+  "entryInspectionImages": [
+    "https://res.cloudinary.com/shiftiq/image/upload/v1234/workorders/inspection1.jpg"
+  ]
+}
+```
 
 ### Success Response (200 OK)
 

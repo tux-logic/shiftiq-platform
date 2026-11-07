@@ -1,7 +1,7 @@
 # ShiftIQ Platform — API Documentation Index
 
 **Version**: 1.0  
-**Last Updated**: 2026-11-04  
+**Last Updated**: 2026-11-07  
 **Base URL (Local)**: `http://localhost:8080`  
 **Base URL (Production)**: `https://shiftiq-platform.onrender.com`  
 **Swagger UI**: `https://shiftiq-platform.onrender.com/swagger-ui/index.html`
