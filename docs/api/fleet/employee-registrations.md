@@ -109,9 +109,9 @@
 |-------|------|-----------|-------------|
 | `employeeId` | UUID | Sí | Employee profile ID (del caller) |
 | `branchId` | UUID | Sí | Sede destino |
-| `speciality` | string | Sí | Código especialidad (catálogo activo del taller) |
-| `specialityName` | string | Sí | Nombre especialidad |
-| `salary` | number | Sí | Salario pretendido |
+| `speciality` | string | No | Código especialidad (catálogo activo del taller) |
+| `specialityName` | string | No | Nombre especialidad |
+| `salary` | number | No | Salario pretendido |
 
 **Request Example**:
 ```json
@@ -264,9 +264,9 @@ Array de `EmployeeRegistrationResource`.
 
 | Campo | Tipo | Requerido | Descripción |
 |-------|------|-----------|-------------|
-| `speciality` | string | No | Nuevo código especialidad (catálogo activo) |
-| `specialityName` | string | No | Nuevo nombre |
-| `salary` | number | No | Nuevo salario |
+| `speciality` | string | Sí | Código de especialidad (catálogo activo) |
+| `specialityName` | string | Sí | Nombre descriptivo de la especialidad |
+| `salary` | number (>= 0) | Sí | Nuevo salario acordado |
 
 ### Success Response (200 OK)
 

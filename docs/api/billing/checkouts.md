@@ -84,7 +84,7 @@
 }
 ```
 
-### Success Response (200 OK / 201 CREATED)
+### Success Response (201 CREATED)
 
 `VoucherResource` emitido con `status: "PAID"`, `pdfUrl` Factos.
 

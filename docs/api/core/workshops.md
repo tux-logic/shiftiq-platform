@@ -70,10 +70,10 @@
 | Parámetro | Tipo | Requerido | Ubicación | Descripción |
 |-----------|------|-----------|-----------|-------------|
 | `workshopId` | UUID | Sí | Path | ID del taller |
-| `businessName` | string | No | Body | Nueva razón social |
-| `brandName` | string | No | Body | Nuevo nombre comercial |
-| `taxId` | string (11 dígitos) | No | Body | Nuevo RUC |
-| `mileageIntervalConfig` | integer | No | Body | Nuevo intervalo km |
+| `businessName` | string | Sí | Body | Razón social de la empresa |
+| `brandName` | string | Sí | Body | Nombre comercial de la marca |
+| `taxId` | string (11 dígitos) | Sí | Body | RUC del taller |
+| `mileageIntervalConfig` | integer | Sí | Body | Intervalo de kilometraje para mantenimientos (> 0) |
 
 **Request Example**:
 ```json
@@ -278,8 +278,8 @@
 
 | Campo | Tipo | Requerido | Descripción |
 |-------|------|-----------|-------------|
-| `name` | string | No | Nuevo nombre |
-| `description` | string | No | Nueva descripción |
+| `name` | string (max 100 chars) | Sí | Nombre de la especialidad |
+| `description` | string (max 255 chars) | No | Descripción detallada |
 
 ### Error Responses
 

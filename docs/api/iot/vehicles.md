@@ -19,7 +19,7 @@
 | `brand` | string | Sí | Marca (ej: `Toyota`) |
 | `model` | string | Sí | Modelo (ej: `Corolla Cross`) |
 | `year` | integer | Sí | Año (ej: `2023`) |
-| `vin` | string (17 chars) | No | VIN (17 caracteres alfanuméricos) |
+| `vin` | string (17 chars) | Sí | VIN (17 caracteres alfanuméricos) |
 | `photoUrl` | string (URL) | No | URL foto (Cloudinary) |
 | `customerId` | UUID | No | ID de perfil `Customer` (permite a recepcionistas/dueños registrar un vehículo a nombre de un cliente presencial). Si se omite, se asocia al `userId` del JWT autenticado. |
 
@@ -140,11 +140,11 @@
 
 | Campo | Tipo | Requerido | Descripción |
 |-------|------|-----------|-------------|
-| `plateNumber` | string | No | Nueva placa |
-| `brand` | string | No | Nueva marca |
-| `model` | string | No | Nuevo modelo |
-| `year` | integer | No | Nuevo año |
-| `vin` | string | No | Nuevo VIN |
+| `plateNumber` | string | Sí | Nueva placa (ej: `ABC-123`) |
+| `brand` | string | Sí | Nueva marca |
+| `model` | string | Sí | Nuevo modelo |
+| `year` | integer | Sí | Nuevo año (1900-2100) |
+| `vin` | string (17 chars) | Sí | Nuevo VIN |
 | `photoUrl` | string | No | Nueva foto |
 
 ### Success Response (200 OK)
