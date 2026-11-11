@@ -11,7 +11,6 @@ import com.tuxlogic.shiftiq.platform.core.domain.model.queries.GetWorkshopSpecia
 import com.tuxlogic.shiftiq.platform.core.domain.model.valueobjects.WorkshopId;
 import com.tuxlogic.shiftiq.platform.core.domain.model.valueobjects.WorkshopSpecialtyId;
 import com.tuxlogic.shiftiq.platform.core.interfaces.rest.resources.CreateWorkshopSpecialtyResource;
-import com.tuxlogic.shiftiq.platform.core.interfaces.rest.resources.UpdateWorkshopSpecialtyResource;
 import com.tuxlogic.shiftiq.platform.shared.infrastructure.security.MultiTenancySecurityService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
