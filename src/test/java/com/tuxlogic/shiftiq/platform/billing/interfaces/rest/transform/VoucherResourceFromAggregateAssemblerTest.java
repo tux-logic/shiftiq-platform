@@ -10,7 +10,6 @@ import com.tuxlogic.shiftiq.platform.shared.domain.model.valueobjects.Money;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
-import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
