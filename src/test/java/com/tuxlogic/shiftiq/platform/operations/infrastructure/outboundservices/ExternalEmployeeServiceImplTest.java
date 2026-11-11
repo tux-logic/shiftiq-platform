@@ -13,10 +13,10 @@ import java.util.List;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
+import org.mockito.ArgumentMatchers;
 
 @ExtendWith(MockitoExtension.class)
 class ExternalEmployeeServiceImplTest {
@@ -36,7 +36,7 @@ class ExternalEmployeeServiceImplTest {
         UUID registrationId = UUID.randomUUID();
         UUID branchId = UUID.randomUUID();
 
-        when(jdbcTemplate.query(anyString(), any(RowMapper.class), eq(registrationId), eq(branchId)))
+        when(jdbcTemplate.query(anyString(), ArgumentMatchers.<RowMapper<UUID>>any(), eq(registrationId), eq(branchId)))
                 .thenReturn(List.of(registrationId));
 
         UUID result = service.resolveActiveRegistrationId(registrationId, branchId);
@@ -49,7 +49,7 @@ class ExternalEmployeeServiceImplTest {
         UUID registrationId = UUID.randomUUID();
         UUID branchId = UUID.randomUUID();
 
-        when(jdbcTemplate.query(anyString(), any(RowMapper.class), eq(employeeId), eq(branchId)))
+        when(jdbcTemplate.query(anyString(), ArgumentMatchers.<RowMapper<UUID>>any(), eq(employeeId), eq(branchId)))
                 .thenReturn(Collections.emptyList()) // 1st query by id fails
                 .thenReturn(List.of(registrationId)); // 2nd query by employee_id succeeds
 
@@ -62,7 +62,7 @@ class ExternalEmployeeServiceImplTest {
         UUID candidateId = UUID.randomUUID();
         UUID branchId = UUID.randomUUID();
 
-        when(jdbcTemplate.query(anyString(), any(RowMapper.class), eq(candidateId), eq(branchId)))
+        when(jdbcTemplate.query(anyString(), ArgumentMatchers.<RowMapper<UUID>>any(), eq(candidateId), eq(branchId)))
                 .thenReturn(Collections.emptyList())
                 .thenReturn(Collections.emptyList());
 
