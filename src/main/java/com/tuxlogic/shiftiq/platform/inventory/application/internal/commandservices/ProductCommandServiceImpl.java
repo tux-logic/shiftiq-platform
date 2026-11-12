@@ -1,6 +1,7 @@
 package com.tuxlogic.shiftiq.platform.inventory.application.internal.commandservices;
 
 import com.tuxlogic.shiftiq.platform.inventory.application.commandservices.ProductCommandService;
+import com.tuxlogic.shiftiq.platform.inventory.application.outboundservices.ProductUsageChecker;
 import com.tuxlogic.shiftiq.platform.inventory.domain.exceptions.InsufficientStockException;
 import com.tuxlogic.shiftiq.platform.inventory.domain.model.aggregates.Product;
 import com.tuxlogic.shiftiq.platform.inventory.domain.model.commands.AddBatchToProductCommand;
@@ -13,7 +14,6 @@ import com.tuxlogic.shiftiq.platform.inventory.domain.repositories.ProductReposi
 import com.tuxlogic.shiftiq.platform.shared.application.result.Result;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -25,9 +25,12 @@ public class ProductCommandServiceImpl implements ProductCommandService {
 
     private static final Logger log = LoggerFactory.getLogger(ProductCommandServiceImpl.class);
     private final ProductRepository productRepository;
+    private final ProductUsageChecker productUsageChecker;
 
-    public ProductCommandServiceImpl(ProductRepository productRepository) {
+    public ProductCommandServiceImpl(ProductRepository productRepository,
+                                     ProductUsageChecker productUsageChecker) {
         this.productRepository = productRepository;
+        this.productUsageChecker = productUsageChecker;
     }
 
     @Override
@@ -129,14 +132,15 @@ public class ProductCommandServiceImpl implements ProductCommandService {
             return Result.failure(ProductCommandFailure.PRODUCT_NOT_FOUND);
         }
 
-        try {
-            productRepository.deleteById(command.productId());
-            log.info("Soft-deleted product ID '{}'", command.productId());
-            return Result.success(null);
-        } catch (DataIntegrityViolationException e) {
-            log.warn("Delete product failed: product ID '{}' is in use", command.productId());
+        // Soft-delete does not trip FK constraints, so we explicitly check Operations usage.
+        if (productUsageChecker.isReferencedByWorkOrderTasks(command.productId())) {
+            log.warn("Delete product failed: product ID '{}' is referenced by work-order tasks", command.productId());
             return Result.failure(ProductCommandFailure.PRODUCT_IN_USE);
         }
+
+        productRepository.deleteById(command.productId());
+        log.info("Soft-deleted product ID '{}'", command.productId());
+        return Result.success(null);
     }
 
     private Optional<Product> findProductOrNotFound(UUID productId, String actionName) {
