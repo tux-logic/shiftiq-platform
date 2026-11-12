@@ -220,23 +220,30 @@ Mismo formato que listado principal.
 }
 ```
 
-### Success Response (200 OK / 201 CREATED)
+### Success Response (201 CREATED)
+
+Returns a `ProductBatchResource` (not a custom `{message,currentStock}` envelope):
 
 ```json
 {
-  "message": "Stock batch updated successfully",
-  "currentStock": 35
+  "batchId": "d1000000-0000-0000-0000-000000000001",
+  "initialQuantity": 15,
+  "availableQuantity": 15,
+  "acquisitionCost": 24.00,
+  "createdAt": "2026-11-12T18:00:00Z"
 }
 ```
+
+For negative adjustments, `initialQuantity` may reflect the signed movement and `availableQuantity`
+may reflect the resulting product stock snapshot used by the assembler.
 
 ### Error Responses
 
 | HTTP Code | Error Code | Descripción |
 |-----------|------------|-------------|
-| 400 | `VALIDATION_ERROR` | Cantidad 0, costo negativo en ingreso |
+| 400 | `VALIDATION_ERROR` | Cantidad 0, costo inválido, o stock insuficiente (`INSUFFICIENT_STOCK`) |
 | 403 | `ACCESS_DENIED` | Sin acceso a la sede |
 | 404 | `NOT_FOUND` | Producto no existe |
-| 409 | `CONFLICT` | Stock resultante negativo (`INSUFFICIENT_STOCK`) |
 
 ### Important Considerations
 
@@ -251,7 +258,7 @@ Mismo formato que listado principal.
 ## `DELETE /api/v1/inventory/products/{productId}` — Eliminar Producto
 
 **Security**: Validación manual `isAuthorizedForBranch(product.branchId)`  
-**Description**: Elimina producto y **todos sus lotes**.
+**Description**: Soft-delete del producto (y lotes asociados). Bloqueado si hay referencias activas en OT.
 
 ### Success Response (204 NO CONTENT)
 
@@ -260,11 +267,11 @@ Mismo formato que listado principal.
 | HTTP Code | Error Code | Descripción |
 |-----------|------------|-------------|
 | 403 | `ACCESS_DENIED` | Sin acceso a la sede |
-| 404 | `NOT_FOUND` | Producto no existe |
-| 409 | `CONFLICT` | Producto referenciado en `WorkOrderTaskProduct` activas (`PRODUCT_IN_USE`) |
+| 404 | `PRODUCT_NOT_FOUND` | Producto no existe |
+| 409 | `PRODUCT_CONFLICT` | Producto referenciado en `work_order_task_products` activas (dominio: `PRODUCT_IN_USE`) |
 
 ### Important Considerations
 
-- **Cascada**: Borra lotes + historial
-- **Protección**: No permite borrar si hay reservas activas en OTs
+- **Soft delete**: marca `deleted_at`; no hard-delete
+- **Protección**: `ProductUsageChecker` consulta referencias no borradas en OT antes de permitir el delete
 - **Alternativa**: Poner `minimumStock = 0` y `salePrice = 0` para "desactivar" sin borrar
