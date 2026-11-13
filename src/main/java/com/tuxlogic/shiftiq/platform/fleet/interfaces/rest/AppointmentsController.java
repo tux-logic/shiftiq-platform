@@ -52,7 +52,7 @@ public class AppointmentsController {
 
         @PostMapping
         @Operation(summary = "Create a new appointment", description = "Creates a new appointment")
-        @PreAuthorize("isAuthenticated() and (hasRole('ADMIN') or @multiTenancySecurityService.isAuthorizedForBranch(#resource.branchId()))")
+        @PreAuthorize("isAuthenticated() and (hasRole('ADMIN') or @multiTenancySecurityService.isAuthorizedAdvisorOrManagerForBranch(#resource.branchId()) or (hasRole('USER') and @multiTenancySecurityService.isAuthorizedForSelf(#resource.customerId())))")
         public ResponseEntity<?> createAppointment(@Valid @RequestBody CreateAppointmentResource resource) {
                 var command = CreateAppointmentCommandFromResourceAssembler.toCommandFromResource(resource);
                 var result = commandService.handle(command);
@@ -73,7 +73,9 @@ public class AppointmentsController {
                         return handleQueryFailure(queryResult.failure().get());
                 }
                 var existingApp = queryResult.success().get();
-                if (!multiTenancySecurityService.isAuthorizedForBranch(existingApp.getBranchId())) {
+                boolean isAuthorized = multiTenancySecurityService.isAuthorizedAdvisorOrManagerForBranch(existingApp.getBranchId())
+                                || (existingApp.getCustomerId() != null && multiTenancySecurityService.isAuthorizedForSelf(existingApp.getCustomerId().value()));
+                if (!isAuthorized) {
                         return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
                 }
 
@@ -95,7 +97,9 @@ public class AppointmentsController {
                         return handleQueryFailure(queryResult.failure().get());
                 }
                 var existingApp = queryResult.success().get();
-                if (!multiTenancySecurityService.isAuthorizedForBranch(existingApp.getBranchId())) {
+                boolean isAuthorized = multiTenancySecurityService.isAuthorizedAdvisorOrManagerForBranch(existingApp.getBranchId())
+                                || (existingApp.getCustomerId() != null && multiTenancySecurityService.isAuthorizedForSelf(existingApp.getCustomerId().value()));
+                if (!isAuthorized) {
                         return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
                 }
 

@@ -147,7 +147,7 @@ public class EmployeeRegistrationsController {
             return ResponseEntity.notFound().build();
         }
         var registration = queryResult.success().get();
-        if (!multiTenancySecurityService.isAuthorizedForBranch(registration.getBranchId())) {
+        if (!multiTenancySecurityService.isAuthorizedManagerForBranch(registration.getBranchId())) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
         }
 
@@ -168,7 +168,7 @@ public class EmployeeRegistrationsController {
             return ResponseEntity.notFound().build();
         }
         var registration = queryResult.success().get();
-        if (!multiTenancySecurityService.isAuthorizedForBranch(registration.getBranchId())) {
+        if (!multiTenancySecurityService.isAuthorizedManagerForBranch(registration.getBranchId())) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
         }
 
@@ -220,7 +220,7 @@ public class EmployeeRegistrationsController {
             return ResponseEntity.notFound().build();
         }
         var registration = queryResult.success().get();
-        if (!multiTenancySecurityService.isAuthorizedForBranch(registration.getBranchId())) {
+        if (!multiTenancySecurityService.isAuthorizedManagerForBranch(registration.getBranchId())) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
         }
 

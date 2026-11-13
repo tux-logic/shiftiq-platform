@@ -144,7 +144,7 @@ class AppointmentsControllerTest {
         );
 
         when(queryService.handle(appointmentId)).thenReturn(Result.success(appointment));
-        when(multiTenancySecurityService.isAuthorizedForBranch(new BranchId(branchId))).thenReturn(false);
+        when(multiTenancySecurityService.isAuthorizedAdvisorOrManagerForBranch(new BranchId(branchId))).thenReturn(false);
 
         ResponseEntity<?> response = controller.updateAppointment(appointmentId, null);
 
@@ -166,7 +166,7 @@ class AppointmentsControllerTest {
         );
 
         when(queryService.handle(appointmentId)).thenReturn(Result.success(appointment));
-        when(multiTenancySecurityService.isAuthorizedForBranch(new BranchId(branchId))).thenReturn(false);
+        when(multiTenancySecurityService.isAuthorizedAdvisorOrManagerForBranch(new BranchId(branchId))).thenReturn(false);
 
         ResponseEntity<?> response = controller.deleteAppointment(appointmentId);
 
