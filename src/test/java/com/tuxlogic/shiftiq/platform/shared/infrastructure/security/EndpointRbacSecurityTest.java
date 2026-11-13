@@ -30,6 +30,7 @@ import com.tuxlogic.shiftiq.platform.fleet.application.queryservices.Appointment
 import com.tuxlogic.shiftiq.platform.fleet.application.queryservices.EmployeeRegistrationQueryService;
 import com.tuxlogic.shiftiq.platform.fleet.interfaces.rest.AppointmentsController;
 import com.tuxlogic.shiftiq.platform.fleet.interfaces.rest.EmployeeRegistrationsController;
+import com.tuxlogic.shiftiq.platform.iam.domain.model.valueobjects.Permission;
 import com.tuxlogic.shiftiq.platform.inventory.application.commandservices.ProductCommandService;
 import com.tuxlogic.shiftiq.platform.inventory.application.queryservices.ProductQueryService;
 import com.tuxlogic.shiftiq.platform.inventory.domain.model.aggregates.Product;
@@ -235,7 +236,7 @@ class EndpointRbacSecurityTest {
         ResponseEntity<?> response = productsController.deleteProduct(productId);
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NO_CONTENT);
-        verify(multiTenancySecurityService).validateManagerAccess(branchId);
+        verify(multiTenancySecurityService).validateBranchPermission(branchId, Permission.INVENTORY_MANAGE);
     }
 
     @Test
@@ -244,7 +245,7 @@ class EndpointRbacSecurityTest {
         Product product = sampleProduct();
         when(productQueryService.handle(any(GetProductByIdQuery.class))).thenReturn(Optional.of(product));
         doThrow(new AccessDeniedException("Unauthorized managerial access"))
-                .when(multiTenancySecurityService).validateManagerAccess(branchId);
+                .when(multiTenancySecurityService).validateBranchPermission(branchId, Permission.INVENTORY_MANAGE);
 
         assertThrows(AccessDeniedException.class, () -> productsController.deleteProduct(productId));
         verify(productCommandService, never()).handle(any(DeleteProductCommand.class));
@@ -262,7 +263,7 @@ class EndpointRbacSecurityTest {
         ResponseEntity<?> response = productsController.addBatchToProduct(productId, resource);
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CREATED);
-        verify(multiTenancySecurityService).validateManagerAccess(branchId);
+        verify(multiTenancySecurityService).validateBranchPermission(branchId, Permission.INVENTORY_MANAGE);
     }
 
     @Test
@@ -271,7 +272,7 @@ class EndpointRbacSecurityTest {
         Product product = sampleProduct();
         when(productQueryService.handle(any(GetProductByIdQuery.class))).thenReturn(Optional.of(product));
         doThrow(new AccessDeniedException("Unauthorized managerial access"))
-                .when(multiTenancySecurityService).validateManagerAccess(branchId);
+                .when(multiTenancySecurityService).validateBranchPermission(branchId, Permission.INVENTORY_MANAGE);
 
         AddBatchToProductResource resource = new AddBatchToProductResource(10, 25.5);
         assertThrows(AccessDeniedException.class, () -> productsController.addBatchToProduct(productId, resource));
@@ -296,7 +297,7 @@ class EndpointRbacSecurityTest {
         ResponseEntity<?> response = workOrdersController.deleteWorkOrder(workOrderId);
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NO_CONTENT);
-        verify(multiTenancySecurityService).validateManagerAccess(branchId);
+        verify(multiTenancySecurityService).validateBranchPermission(branchId, Permission.WORKORDER_DELETE);
     }
 
     @Test
@@ -313,7 +314,7 @@ class EndpointRbacSecurityTest {
         );
         when(workOrderQueryService.handle(any(GetWorkOrderByIdQuery.class))).thenReturn(Optional.of(workOrder));
         doThrow(new AccessDeniedException("Unauthorized managerial access"))
-                .when(multiTenancySecurityService).validateManagerAccess(branchId);
+                .when(multiTenancySecurityService).validateBranchPermission(branchId, Permission.WORKORDER_DELETE);
 
         assertThrows(AccessDeniedException.class, () -> workOrdersController.deleteWorkOrder(workOrderId));
         verify(workOrderCommandService, never()).handle(any(DeleteWorkOrderCommand.class));
@@ -330,7 +331,7 @@ class EndpointRbacSecurityTest {
         ResponseEntity<?> response = servicesController.updateService(serviceId, resource);
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
-        verify(multiTenancySecurityService).validateManagerAccess(branchId);
+        verify(multiTenancySecurityService).validateBranchPermission(branchId, Permission.SERVICE_MANAGE);
     }
 
     @Test
@@ -339,7 +340,7 @@ class EndpointRbacSecurityTest {
         Service service = new Service(new BranchId(branchId), "Oil Change", new Money(BigDecimal.valueOf(50)));
         when(serviceQueryService.handle(any(GetServiceByIdQuery.class))).thenReturn(Optional.of(service));
         doThrow(new AccessDeniedException("Unauthorized managerial access"))
-                .when(multiTenancySecurityService).validateManagerAccess(branchId);
+                .when(multiTenancySecurityService).validateBranchPermission(branchId, Permission.SERVICE_MANAGE);
 
         UpdateServiceResource resource = new UpdateServiceResource("Oil Change Premium", 65.0);
         assertThrows(AccessDeniedException.class, () -> servicesController.updateService(serviceId, resource));
@@ -356,7 +357,7 @@ class EndpointRbacSecurityTest {
         ResponseEntity<?> response = servicesController.deleteService(serviceId);
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NO_CONTENT);
-        verify(multiTenancySecurityService).validateManagerAccess(branchId);
+        verify(multiTenancySecurityService).validateBranchPermission(branchId, Permission.SERVICE_MANAGE);
     }
 
     @Test
@@ -365,7 +366,7 @@ class EndpointRbacSecurityTest {
         Service service = new Service(new BranchId(branchId), "Oil Change", new Money(BigDecimal.valueOf(50)));
         when(serviceQueryService.handle(any(GetServiceByIdQuery.class))).thenReturn(Optional.of(service));
         doThrow(new AccessDeniedException("Unauthorized managerial access"))
-                .when(multiTenancySecurityService).validateManagerAccess(branchId);
+                .when(multiTenancySecurityService).validateBranchPermission(branchId, Permission.SERVICE_MANAGE);
 
         assertThrows(AccessDeniedException.class, () -> servicesController.deleteService(serviceId));
         verify(serviceCommandService, never()).handle(any(DeleteServiceCommand.class));
@@ -394,10 +395,10 @@ class EndpointRbacSecurityTest {
     }
 
     @Test
-    @DisplayName("BranchesController.updateBranch and cancelSubscription require manager access")
+    @DisplayName("BranchesController.updateBranch and cancelSubscription require BRANCH_MANAGE permission")
     void branchesControllerRequiresManagerAccess() {
-        doThrow(new AccessDeniedException("Unauthorized managerial access"))
-                .when(multiTenancySecurityService).validateManagerAccess(branchId);
+        doThrow(new AccessDeniedException("Missing permission BRANCH_MANAGE"))
+                .when(multiTenancySecurityService).validateBranchPermission(branchId, Permission.BRANCH_MANAGE);
 
         assertThrows(AccessDeniedException.class,
                 () -> branchesController.updateBranch(branchId, new UpdateBranchResource("BR-01", "Main", "Addr", "999888777")));
@@ -407,7 +408,7 @@ class EndpointRbacSecurityTest {
     }
 
     @Test
-    @DisplayName("Billing controllers enforce advisor/manager for mutations and manager for quote cancellation")
+    @DisplayName("Billing controllers enforce granular permissions for approve, checkout, payment, and cancel")
     void billingControllersEnforceRoleHierarchy() {
         UUID quoteId = UUID.randomUUID();
         UUID voucherId = UUID.randomUUID();
@@ -415,10 +416,12 @@ class EndpointRbacSecurityTest {
 
         when(quoteQueryService.handle(any(GetQuoteByIdQuery.class))).thenReturn(Optional.of(quote));
 
-        // Mechanic denied on approveQuote, checkout, and addPayment
-        doThrow(new AccessDeniedException("Unauthorized advisor or managerial access"))
-                .when(multiTenancySecurityService).validateAdvisorOrManagerAccess(branchId);
+        doThrow(new AccessDeniedException("Missing permission QUOTE_APPROVE"))
+                .when(multiTenancySecurityService).validateBranchPermission(branchId, Permission.QUOTE_APPROVE);
         assertThrows(AccessDeniedException.class, () -> quotesController.approveQuote(quoteId));
+
+        doThrow(new AccessDeniedException("Missing permission CHECKOUT_PROCESS"))
+                .when(multiTenancySecurityService).validateBranchPermission(branchId, Permission.CHECKOUT_PROCESS);
         assertThrows(AccessDeniedException.class,
                 () -> checkoutsController.checkout(new ProcessCheckoutResource(quoteId, "BOLETA", "DNI", "12345678", "Test", "CASH")));
 
@@ -428,22 +431,21 @@ class EndpointRbacSecurityTest {
         assertThrows(AccessDeniedException.class,
                 () -> vouchersController.addPayment(voucherId, new AddPaymentResource(BigDecimal.valueOf(50.0), "CASH")));
 
-        // Advisor denied on cancelQuote (manager required)
-        doThrow(new AccessDeniedException("Unauthorized managerial access"))
-                .when(multiTenancySecurityService).validateManagerAccess(branchId);
+        doThrow(new AccessDeniedException("Missing permission QUOTE_CANCEL"))
+                .when(multiTenancySecurityService).validateBranchPermission(branchId, Permission.QUOTE_CANCEL);
         assertThrows(AccessDeniedException.class, () -> quotesController.cancelQuote(quoteId));
         verify(quoteCommandService, never()).handle(any(CancelQuoteCommand.class));
     }
 
     @Test
-    @DisplayName("Fleet controllers enforce manager on employee rejection and advisor/customer on appointment updates")
+    @DisplayName("Fleet controllers enforce STAFF_MANAGE on employee rejection and APPOINTMENT_MANAGE/self on appointment updates")
     void fleetControllersEnforceRoleHierarchy() {
         UUID regId = UUID.randomUUID();
         EmployeeRegistration reg = new EmployeeRegistration(
                 UUID.randomUUID(), new BranchId(branchId), "MECANICO", "Desc", BigDecimal.valueOf(1500));
         when(employeeRegistrationQueryService.handle(any(GetEmployeeRegistrationByIdQuery.class)))
                 .thenReturn(Result.success(reg));
-        when(multiTenancySecurityService.isAuthorizedManagerForBranch(new BranchId(branchId))).thenReturn(false);
+        when(multiTenancySecurityService.hasPermissionForBranch(new BranchId(branchId), Permission.STAFF_MANAGE)).thenReturn(false);
 
         ResponseEntity<?> rejectResp = employeeRegistrationsController.reject(regId, null);
         assertThat(rejectResp.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
@@ -454,7 +456,7 @@ class EndpointRbacSecurityTest {
                 new BranchId(branchId), new CustomerId(customerId), new VehicleId(UUID.randomUUID()),
                 LocalDateTime.now(), new AppointmentSummary("Service"));
         when(appointmentQueryService.handle(appointmentId)).thenReturn(Result.success(appointment));
-        when(multiTenancySecurityService.isAuthorizedAdvisorOrManagerForBranch(new BranchId(branchId))).thenReturn(false);
+        when(multiTenancySecurityService.hasPermissionForBranch(new BranchId(branchId), Permission.APPOINTMENT_MANAGE)).thenReturn(false);
         when(multiTenancySecurityService.isAuthorizedForSelf(customerId)).thenReturn(false);
 
         ResponseEntity<?> updateAppResp = appointmentsController.updateAppointment(appointmentId, null);

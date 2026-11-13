@@ -19,6 +19,7 @@ import com.tuxlogic.shiftiq.platform.shared.interfaces.rest.transform.ErrorRespo
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import com.tuxlogic.shiftiq.platform.iam.domain.model.valueobjects.Permission;
 import com.tuxlogic.shiftiq.platform.shared.infrastructure.security.MultiTenancySecurityService;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.context.MessageSource;
@@ -52,7 +53,7 @@ public class AppointmentsController {
 
         @PostMapping
         @Operation(summary = "Create a new appointment", description = "Creates a new appointment")
-        @PreAuthorize("isAuthenticated() and (hasRole('ADMIN') or @multiTenancySecurityService.isAuthorizedAdvisorOrManagerForBranch(#resource.branchId()) or (hasRole('USER') and @multiTenancySecurityService.isAuthorizedForSelf(#resource.customerId())))")
+        @PreAuthorize("isAuthenticated() and (hasRole('ADMIN') or @multiTenancySecurityService.hasPermissionForBranch(#resource.branchId(), T(com.tuxlogic.shiftiq.platform.iam.domain.model.valueobjects.Permission).APPOINTMENT_MANAGE) or (hasRole('USER') and @multiTenancySecurityService.isAuthorizedForSelf(#resource.customerId())))")
         public ResponseEntity<?> createAppointment(@Valid @RequestBody CreateAppointmentResource resource) {
                 var command = CreateAppointmentCommandFromResourceAssembler.toCommandFromResource(resource);
                 var result = commandService.handle(command);
@@ -73,7 +74,7 @@ public class AppointmentsController {
                         return handleQueryFailure(queryResult.failure().get());
                 }
                 var existingApp = queryResult.success().get();
-                boolean isAuthorized = multiTenancySecurityService.isAuthorizedAdvisorOrManagerForBranch(existingApp.getBranchId())
+                boolean isAuthorized = multiTenancySecurityService.hasPermissionForBranch(existingApp.getBranchId(), Permission.APPOINTMENT_MANAGE)
                                 || (existingApp.getCustomerId() != null && multiTenancySecurityService.isAuthorizedForSelf(existingApp.getCustomerId().value()));
                 if (!isAuthorized) {
                         return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
@@ -97,7 +98,7 @@ public class AppointmentsController {
                         return handleQueryFailure(queryResult.failure().get());
                 }
                 var existingApp = queryResult.success().get();
-                boolean isAuthorized = multiTenancySecurityService.isAuthorizedAdvisorOrManagerForBranch(existingApp.getBranchId())
+                boolean isAuthorized = multiTenancySecurityService.hasPermissionForBranch(existingApp.getBranchId(), Permission.APPOINTMENT_MANAGE)
                                 || (existingApp.getCustomerId() != null && multiTenancySecurityService.isAuthorizedForSelf(existingApp.getCustomerId().value()));
                 if (!isAuthorized) {
                         return ResponseEntity.status(HttpStatus.FORBIDDEN).build();

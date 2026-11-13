@@ -7,6 +7,7 @@ import com.tuxlogic.shiftiq.platform.fleet.domain.model.aggregates.Appointment;
 import com.tuxlogic.shiftiq.platform.fleet.domain.model.commands.CreateAppointmentCommand;
 import com.tuxlogic.shiftiq.platform.fleet.interfaces.rest.resources.CreateAppointmentResource;
 import com.tuxlogic.shiftiq.platform.fleet.domain.model.valueobjects.AppointmentSummary;
+import com.tuxlogic.shiftiq.platform.iam.domain.model.valueobjects.Permission;
 import com.tuxlogic.shiftiq.platform.shared.application.result.Result;
 import com.tuxlogic.shiftiq.platform.shared.domain.model.valueobjects.BranchId;
 import com.tuxlogic.shiftiq.platform.shared.domain.model.valueobjects.CustomerId;
@@ -144,7 +145,7 @@ class AppointmentsControllerTest {
         );
 
         when(queryService.handle(appointmentId)).thenReturn(Result.success(appointment));
-        when(multiTenancySecurityService.isAuthorizedAdvisorOrManagerForBranch(new BranchId(branchId))).thenReturn(false);
+        when(multiTenancySecurityService.hasPermissionForBranch(new BranchId(branchId), Permission.APPOINTMENT_MANAGE)).thenReturn(false);
 
         ResponseEntity<?> response = controller.updateAppointment(appointmentId, null);
 
@@ -166,7 +167,7 @@ class AppointmentsControllerTest {
         );
 
         when(queryService.handle(appointmentId)).thenReturn(Result.success(appointment));
-        when(multiTenancySecurityService.isAuthorizedAdvisorOrManagerForBranch(new BranchId(branchId))).thenReturn(false);
+        when(multiTenancySecurityService.hasPermissionForBranch(new BranchId(branchId), Permission.APPOINTMENT_MANAGE)).thenReturn(false);
 
         ResponseEntity<?> response = controller.deleteAppointment(appointmentId);
 

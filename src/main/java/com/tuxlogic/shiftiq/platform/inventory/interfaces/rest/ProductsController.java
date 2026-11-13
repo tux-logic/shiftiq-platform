@@ -20,6 +20,7 @@ import com.tuxlogic.shiftiq.platform.inventory.interfaces.rest.transform.Product
 import com.tuxlogic.shiftiq.platform.inventory.interfaces.rest.transform.UpdateProductCommandFromResourceAssembler;
 import com.tuxlogic.shiftiq.platform.shared.application.result.ApplicationError;
 import com.tuxlogic.shiftiq.platform.shared.domain.model.valueobjects.BranchId;
+import com.tuxlogic.shiftiq.platform.iam.domain.model.valueobjects.Permission;
 import com.tuxlogic.shiftiq.platform.shared.infrastructure.security.MultiTenancySecurityService;
 import com.tuxlogic.shiftiq.platform.shared.interfaces.rest.transform.ErrorResponseAssembler;
 import io.swagger.v3.oas.annotations.Operation;
@@ -161,7 +162,7 @@ public class ProductsController {
         var query = new GetProductByIdQuery(productId);
         var product = productQueryService.handle(query);
         if (product.isPresent()) {
-            multiTenancySecurityService.validateManagerAccess(product.get().getBranchId().value());
+            multiTenancySecurityService.validateBranchPermission(product.get().getBranchId().value(), Permission.INVENTORY_MANAGE);
         }
     }
 

@@ -20,6 +20,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.tuxlogic.shiftiq.platform.iam.domain.model.valueobjects.Permission;
 import com.tuxlogic.shiftiq.platform.shared.infrastructure.security.MultiTenancySecurityService;
 import org.springframework.security.access.prepost.PreAuthorize;
 
@@ -53,7 +54,7 @@ public class CheckoutsController {
     private Quote validateQuoteAccess(UUID quoteId) {
         var quote = quoteQueryService.handle(new GetQuoteByIdQuery(quoteId))
                 .orElseThrow(() -> new IllegalArgumentException("billing.error.quote.notFound"));
-        multiTenancySecurityService.validateAdvisorOrManagerAccess(quote.getBranchId().value());
+        multiTenancySecurityService.validateBranchPermission(quote.getBranchId().value(), Permission.CHECKOUT_PROCESS);
         return quote;
     }
 

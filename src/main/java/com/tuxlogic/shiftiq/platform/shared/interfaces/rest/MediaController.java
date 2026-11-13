@@ -1,6 +1,7 @@
 package com.tuxlogic.shiftiq.platform.shared.interfaces.rest;
 
 import com.tuxlogic.shiftiq.platform.shared.application.outboundservices.storage.StorageService;
+import com.tuxlogic.shiftiq.platform.iam.domain.model.valueobjects.Permission;
 import com.tuxlogic.shiftiq.platform.shared.infrastructure.security.AuthenticatedPrincipal;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -98,7 +99,8 @@ public class MediaController {
         }
         Object principal = auth.getPrincipal();
         if (principal instanceof AuthenticatedPrincipal authenticatedPrincipal) {
-            return authenticatedPrincipal.hasRole("ROLE_ADMIN")
+            return authenticatedPrincipal.hasPermission(Permission.MEDIA_UPLOAD.name())
+                    || authenticatedPrincipal.hasRole("ROLE_ADMIN")
                     || authenticatedPrincipal.hasRole("ROLE_OWNER")
                     || authenticatedPrincipal.hasRole("ROLE_BRANCH_MANAGER")
                     || authenticatedPrincipal.hasRole("ROLE_EMPLOYEE")
@@ -106,7 +108,8 @@ public class MediaController {
         }
         return auth.getAuthorities().stream().anyMatch(a -> {
             String role = a.getAuthority();
-            return role.equals("ROLE_ADMIN") || role.equals("ROLE_OWNER")
+            return role.equals(Permission.MEDIA_UPLOAD.name())
+                    || role.equals("ROLE_ADMIN") || role.equals("ROLE_OWNER")
                     || role.equals("ROLE_BRANCH_MANAGER") || role.equals("ROLE_EMPLOYEE")
                     || role.equals("ROLE_ASSISTANT");
         });

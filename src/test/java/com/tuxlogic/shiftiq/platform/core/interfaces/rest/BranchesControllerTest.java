@@ -6,6 +6,7 @@ import com.tuxlogic.shiftiq.platform.core.application.queryservices.BranchQueryS
 import com.tuxlogic.shiftiq.platform.core.domain.model.aggregates.Branch;
 import com.tuxlogic.shiftiq.platform.core.domain.model.commands.CreateBranchCommand;
 import com.tuxlogic.shiftiq.platform.core.interfaces.rest.resources.CreateBranchResource;
+import com.tuxlogic.shiftiq.platform.iam.domain.model.valueobjects.Permission;
 import com.tuxlogic.shiftiq.platform.shared.domain.model.valueobjects.BranchId;
 import com.tuxlogic.shiftiq.platform.shared.infrastructure.security.MultiTenancySecurityService;
 import org.junit.jupiter.api.BeforeEach;
@@ -52,7 +53,7 @@ class BranchesControllerTest {
         CreateBranchResource resource = new CreateBranchResource(workshopId, "BR-01", "Branch Principal", "Av. Peru 123", "999888777");
 
         doThrow(new AccessDeniedException("Unauthorized access"))
-                .when(multiTenancySecurityService).validateManagerWorkshopAccess(workshopId);
+                .when(multiTenancySecurityService).validateWorkshopPermission(workshopId, Permission.BRANCH_MANAGE);
 
         assertThrows(AccessDeniedException.class, () -> controller.createBranch(resource));
     }
@@ -70,6 +71,6 @@ class BranchesControllerTest {
 
         assertNotNull(response);
         assertEquals(HttpStatus.CREATED, response.getStatusCode());
-        verify(multiTenancySecurityService).validateManagerWorkshopAccess(workshopId);
+        verify(multiTenancySecurityService).validateWorkshopPermission(workshopId, Permission.BRANCH_MANAGE);
     }
 }

@@ -11,6 +11,7 @@ import com.tuxlogic.shiftiq.platform.core.domain.model.queries.GetWorkshopSpecia
 import com.tuxlogic.shiftiq.platform.core.domain.model.valueobjects.WorkshopId;
 import com.tuxlogic.shiftiq.platform.core.domain.model.valueobjects.WorkshopSpecialtyId;
 import com.tuxlogic.shiftiq.platform.core.interfaces.rest.resources.CreateWorkshopSpecialtyResource;
+import com.tuxlogic.shiftiq.platform.iam.domain.model.valueobjects.Permission;
 import com.tuxlogic.shiftiq.platform.shared.infrastructure.security.MultiTenancySecurityService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -66,7 +67,7 @@ class WorkshopSpecialtiesControllerTest {
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CREATED);
         assertThat(response.getBody()).isNotNull();
         assertThat(response.getBody().name()).isEqualTo("Mecánica");
-        verify(securityService).validateManagerWorkshopAccess(workshopId);
+        verify(securityService).validateWorkshopPermission(workshopId, Permission.SPECIALTY_MANAGE);
     }
 
     @Test
@@ -75,7 +76,7 @@ class WorkshopSpecialtiesControllerTest {
         UUID workshopId = UUID.randomUUID();
         var resource = new CreateWorkshopSpecialtyResource("Mecánica", "MEC", "Desc");
 
-        doThrow(new AccessDeniedException("Forbidden")).when(securityService).validateManagerWorkshopAccess(workshopId);
+        doThrow(new AccessDeniedException("Forbidden")).when(securityService).validateWorkshopPermission(workshopId, Permission.SPECIALTY_MANAGE);
 
         assertThatThrownBy(() -> controller.createSpecialty(workshopId, resource))
                 .isInstanceOf(AccessDeniedException.class);

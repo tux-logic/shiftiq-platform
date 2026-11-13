@@ -5,6 +5,7 @@ import com.tuxlogic.shiftiq.platform.billing.application.queryservices.QuoteQuer
 import com.tuxlogic.shiftiq.platform.billing.domain.model.aggregates.Quote;
 import com.tuxlogic.shiftiq.platform.billing.domain.model.commands.CreateQuoteCommand;
 import com.tuxlogic.shiftiq.platform.billing.interfaces.rest.resources.CreateQuoteResource;
+import com.tuxlogic.shiftiq.platform.iam.domain.model.valueobjects.Permission;
 import com.tuxlogic.shiftiq.platform.shared.application.result.Result;
 import com.tuxlogic.shiftiq.platform.shared.domain.model.valueobjects.BranchId;
 import com.tuxlogic.shiftiq.platform.shared.domain.model.valueobjects.Money;
@@ -54,7 +55,7 @@ class QuotesControllerTest {
         CreateQuoteResource resource = new CreateQuoteResource(workOrderId, branchId, 10.0);
 
         doThrow(new AccessDeniedException("Unauthorized branch access"))
-                .when(multiTenancySecurityService).validateAdvisorOrManagerAccess(branchId);
+                .when(multiTenancySecurityService).validateBranchPermission(branchId, Permission.QUOTE_CREATE);
 
         assertThrows(AccessDeniedException.class, () -> controller.createQuote(resource));
     }
@@ -76,7 +77,7 @@ class QuotesControllerTest {
 
         assertNotNull(response);
         assertEquals(HttpStatus.CREATED, response.getStatusCode());
-        verify(multiTenancySecurityService).validateAdvisorOrManagerAccess(branchId);
+        verify(multiTenancySecurityService).validateBranchPermission(branchId, Permission.QUOTE_CREATE);
     }
 }
 

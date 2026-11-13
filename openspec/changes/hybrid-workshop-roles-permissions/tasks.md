@@ -21,5 +21,5 @@
 
 ## 5. Controller Migration & Integration Verification
 
-- [ ] 5.1 Migrate Core, Billing, Fleet, Inventory, Operations, and Media `@PreAuthorize` / `MultiTenancySecurityService` guards to `Permission`-based checks while preserving `ROLE_USER` customer self-service rules; update affected controller tests and expand `EndpointRbacSecurityTest` (`./mvnw test -Dtest=EndpointRbacSecurityTest`).
+- [x] 5.1 Migrate Core, Billing, Fleet, Inventory, Operations, and Media `@PreAuthorize` / `MultiTenancySecurityService` guards to `Permission`-based checks while preserving `ROLE_USER` customer self-service rules; update affected controller tests and expand `EndpointRbacSecurityTest` (`./mvnw test -Dtest=EndpointRbacSecurityTest`).
 - [ ] 5.2 Run the full test suite (`./mvnw test`) and update API documentation for `/api/v1/permissions` and `/api/v1/workshops/{workshopId}/roles` (`./mvnw test`).

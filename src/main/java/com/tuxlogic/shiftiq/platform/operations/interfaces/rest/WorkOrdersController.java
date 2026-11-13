@@ -28,6 +28,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 
 import com.tuxlogic.shiftiq.platform.operations.domain.model.valueobjects.OperationsMessageKeys;
 import com.tuxlogic.shiftiq.platform.shared.application.result.ApplicationError;
+import com.tuxlogic.shiftiq.platform.iam.domain.model.valueobjects.Permission;
 import com.tuxlogic.shiftiq.platform.shared.infrastructure.security.MultiTenancySecurityService;
 import com.tuxlogic.shiftiq.platform.shared.interfaces.rest.transform.ErrorResponseAssembler;
 
@@ -80,7 +81,7 @@ public class WorkOrdersController {
     private WorkOrder validateWorkOrderManagerAccess(UUID id) {
         WorkOrder workOrder = queryService.handle(new GetWorkOrderByIdQuery(new WorkOrderId(id)))
                 .orElseThrow(() -> new IllegalArgumentException(OperationsMessageKeys.WORK_ORDER_NOT_FOUND));
-        multiTenancySecurityService.validateManagerAccess(workOrder.getBranchId().value());
+        multiTenancySecurityService.validateBranchPermission(workOrder.getBranchId().value(), Permission.WORKORDER_DELETE);
         return workOrder;
     }
 

@@ -25,6 +25,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.security.access.prepost.PreAuthorize;
 
+import com.tuxlogic.shiftiq.platform.iam.domain.model.valueobjects.Permission;
 import com.tuxlogic.shiftiq.platform.shared.infrastructure.security.MultiTenancySecurityService;
 
 /**
@@ -60,7 +61,7 @@ public class QuotesController {
     @PostMapping
     @Operation(summary = "Create a new quote", description = "Creates a new Quote based on a Work Order")
     public ResponseEntity<?> createQuote(@Valid @RequestBody CreateQuoteResource resource) {
-        multiTenancySecurityService.validateAdvisorOrManagerAccess(resource.branchId());
+        multiTenancySecurityService.validateBranchPermission(resource.branchId(), Permission.QUOTE_CREATE);
         var command = CreateQuoteCommandFromResourceAssembler.toCommandFromResource(resource);
         var result = commandService.handle(command);
         if (result.isSuccess()) {
@@ -78,31 +79,17 @@ public class QuotesController {
      * @return A ResponseEntity with the updated quote resource and a 200 OK status, 
      *         or an appropriate error status based on the business failure.
      */
-    private com.tuxlogic.shiftiq.platform.billing.domain.model.aggregates.Quote validateQuoteAccess(UUID id) {
+    private com.tuxlogic.shiftiq.platform.billing.domain.model.aggregates.Quote validateQuotePermission(UUID id, Permission permission) {
         var quote = queryService.handle(new GetQuoteByIdQuery(id))
                 .orElseThrow(() -> new IllegalArgumentException("billing.error.quote.notFound"));
-        multiTenancySecurityService.validateBranchAccess(quote.getBranchId().value());
-        return quote;
-    }
-
-    private com.tuxlogic.shiftiq.platform.billing.domain.model.aggregates.Quote validateQuoteAdvisorOrManagerAccess(UUID id) {
-        var quote = queryService.handle(new GetQuoteByIdQuery(id))
-                .orElseThrow(() -> new IllegalArgumentException("billing.error.quote.notFound"));
-        multiTenancySecurityService.validateAdvisorOrManagerAccess(quote.getBranchId().value());
-        return quote;
-    }
-
-    private com.tuxlogic.shiftiq.platform.billing.domain.model.aggregates.Quote validateQuoteManagerAccess(UUID id) {
-        var quote = queryService.handle(new GetQuoteByIdQuery(id))
-                .orElseThrow(() -> new IllegalArgumentException("billing.error.quote.notFound"));
-        multiTenancySecurityService.validateManagerAccess(quote.getBranchId().value());
+        multiTenancySecurityService.validateBranchPermission(quote.getBranchId().value(), permission);
         return quote;
     }
 
     @PutMapping("/{id}")
     @Operation(summary = "Update quote discount", description = "Updates the discount percentage of an existing DRAFT quote")
     public ResponseEntity<?> updateQuoteDiscount(@PathVariable UUID id, @Valid @RequestBody UpdateQuoteResource resource) {
-        validateQuoteAdvisorOrManagerAccess(id);
+        validateQuotePermission(id, Permission.QUOTE_CREATE);
         var command = UpdateQuoteCommandFromResourceAssembler.toCommandFromResource(id, resource);
         var result = commandService.handle(command);
         if (result.isSuccess()) {
@@ -115,7 +102,7 @@ public class QuotesController {
     @PostMapping("/{id}/approvals")
     @Operation(summary = "Approve a quote", description = "Approves a Quote, transitioning its state from DRAFT to APPROVED")
     public ResponseEntity<?> approveQuote(@PathVariable UUID id) {
-        validateQuoteAdvisorOrManagerAccess(id);
+        validateQuotePermission(id, Permission.QUOTE_APPROVE);
         var command = new ApproveQuoteCommand(id);
         var result = commandService.handle(command);
         if (result.isSuccess()) {
@@ -128,7 +115,7 @@ public class QuotesController {
     @PostMapping("/{id}/cancellations")
     @Operation(summary = "Cancel a quote", description = "Cancels a Quote, transitioning its state to CANCELED")
     public ResponseEntity<?> cancelQuote(@PathVariable UUID id) {
-        validateQuoteManagerAccess(id);
+        validateQuotePermission(id, Permission.QUOTE_CANCEL);
         var command = new CancelQuoteCommand(id);
         var result = commandService.handle(command);
         if (result.isSuccess()) {
@@ -141,7 +128,7 @@ public class QuotesController {
     @GetMapping("/{id}")
     @Operation(summary = "Get quote by ID", description = "Retrieves a Quote by its unique identifier")
     public ResponseEntity<QuoteResource> getQuoteById(@PathVariable UUID id) {
-        validateQuoteAccess(id);
+        validateQuotePermission(id, Permission.QUOTE_READ);
         var query = new GetQuoteByIdQuery(id);
         var quote = queryService.handle(query);
         if (quote.isEmpty()) {

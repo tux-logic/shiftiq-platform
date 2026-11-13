@@ -17,6 +17,7 @@ import com.tuxlogic.shiftiq.platform.core.interfaces.rest.transform.CreateWorksh
 import com.tuxlogic.shiftiq.platform.core.interfaces.rest.transform.UpdateWorkshopSpecialtyCommandFromResourceAssembler;
 import com.tuxlogic.shiftiq.platform.core.interfaces.rest.transform.WorkshopSpecialtyResourceFromAggregateAssembler;
 import com.tuxlogic.shiftiq.platform.core.interfaces.rest.transform.WorkshopSpecialtyRevisionResourceFromEntityAssembler;
+import com.tuxlogic.shiftiq.platform.iam.domain.model.valueobjects.Permission;
 import com.tuxlogic.shiftiq.platform.shared.infrastructure.security.MultiTenancySecurityService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -53,11 +54,11 @@ public class WorkshopSpecialtiesController {
 
     @PostMapping
     @Operation(summary = "Create a new specialty for a workshop", description = "Adds a customizable technician specialty to the workshop catalog")
-    @PreAuthorize("isAuthenticated() and @multiTenancySecurityService.isAuthorizedManagerForWorkshop(#workshopId)")
+    @PreAuthorize("isAuthenticated() and @multiTenancySecurityService.hasPermissionForWorkshop(#workshopId, T(com.tuxlogic.shiftiq.platform.iam.domain.model.valueobjects.Permission).SPECIALTY_MANAGE)")
     public ResponseEntity<WorkshopSpecialtyResource> createSpecialty(
             @PathVariable UUID workshopId,
             @Valid @RequestBody CreateWorkshopSpecialtyResource resource) {
-        multiTenancySecurityService.validateManagerWorkshopAccess(workshopId);
+        multiTenancySecurityService.validateWorkshopPermission(workshopId, Permission.SPECIALTY_MANAGE);
         var command = CreateWorkshopSpecialtyCommandFromResourceAssembler.toCommand(workshopId, resource);
         var result = commandService.handle(command);
         return result.map(specialty -> ResponseEntity.status(HttpStatus.CREATED)
@@ -95,12 +96,12 @@ public class WorkshopSpecialtiesController {
 
     @PutMapping("/{specialtyId}")
     @Operation(summary = "Update a workshop specialty", description = "Updates the display name and description of an existing specialty")
-    @PreAuthorize("isAuthenticated() and @multiTenancySecurityService.isAuthorizedManagerForWorkshop(#workshopId)")
+    @PreAuthorize("isAuthenticated() and @multiTenancySecurityService.hasPermissionForWorkshop(#workshopId, T(com.tuxlogic.shiftiq.platform.iam.domain.model.valueobjects.Permission).SPECIALTY_MANAGE)")
     public ResponseEntity<WorkshopSpecialtyResource> updateSpecialty(
             @PathVariable UUID workshopId,
             @PathVariable UUID specialtyId,
             @Valid @RequestBody UpdateWorkshopSpecialtyResource resource) {
-        multiTenancySecurityService.validateManagerWorkshopAccess(workshopId);
+        multiTenancySecurityService.validateWorkshopPermission(workshopId, Permission.SPECIALTY_MANAGE);
         var existing = queryService.handle(new GetWorkshopSpecialtyByIdQuery(new WorkshopSpecialtyId(specialtyId)));
         if (existing.isEmpty() || !existing.get().getWorkshopId().value().equals(workshopId)) {
             return ResponseEntity.notFound().build();
@@ -114,11 +115,11 @@ public class WorkshopSpecialtiesController {
 
     @DeleteMapping("/{specialtyId}")
     @Operation(summary = "Deactivate a workshop specialty", description = "Deactivates a specialty so it cannot be assigned to new staff")
-    @PreAuthorize("isAuthenticated() and @multiTenancySecurityService.isAuthorizedManagerForWorkshop(#workshopId)")
+    @PreAuthorize("isAuthenticated() and @multiTenancySecurityService.hasPermissionForWorkshop(#workshopId, T(com.tuxlogic.shiftiq.platform.iam.domain.model.valueobjects.Permission).SPECIALTY_MANAGE)")
     public ResponseEntity<Void> deactivateSpecialty(
             @PathVariable UUID workshopId,
             @PathVariable UUID specialtyId) {
-        multiTenancySecurityService.validateManagerWorkshopAccess(workshopId);
+        multiTenancySecurityService.validateWorkshopPermission(workshopId, Permission.SPECIALTY_MANAGE);
         var existing = queryService.handle(new GetWorkshopSpecialtyByIdQuery(new WorkshopSpecialtyId(specialtyId)));
         if (existing.isEmpty() || !existing.get().getWorkshopId().value().equals(workshopId)) {
             return ResponseEntity.notFound().build();
