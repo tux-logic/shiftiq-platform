@@ -9,5 +9,5 @@
 - [x] 2.2 Wire `GetCustomerDashboardSummaryQuery` and `GetEmployeeDashboardSummaryQuery` into `AnalyticsQueryService` and `AnalyticsQueryServiceImpl` with unit tests (`./mvnw test -Dtest=AnalyticsQueryServiceImplTest`).
 
 ## 3. Self-Service Dashboard Endpoints & Documentation
-- [ ] 3.1 Expose `GET /api/v1/analytics/me/customer-summary` and `GET /api/v1/analytics/me/employee-summary` in `AnalyticsController` with response resources and WebMvc tests (`./mvnw test -Dtest=AnalyticsControllerTest,EndpointRbacSecurityTest`).
+- [x] 3.1 Expose `GET /api/v1/analytics/me/customer-summary` and `GET /api/v1/analytics/me/employee-summary` in `AnalyticsController` with response resources and WebMvc tests (`./mvnw test -Dtest=AnalyticsControllerTest,EndpointRbacSecurityTest`).
 - [ ] 3.2 Update `docs/api/analytics/analytics.md` for `ANALYTICS_READ` and the new `/me/customer-summary` and `/me/employee-summary` endpoints, and run the full `./mvnw test` suite (`./mvnw test`).

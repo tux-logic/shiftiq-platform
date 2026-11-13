@@ -547,6 +547,23 @@ public class MultiTenancySecurityService {
     }
 
     /**
+     * Resolves the authenticated caller's user ID from the security context.
+     *
+     * @return the caller's user UUID, or empty if unauthenticated
+     */
+    public java.util.Optional<UUID> resolveCurrentUserId() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null || !authentication.isAuthenticated()) {
+            return java.util.Optional.empty();
+        }
+        Object principal = authentication.getPrincipal();
+        if (principal instanceof AuthenticatedPrincipal authenticatedPrincipal) {
+            return java.util.Optional.ofNullable(authenticatedPrincipal.getId());
+        }
+        return java.util.Optional.empty();
+    }
+
+    /**
      * Checks that a branch exists (and is not soft deleted) regardless of who calls.
      * Used to answer {@code 404} for unknown branches after the access check passed.
      */

@@ -4,9 +4,13 @@ import com.tuxlogic.shiftiq.platform.analytics.application.internal.support.Anal
 import com.tuxlogic.shiftiq.platform.analytics.application.queryservices.AnalyticsQueryService;
 import com.tuxlogic.shiftiq.platform.analytics.domain.model.queries.GetBranchAnalyticsByDateRangeQuery;
 import com.tuxlogic.shiftiq.platform.analytics.domain.model.queries.GetBranchAnalyticsSummaryQuery;
+import com.tuxlogic.shiftiq.platform.analytics.domain.model.queries.GetCustomerDashboardSummaryQuery;
+import com.tuxlogic.shiftiq.platform.analytics.domain.model.queries.GetEmployeeDashboardSummaryQuery;
 import com.tuxlogic.shiftiq.platform.analytics.domain.model.queries.GetNetworkAnalyticsOverviewQuery;
 import com.tuxlogic.shiftiq.platform.analytics.interfaces.rest.resources.BranchAnalyticsSnapshotResource;
 import com.tuxlogic.shiftiq.platform.analytics.interfaces.rest.resources.BranchAnalyticsSummaryResource;
+import com.tuxlogic.shiftiq.platform.analytics.interfaces.rest.resources.CustomerDashboardSummaryResource;
+import com.tuxlogic.shiftiq.platform.analytics.interfaces.rest.resources.EmployeeDashboardSummaryResource;
 import com.tuxlogic.shiftiq.platform.analytics.interfaces.rest.resources.NetworkAnalyticsOverviewResource;
 import com.tuxlogic.shiftiq.platform.iam.domain.model.valueobjects.Permission;
 import com.tuxlogic.shiftiq.platform.shared.application.result.ApplicationError;
@@ -108,6 +112,47 @@ public class AnalyticsController {
                 overview.totalNetworkDtcAlerts()
         );
         return ResponseEntity.ok(resource);
+    }
+
+    @GetMapping("/me/customer-summary")
+    @Operation(summary = "Get customer dashboard summary", description = "Retrieves a lightweight self-service dashboard summary for the authenticated customer")
+    public ResponseEntity<?> getMyCustomerSummary() {
+        var userIdOpt = multiTenancySecurityService.resolveCurrentUserId();
+        if (userIdOpt.isEmpty()) {
+            return ErrorResponseAssembler.toErrorResponseFromApplicationError(
+                    new ApplicationError("ACCESS_DENIED", "Access denied: authentication required"));
+        }
+        var result = queryService.handle(new GetCustomerDashboardSummaryQuery(userIdOpt.get()));
+        if (result.isFailure()) {
+            String failure = result.failure().get();
+            if ("analytics.error.customerNotFound".equals(failure)) {
+                return ErrorResponseAssembler.toErrorResponseFromApplicationError(
+                        ApplicationError.notFound("customer", String.valueOf(userIdOpt.get())));
+            }
+            return internalFailure("customer dashboard summary", failure);
+        }
+        return ResponseEntity.ok(CustomerDashboardSummaryResource.from(result.success().get()));
+    }
+
+    @GetMapping("/me/employee-summary")
+    @Operation(summary = "Get employee dashboard summary", description = "Retrieves a lightweight personal work queue summary for the authenticated workshop staff member")
+    @PreAuthorize("hasAnyRole('ADMIN', 'OWNER', 'BRANCH_MANAGER', 'ASSISTANT', 'EMPLOYEE')")
+    public ResponseEntity<?> getMyEmployeeSummary() {
+        var userIdOpt = multiTenancySecurityService.resolveCurrentUserId();
+        if (userIdOpt.isEmpty()) {
+            return ErrorResponseAssembler.toErrorResponseFromApplicationError(
+                    new ApplicationError("ACCESS_DENIED", "Access denied: authentication required"));
+        }
+        var result = queryService.handle(new GetEmployeeDashboardSummaryQuery(userIdOpt.get()));
+        if (result.isFailure()) {
+            String failure = result.failure().get();
+            if ("analytics.error.employeeNotFound".equals(failure)) {
+                return ErrorResponseAssembler.toErrorResponseFromApplicationError(
+                        ApplicationError.notFound("employee", String.valueOf(userIdOpt.get())));
+            }
+            return internalFailure("employee dashboard summary", failure);
+        }
+        return ResponseEntity.ok(EmployeeDashboardSummaryResource.from(result.success().get()));
     }
 
     /**
