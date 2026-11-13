@@ -46,6 +46,9 @@ public class UserPersistenceEntity extends AuditableAbstractPersistenceEntity {
     @Column(name = "role", nullable = false, length = 30)
     private Roles role = Roles.ROLE_USER;
 
+    @Column(name = "workshop_role_id")
+    private UUID workshopRoleId;
+
     @ElementCollection(fetch = FetchType.EAGER)
     @CollectionTable(
             name = "user_branches",

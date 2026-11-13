@@ -3,10 +3,16 @@ package com.tuxlogic.shiftiq.platform.analytics.application.internal.queryservic
 import com.tuxlogic.shiftiq.platform.analytics.application.internal.dto.DailyAnalyticsSnapshot;
 import com.tuxlogic.shiftiq.platform.analytics.application.internal.support.AnalyticsClock;
 import com.tuxlogic.shiftiq.platform.analytics.domain.model.aggregates.BranchAnalyticsSnapshot;
+import com.tuxlogic.shiftiq.platform.analytics.domain.model.queries.CustomerDashboardSummary;
+import com.tuxlogic.shiftiq.platform.analytics.domain.model.queries.EmployeeDashboardSummary;
 import com.tuxlogic.shiftiq.platform.analytics.domain.model.queries.GetBranchAnalyticsByDateRangeQuery;
 import com.tuxlogic.shiftiq.platform.analytics.domain.model.queries.GetBranchAnalyticsSummaryQuery;
+import com.tuxlogic.shiftiq.platform.analytics.domain.model.queries.GetCustomerDashboardSummaryQuery;
+import com.tuxlogic.shiftiq.platform.analytics.domain.model.queries.GetEmployeeDashboardSummaryQuery;
 import com.tuxlogic.shiftiq.platform.analytics.domain.model.queries.GetNetworkAnalyticsOverviewQuery;
 import com.tuxlogic.shiftiq.platform.analytics.domain.repositories.BranchAnalyticsRepository;
+import com.tuxlogic.shiftiq.platform.analytics.domain.services.CustomerDashboardPort;
+import com.tuxlogic.shiftiq.platform.analytics.domain.services.EmployeeDashboardPort;
 import com.tuxlogic.shiftiq.platform.shared.domain.model.valueobjects.BranchId;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -29,12 +35,21 @@ import static org.mockito.Mockito.when;
 class AnalyticsQueryServiceImplTest {
 
     private BranchAnalyticsRepository repository;
+    private CustomerDashboardPort customerDashboardPort;
+    private EmployeeDashboardPort employeeDashboardPort;
     private AnalyticsQueryServiceImpl queryService;
 
     @BeforeEach
     void setUp() {
         repository = Mockito.mock(BranchAnalyticsRepository.class);
-        queryService = new AnalyticsQueryServiceImpl(repository, new AnalyticsClock("America/Lima"));
+        customerDashboardPort = Mockito.mock(CustomerDashboardPort.class);
+        employeeDashboardPort = Mockito.mock(EmployeeDashboardPort.class);
+        queryService = new AnalyticsQueryServiceImpl(
+                repository,
+                new AnalyticsClock("America/Lima"),
+                customerDashboardPort,
+                employeeDashboardPort
+        );
     }
 
     @Test
@@ -189,5 +204,45 @@ class AnalyticsQueryServiceImplTest {
 
         assertThat(result.isFailure()).isTrue();
         assertThat(result.failure().get()).isEqualTo("analytics.error.retrievalFailed");
+    }
+
+    @Test
+    @DisplayName("handle GetCustomerDashboardSummaryQuery delegates to CustomerDashboardPort")
+    void handleCustomerDashboardSummarySuccess() {
+        var userId = UUID.randomUUID();
+        var summary = new CustomerDashboardSummary(
+                UUID.randomUUID(), 2, 1, 1, 1, 0, List.of(), List.of(), List.of());
+        when(customerDashboardPort.loadSummaryForUser(userId)).thenReturn(Optional.of(summary));
+
+        var result = queryService.handle(new GetCustomerDashboardSummaryQuery(userId));
+
+        assertThat(result.isSuccess()).isTrue();
+        assertThat(result.success().get()).isEqualTo(summary);
+    }
+
+    @Test
+    @DisplayName("handle GetCustomerDashboardSummaryQuery returns customerNotFound when port returns empty")
+    void handleCustomerDashboardSummaryNotFound() {
+        var userId = UUID.randomUUID();
+        when(customerDashboardPort.loadSummaryForUser(userId)).thenReturn(Optional.empty());
+
+        var result = queryService.handle(new GetCustomerDashboardSummaryQuery(userId));
+
+        assertThat(result.isFailure()).isTrue();
+        assertThat(result.failure().get()).isEqualTo("analytics.error.customerNotFound");
+    }
+
+    @Test
+    @DisplayName("handle GetEmployeeDashboardSummaryQuery delegates to EmployeeDashboardPort")
+    void handleEmployeeDashboardSummarySuccess() {
+        var userId = UUID.randomUUID();
+        var summary = new EmployeeDashboardSummary(
+                UUID.randomUUID(), List.of(UUID.randomUUID()), 3, 2, 4, 1, List.of());
+        when(employeeDashboardPort.loadSummaryForUser(userId)).thenReturn(Optional.of(summary));
+
+        var result = queryService.handle(new GetEmployeeDashboardSummaryQuery(userId));
+
+        assertThat(result.isSuccess()).isTrue();
+        assertThat(result.success().get()).isEqualTo(summary);
     }
 }

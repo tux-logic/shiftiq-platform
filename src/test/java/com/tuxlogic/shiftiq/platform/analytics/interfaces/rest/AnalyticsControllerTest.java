@@ -4,13 +4,20 @@ import com.tuxlogic.shiftiq.platform.analytics.application.internal.dto.DailyAna
 import com.tuxlogic.shiftiq.platform.analytics.application.internal.support.AnalyticsClock;
 import com.tuxlogic.shiftiq.platform.analytics.application.queryservices.AnalyticsQueryService;
 import com.tuxlogic.shiftiq.platform.analytics.domain.model.queries.BranchAnalyticsSummary;
+import com.tuxlogic.shiftiq.platform.analytics.domain.model.queries.CustomerDashboardSummary;
+import com.tuxlogic.shiftiq.platform.analytics.domain.model.queries.EmployeeDashboardSummary;
 import com.tuxlogic.shiftiq.platform.analytics.domain.model.queries.GetBranchAnalyticsByDateRangeQuery;
 import com.tuxlogic.shiftiq.platform.analytics.domain.model.queries.GetBranchAnalyticsSummaryQuery;
+import com.tuxlogic.shiftiq.platform.analytics.domain.model.queries.GetCustomerDashboardSummaryQuery;
+import com.tuxlogic.shiftiq.platform.analytics.domain.model.queries.GetEmployeeDashboardSummaryQuery;
 import com.tuxlogic.shiftiq.platform.analytics.domain.model.queries.GetNetworkAnalyticsOverviewQuery;
 import com.tuxlogic.shiftiq.platform.analytics.domain.model.queries.NetworkAnalyticsOverview;
 import com.tuxlogic.shiftiq.platform.analytics.interfaces.rest.resources.BranchAnalyticsSnapshotResource;
 import com.tuxlogic.shiftiq.platform.analytics.interfaces.rest.resources.BranchAnalyticsSummaryResource;
+import com.tuxlogic.shiftiq.platform.analytics.interfaces.rest.resources.CustomerDashboardSummaryResource;
+import com.tuxlogic.shiftiq.platform.analytics.interfaces.rest.resources.EmployeeDashboardSummaryResource;
 import com.tuxlogic.shiftiq.platform.analytics.interfaces.rest.resources.NetworkAnalyticsOverviewResource;
+import com.tuxlogic.shiftiq.platform.iam.domain.model.valueobjects.Permission;
 import com.tuxlogic.shiftiq.platform.shared.application.result.Result;
 import com.tuxlogic.shiftiq.platform.shared.infrastructure.security.MultiTenancySecurityService;
 import com.tuxlogic.shiftiq.platform.shared.interfaces.rest.resources.ErrorResource;
@@ -49,7 +56,7 @@ class AnalyticsControllerTest {
     @DisplayName("getBranchSummary returns 403 with standard error body when user not authorized for branch")
     void getBranchSummaryUnauthorized() {
         var branchId = UUID.randomUUID();
-        when(securityService.isAuthorizedForBranch(branchId)).thenReturn(false);
+        when(securityService.hasPermissionForBranch(branchId, Permission.ANALYTICS_READ)).thenReturn(false);
 
         ResponseEntity<?> response = controller.getBranchSummary(branchId);
 
@@ -63,7 +70,7 @@ class AnalyticsControllerTest {
     @DisplayName("getBranchSummary returns 404 with standard error body when the branch does not exist")
     void getBranchSummaryBranchNotFound() {
         var branchId = UUID.randomUUID();
-        when(securityService.isAuthorizedForBranch(branchId)).thenReturn(true);
+        when(securityService.hasPermissionForBranch(branchId, Permission.ANALYTICS_READ)).thenReturn(true);
         when(securityService.branchExists(branchId)).thenReturn(false);
 
         ResponseEntity<?> response = controller.getBranchSummary(branchId);
@@ -78,7 +85,7 @@ class AnalyticsControllerTest {
     @DisplayName("getBranchSummary returns 500 with standard error body when the query fails")
     void getBranchSummaryInternalFailure() {
         var branchId = UUID.randomUUID();
-        when(securityService.isAuthorizedForBranch(branchId)).thenReturn(true);
+        when(securityService.hasPermissionForBranch(branchId, Permission.ANALYTICS_READ)).thenReturn(true);
         when(securityService.branchExists(branchId)).thenReturn(true);
         when(queryService.handle(any(GetBranchAnalyticsSummaryQuery.class)))
                 .thenReturn(Result.failure("analytics.error.retrievalFailed"));
@@ -94,7 +101,7 @@ class AnalyticsControllerTest {
     @DisplayName("getBranchSummary returns 200 OK with summary resource")
     void getBranchSummarySuccess() {
         var branchId = UUID.randomUUID();
-        when(securityService.isAuthorizedForBranch(branchId)).thenReturn(true);
+        when(securityService.hasPermissionForBranch(branchId, Permission.ANALYTICS_READ)).thenReturn(true);
         when(securityService.branchExists(branchId)).thenReturn(true);
 
         var summary = new BranchAnalyticsSummary(branchId, new BigDecimal("1200.00"), 4, 6, 1, 0);
@@ -114,7 +121,7 @@ class AnalyticsControllerTest {
     @DisplayName("getBranchFinancialRange returns 200 OK with list of snapshot resources")
     void getBranchFinancialRangeSuccess() {
         var branchId = UUID.randomUUID();
-        when(securityService.isAuthorizedForBranch(branchId)).thenReturn(true);
+        when(securityService.hasPermissionForBranch(branchId, Permission.ANALYTICS_READ)).thenReturn(true);
         when(securityService.branchExists(branchId)).thenReturn(true);
 
         var snapshot = new DailyAnalyticsSnapshot(
@@ -139,7 +146,7 @@ class AnalyticsControllerTest {
     @DisplayName("getBranchFinancialRange rejects an inverted date range with 400")
     void getBranchFinancialRangeRejectsInvertedRange() {
         var branchId = UUID.randomUUID();
-        when(securityService.isAuthorizedForBranch(branchId)).thenReturn(true);
+        when(securityService.hasPermissionForBranch(branchId, Permission.ANALYTICS_READ)).thenReturn(true);
         when(securityService.branchExists(branchId)).thenReturn(true);
 
         assertThat(org.junit.jupiter.api.Assertions.assertThrows(IllegalArgumentException.class,
@@ -155,7 +162,7 @@ class AnalyticsControllerTest {
     @DisplayName("getBranchFinancialRange returns 403 with standard error body when user not authorized")
     void getBranchFinancialRangeUnauthorized() {
         var branchId = UUID.randomUUID();
-        when(securityService.isAuthorizedForBranch(branchId)).thenReturn(false);
+        when(securityService.hasPermissionForBranch(branchId, Permission.ANALYTICS_READ)).thenReturn(false);
 
         ResponseEntity<?> response = controller.getBranchFinancialRange(branchId, null, null);
 
@@ -218,5 +225,62 @@ class AnalyticsControllerTest {
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.INTERNAL_SERVER_ERROR);
         assertThat(response.getBody()).isInstanceOf(ErrorResource.class);
         assertThat(((ErrorResource) response.getBody()).code()).isEqualTo("UNEXPECTED_ERROR");
+    }
+
+    @Test
+    @DisplayName("getMyCustomerSummary returns 200 OK with CustomerDashboardSummaryResource")
+    void getMyCustomerSummarySuccess() {
+        var userId = UUID.randomUUID();
+        var customerId = UUID.randomUUID();
+        when(securityService.resolveCurrentUserId()).thenReturn(java.util.Optional.of(userId));
+        var summary = new CustomerDashboardSummary(customerId, 2, 1, 1, 1, 1, List.of(), List.of(), List.of());
+        when(queryService.handle(new GetCustomerDashboardSummaryQuery(userId))).thenReturn(Result.success(summary));
+
+        ResponseEntity<?> response = controller.getMyCustomerSummary();
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(response.getBody()).isInstanceOf(CustomerDashboardSummaryResource.class);
+        var body = (CustomerDashboardSummaryResource) response.getBody();
+        assertThat(body.customerId()).isEqualTo(customerId);
+        assertThat(body.activeVehiclesCount()).isEqualTo(2);
+    }
+
+    @Test
+    @DisplayName("getMyCustomerSummary returns 404 when customer profile does not exist")
+    void getMyCustomerSummaryNotFound() {
+        var userId = UUID.randomUUID();
+        when(securityService.resolveCurrentUserId()).thenReturn(java.util.Optional.of(userId));
+        when(queryService.handle(new GetCustomerDashboardSummaryQuery(userId)))
+                .thenReturn(Result.failure("analytics.error.customerNotFound"));
+
+        ResponseEntity<?> response = controller.getMyCustomerSummary();
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+        assertThat(response.getBody()).isInstanceOf(ErrorResource.class);
+        assertThat(((ErrorResource) response.getBody()).code()).isEqualTo("CUSTOMER_NOT_FOUND");
+    }
+
+    @Test
+    @DisplayName("getMyEmployeeSummary is restricted to workshop staff roles and returns 200 OK")
+    void getMyEmployeeSummarySuccessAndGuard() throws NoSuchMethodException {
+        var method = AnalyticsController.class.getMethod("getMyEmployeeSummary");
+        var preAuthorize = method.getAnnotation(org.springframework.security.access.prepost.PreAuthorize.class);
+        assertThat(preAuthorize).isNotNull();
+        assertThat(preAuthorize.value())
+                .isEqualTo("hasAnyRole('ADMIN', 'OWNER', 'BRANCH_MANAGER', 'ASSISTANT', 'EMPLOYEE')");
+
+        var userId = UUID.randomUUID();
+        var employeeId = UUID.randomUUID();
+        when(securityService.resolveCurrentUserId()).thenReturn(java.util.Optional.of(userId));
+        var summary = new EmployeeDashboardSummary(employeeId, List.of(UUID.randomUUID()), 2, 3, 5, 1, List.of());
+        when(queryService.handle(new GetEmployeeDashboardSummaryQuery(userId))).thenReturn(Result.success(summary));
+
+        ResponseEntity<?> response = controller.getMyEmployeeSummary();
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(response.getBody()).isInstanceOf(EmployeeDashboardSummaryResource.class);
+        var body = (EmployeeDashboardSummaryResource) response.getBody();
+        assertThat(body.employeeId()).isEqualTo(employeeId);
+        assertThat(body.pendingTasksCount()).isEqualTo(3);
     }
 }
