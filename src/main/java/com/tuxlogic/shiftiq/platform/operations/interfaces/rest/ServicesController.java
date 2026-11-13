@@ -55,9 +55,16 @@ public class ServicesController {
         return service;
     }
 
+    private Service validateServiceManagerAccess(UUID serviceId) {
+        Service service = serviceQueryService.handle(new GetServiceByIdQuery(new ServiceId(serviceId)))
+                .orElseThrow(() -> new IllegalArgumentException(OperationsMessageKeys.SERVICE_NOT_FOUND));
+        multiTenancySecurityService.validateManagerAccess(service.getBranchId().value());
+        return service;
+    }
+
     @Operation(summary = "Create a new service", description = "Creates a new service with the provided details")
     @PostMapping
-    @PreAuthorize("isAuthenticated() and @multiTenancySecurityService.isAuthorizedForBranch(#resource.branchId())")
+    @PreAuthorize("isAuthenticated() and @multiTenancySecurityService.isAuthorizedManagerForBranch(#resource.branchId())")
     public ResponseEntity<ServiceResource> createService(@Valid @RequestBody CreateServiceResource resource) {
         var command = CreateServiceCommandFromResourceAssembler.toCommandFromResource(resource);
         var result = serviceCommandService.handle(command);
@@ -73,7 +80,7 @@ public class ServicesController {
     @PutMapping("/{serviceId}")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<ServiceResource> updateService(@PathVariable UUID serviceId, @Valid @RequestBody UpdateServiceResource resource) {
-        validateServiceAccess(serviceId);
+        validateServiceManagerAccess(serviceId);
         var command = UpdateServiceCommandFromResourceAssembler.toCommandFromResource(serviceId, resource);
         var result = serviceCommandService.handle(command);
         if (result.isFailure()) {
@@ -89,7 +96,7 @@ public class ServicesController {
     @DeleteMapping("/{serviceId}")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<?> deleteService(@PathVariable UUID serviceId) {
-        validateServiceAccess(serviceId);
+        validateServiceManagerAccess(serviceId);
         var command = new DeleteServiceCommand(new ServiceId(serviceId));
         var result = serviceCommandService.handle(command);
         if (result.isFailure()) {
