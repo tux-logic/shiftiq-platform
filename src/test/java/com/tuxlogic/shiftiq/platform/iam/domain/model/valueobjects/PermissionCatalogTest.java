@@ -30,17 +30,17 @@ class PermissionCatalogTest {
     void assistantHoldsAdvisorPermissions() {
         var permissions = DefaultRolePermissions.permissionsFor(Roles.ROLE_ASSISTANT);
         assertThat(permissions)
-                .contains(Permission.QUOTE_CREATE, Permission.QUOTE_APPROVE, Permission.CHECKOUT_PROCESS, Permission.APPOINTMENT_MANAGE)
+                .contains(Permission.QUOTE_CREATE, Permission.QUOTE_APPROVE, Permission.CHECKOUT_PROCESS, Permission.APPOINTMENT_MANAGE, Permission.ANALYTICS_READ)
                 .doesNotContain(Permission.QUOTE_CANCEL, Permission.BRANCH_MANAGE, Permission.STAFF_MANAGE, Permission.ROLE_MANAGE, Permission.PLATFORM_ADMIN);
     }
 
     @Test
-    @DisplayName("ROLE_EMPLOYEE holds operational workorder permissions without billing or management")
+    @DisplayName("ROLE_EMPLOYEE holds operational workorder permissions without billing, analytics, or management")
     void employeeHoldsOperationalPermissionsOnly() {
         var permissions = DefaultRolePermissions.permissionsFor(Roles.ROLE_EMPLOYEE);
         assertThat(permissions)
                 .contains(Permission.WORKORDER_READ, Permission.WORKORDER_EXECUTE, Permission.MEDIA_UPLOAD)
-                .doesNotContain(Permission.QUOTE_CREATE, Permission.CHECKOUT_PROCESS, Permission.BRANCH_MANAGE, Permission.INVENTORY_MANAGE, Permission.STAFF_MANAGE);
+                .doesNotContain(Permission.QUOTE_CREATE, Permission.CHECKOUT_PROCESS, Permission.BRANCH_MANAGE, Permission.INVENTORY_MANAGE, Permission.STAFF_MANAGE, Permission.ANALYTICS_READ);
     }
 
     @Test

@@ -29,6 +29,7 @@ public final class DefaultRolePermissions {
             Permission.BRANCH_READ,
             Permission.BRANCH_MANAGE,
             Permission.MEDIA_UPLOAD,
+            Permission.ANALYTICS_READ,
             Permission.ROLE_MANAGE
     );
 
@@ -44,7 +45,8 @@ public final class DefaultRolePermissions {
             Permission.APPOINTMENT_MANAGE,
             Permission.STAFF_READ,
             Permission.BRANCH_READ,
-            Permission.MEDIA_UPLOAD
+            Permission.MEDIA_UPLOAD,
+            Permission.ANALYTICS_READ
     );
 
     private static final Set<Permission> EMPLOYEE_PERMISSIONS = EnumSet.of(

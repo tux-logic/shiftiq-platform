@@ -33,6 +33,8 @@ public enum Permission {
 
     MEDIA_UPLOAD("Upload media assets for workshop operations", true),
 
+    ANALYTICS_READ("View branch operational and financial analytics", true),
+
     ROLE_MANAGE("Create, update, deactivate, and assign custom workshop roles", true),
 
     PLATFORM_ADMIN("Platform-wide administrative privileges (not assignable by workshops)", false);
