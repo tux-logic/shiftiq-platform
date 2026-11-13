@@ -68,6 +68,18 @@
 - **Código único**: Por taller (case-insensitive)
 - **Uso**: Requerido para citas, inventario, facturación, analytics
 
+### Frontend & Mobile Map / Location Integration Guide
+
+Users should **never** enter `latitude` or `longitude` manually. Web and mobile clients should capture coordinates visually and send them alongside `address` to `POST /api/v1/branches` and `PUT /api/v1/branches/{branchId}`:
+
+1. **Create / Edit Branch Form (Web & Mobile)**:
+   - **Interactive Map Pin / Address Autocomplete**: Render a map picker (e.g., Google Maps / Mapbox / Leaflet on Web; Google Maps Compose / Mapbox / OSMDroid on Mobile) and/or a Places Autocomplete search input. When the user drops a pin or selects a place, extract `latitude`, `longitude`, and the formatted `address` automatically.
+   - **"Use My Current Location" (Mobile GPS)**: Request foreground location permission (`ACCESS_FINE_LOCATION` / `CLLocationManager`) to read the device's current `latitude` and `longitude`, and optionally run reverse geocoding (`Geocoder` / Places API) to prefill `address`.
+   - **Cover Image (`coverImageUrl`)**: Upload the branch cover photo first via `POST /api/v1/media/upload` (Cloudinary) and include the returned `url` in `coverImageUrl`.
+   - **Partial-Coordinate Rule**: Both `latitude` (`-90.0..90.0`) and `longitude` (`-180.0..180.0`) are optional, but if one is sent, the other **must** also be provided (otherwise the API rejects the request).
+2. **Owner / Admin Branch Map View**:
+   - Fetch branches via `GET /api/v1/branches` (or `GET /api/v1/branches?workshopId={workshopId}`), filter entries where `latitude != null && longitude != null`, and render map markers/cards showing `name`, `code`, `address`, `phone`, and `coverImageUrl`.
+
 ---
 
 ## `PUT /api/v1/branches/{branchId}` — Actualizar Sede
