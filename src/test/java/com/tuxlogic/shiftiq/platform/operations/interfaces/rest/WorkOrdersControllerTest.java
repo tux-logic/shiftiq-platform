@@ -97,7 +97,10 @@ class WorkOrdersControllerTest {
 
         assertNotNull(response);
         assertEquals(HttpStatus.NO_CONTENT, response.getStatusCode());
-        verify(multiTenancySecurityService).validateManagerAccess(branchId);
+        verify(multiTenancySecurityService).validateBranchPermission(
+                branchId,
+                com.tuxlogic.shiftiq.platform.iam.domain.model.valueobjects.Permission.WORKORDER_DELETE
+        );
     }
 
     @Test
@@ -117,7 +120,10 @@ class WorkOrdersControllerTest {
 
         when(queryService.handle(any(GetWorkOrderByIdQuery.class))).thenReturn(Optional.of(realWorkOrder));
         doThrow(new org.springframework.security.access.AccessDeniedException("Unauthorized"))
-                .when(multiTenancySecurityService).validateManagerAccess(branchId);
+                .when(multiTenancySecurityService).validateBranchPermission(
+                        branchId,
+                        com.tuxlogic.shiftiq.platform.iam.domain.model.valueobjects.Permission.WORKORDER_DELETE
+                );
 
         assertThrows(org.springframework.security.access.AccessDeniedException.class,
                 () -> controller.deleteWorkOrder(workOrderId));
