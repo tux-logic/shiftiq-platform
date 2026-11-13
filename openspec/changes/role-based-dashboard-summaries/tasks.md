@@ -6,7 +6,7 @@
 
 ## 2. ACL Dashboard Ports & Query Services
 - [x] 2.1 Define `CustomerDashboardPort`, `EmployeeDashboardPort`, and domain summary records/queries in `analytics/domain`, and implement `CustomerDashboardPortImpl` and `EmployeeDashboardPortImpl` in `analytics/infrastructure/acl/` with unit tests (`./mvnw test -Dtest=CustomerDashboardPortImplTest,EmployeeDashboardPortImplTest`).
-- [ ] 2.2 Wire `GetCustomerDashboardSummaryQuery` and `GetEmployeeDashboardSummaryQuery` into `AnalyticsQueryService` and `AnalyticsQueryServiceImpl` with unit tests (`./mvnw test -Dtest=AnalyticsQueryServiceImplTest`).
+- [x] 2.2 Wire `GetCustomerDashboardSummaryQuery` and `GetEmployeeDashboardSummaryQuery` into `AnalyticsQueryService` and `AnalyticsQueryServiceImpl` with unit tests (`./mvnw test -Dtest=AnalyticsQueryServiceImplTest`).
 
 ## 3. Self-Service Dashboard Endpoints & Documentation
 - [ ] 3.1 Expose `GET /api/v1/analytics/me/customer-summary` and `GET /api/v1/analytics/me/employee-summary` in `AnalyticsController` with response resources and WebMvc tests (`./mvnw test -Dtest=AnalyticsControllerTest,EndpointRbacSecurityTest`).

@@ -2,8 +2,12 @@ package com.tuxlogic.shiftiq.platform.analytics.application.queryservices;
 
 import com.tuxlogic.shiftiq.platform.analytics.application.internal.dto.DailyAnalyticsSnapshot;
 import com.tuxlogic.shiftiq.platform.analytics.domain.model.queries.BranchAnalyticsSummary;
+import com.tuxlogic.shiftiq.platform.analytics.domain.model.queries.CustomerDashboardSummary;
+import com.tuxlogic.shiftiq.platform.analytics.domain.model.queries.EmployeeDashboardSummary;
 import com.tuxlogic.shiftiq.platform.analytics.domain.model.queries.GetBranchAnalyticsByDateRangeQuery;
 import com.tuxlogic.shiftiq.platform.analytics.domain.model.queries.GetBranchAnalyticsSummaryQuery;
+import com.tuxlogic.shiftiq.platform.analytics.domain.model.queries.GetCustomerDashboardSummaryQuery;
+import com.tuxlogic.shiftiq.platform.analytics.domain.model.queries.GetEmployeeDashboardSummaryQuery;
 import com.tuxlogic.shiftiq.platform.analytics.domain.model.queries.GetNetworkAnalyticsOverviewQuery;
 import com.tuxlogic.shiftiq.platform.analytics.domain.model.queries.NetworkAnalyticsOverview;
 import com.tuxlogic.shiftiq.platform.shared.application.result.Result;
@@ -14,4 +18,6 @@ public interface AnalyticsQueryService {
     Result<BranchAnalyticsSummary, String> handle(GetBranchAnalyticsSummaryQuery query);
     Result<List<DailyAnalyticsSnapshot>, String> handle(GetBranchAnalyticsByDateRangeQuery query);
     Result<NetworkAnalyticsOverview, String> handle(GetNetworkAnalyticsOverviewQuery query);
+    Result<CustomerDashboardSummary, String> handle(GetCustomerDashboardSummaryQuery query);
+    Result<EmployeeDashboardSummary, String> handle(GetEmployeeDashboardSummaryQuery query);
 }
