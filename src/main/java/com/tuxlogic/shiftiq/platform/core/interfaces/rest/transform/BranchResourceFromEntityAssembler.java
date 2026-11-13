@@ -14,7 +14,10 @@ public final class BranchResourceFromEntityAssembler {
                 entity.getCode(),
                 entity.getName(),
                 entity.getAddress() != null ? entity.getAddress().value() : null,
-                entity.getPhone() != null ? entity.getPhone().value() : null
+                entity.getPhone() != null ? entity.getPhone().value() : null,
+                entity.getCoverImageUrl(),
+                entity.getLatitude(),
+                entity.getLongitude()
         );
     }
 }

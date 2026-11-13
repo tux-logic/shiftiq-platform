@@ -29,6 +29,7 @@ public final class UserPersistenceAssembler {
         entity.setGoogleId(user.getGoogleId() != null ? user.getGoogleId().value() : null);
         entity.setStatus(user.getStatus() != null ? user.getStatus() : UserStatus.ACTIVE);
         entity.setRole(user.getRole() != null ? user.getRole() : Roles.ROLE_USER);
+        entity.setWorkshopRoleId(user.getWorkshopRoleId());
         entity.setBranchIds(user.getBranchIds() != null ? new HashSet<>(user.getBranchIds()) : new HashSet<>());
         entity.setDeletedAt(user.getDeletedAt());
         return entity;
@@ -38,7 +39,7 @@ public final class UserPersistenceAssembler {
         UserStatus status = entity.getStatus() != null ? entity.getStatus() : UserStatus.ACTIVE;
         Roles role = entity.getRole() != null ? entity.getRole() : Roles.ROLE_USER;
 
-        return new User(
+        User user = new User(
                 new UserId(entity.getId()),
                 new EmailAddress(entity.getEmail()),
                 new Password(entity.getPasswordHash()),
@@ -51,5 +52,7 @@ public final class UserPersistenceAssembler {
                 entity.getDeletedAt(),
                 entity.getVersion()
         );
+        user.assignWorkshopRole(entity.getWorkshopRoleId());
+        return user;
     }
 }

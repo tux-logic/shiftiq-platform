@@ -26,6 +26,7 @@ import com.tuxlogic.shiftiq.platform.shared.interfaces.rest.transform.ErrorRespo
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import com.tuxlogic.shiftiq.platform.iam.domain.model.valueobjects.Permission;
 import com.tuxlogic.shiftiq.platform.shared.infrastructure.security.MultiTenancySecurityService;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.context.MessageSource;
@@ -147,7 +148,7 @@ public class EmployeeRegistrationsController {
             return ResponseEntity.notFound().build();
         }
         var registration = queryResult.success().get();
-        if (!multiTenancySecurityService.isAuthorizedForBranch(registration.getBranchId())) {
+        if (!multiTenancySecurityService.hasPermissionForBranch(registration.getBranchId(), Permission.STAFF_MANAGE)) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
         }
 
@@ -168,7 +169,7 @@ public class EmployeeRegistrationsController {
             return ResponseEntity.notFound().build();
         }
         var registration = queryResult.success().get();
-        if (!multiTenancySecurityService.isAuthorizedForBranch(registration.getBranchId())) {
+        if (!multiTenancySecurityService.hasPermissionForBranch(registration.getBranchId(), Permission.STAFF_MANAGE)) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
         }
 
@@ -220,7 +221,7 @@ public class EmployeeRegistrationsController {
             return ResponseEntity.notFound().build();
         }
         var registration = queryResult.success().get();
-        if (!multiTenancySecurityService.isAuthorizedForBranch(registration.getBranchId())) {
+        if (!multiTenancySecurityService.hasPermissionForBranch(registration.getBranchId(), Permission.STAFF_MANAGE)) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
         }
 

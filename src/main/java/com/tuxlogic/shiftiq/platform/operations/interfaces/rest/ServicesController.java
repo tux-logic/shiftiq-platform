@@ -26,6 +26,7 @@ import java.util.stream.Collectors;
 
 import com.tuxlogic.shiftiq.platform.operations.domain.model.valueobjects.OperationsMessageKeys;
 import com.tuxlogic.shiftiq.platform.operations.domain.model.queries.GetServiceByIdQuery;
+import com.tuxlogic.shiftiq.platform.iam.domain.model.valueobjects.Permission;
 import com.tuxlogic.shiftiq.platform.shared.infrastructure.security.MultiTenancySecurityService;
 import jakarta.validation.Valid;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -55,9 +56,16 @@ public class ServicesController {
         return service;
     }
 
+    private Service validateServiceManagerAccess(UUID serviceId) {
+        Service service = serviceQueryService.handle(new GetServiceByIdQuery(new ServiceId(serviceId)))
+                .orElseThrow(() -> new IllegalArgumentException(OperationsMessageKeys.SERVICE_NOT_FOUND));
+        multiTenancySecurityService.validateBranchPermission(service.getBranchId().value(), Permission.SERVICE_MANAGE);
+        return service;
+    }
+
     @Operation(summary = "Create a new service", description = "Creates a new service with the provided details")
     @PostMapping
-    @PreAuthorize("isAuthenticated() and @multiTenancySecurityService.isAuthorizedForBranch(#resource.branchId())")
+    @PreAuthorize("isAuthenticated() and @multiTenancySecurityService.hasPermissionForBranch(#resource.branchId(), T(com.tuxlogic.shiftiq.platform.iam.domain.model.valueobjects.Permission).SERVICE_MANAGE)")
     public ResponseEntity<ServiceResource> createService(@Valid @RequestBody CreateServiceResource resource) {
         var command = CreateServiceCommandFromResourceAssembler.toCommandFromResource(resource);
         var result = serviceCommandService.handle(command);
@@ -73,7 +81,7 @@ public class ServicesController {
     @PutMapping("/{serviceId}")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<ServiceResource> updateService(@PathVariable UUID serviceId, @Valid @RequestBody UpdateServiceResource resource) {
-        validateServiceAccess(serviceId);
+        validateServiceManagerAccess(serviceId);
         var command = UpdateServiceCommandFromResourceAssembler.toCommandFromResource(serviceId, resource);
         var result = serviceCommandService.handle(command);
         if (result.isFailure()) {
@@ -89,7 +97,7 @@ public class ServicesController {
     @DeleteMapping("/{serviceId}")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<?> deleteService(@PathVariable UUID serviceId) {
-        validateServiceAccess(serviceId);
+        validateServiceManagerAccess(serviceId);
         var command = new DeleteServiceCommand(new ServiceId(serviceId));
         var result = serviceCommandService.handle(command);
         if (result.isFailure()) {

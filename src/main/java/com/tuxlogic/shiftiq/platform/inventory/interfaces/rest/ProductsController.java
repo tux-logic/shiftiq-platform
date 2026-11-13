@@ -20,6 +20,7 @@ import com.tuxlogic.shiftiq.platform.inventory.interfaces.rest.transform.Product
 import com.tuxlogic.shiftiq.platform.inventory.interfaces.rest.transform.UpdateProductCommandFromResourceAssembler;
 import com.tuxlogic.shiftiq.platform.shared.application.result.ApplicationError;
 import com.tuxlogic.shiftiq.platform.shared.domain.model.valueobjects.BranchId;
+import com.tuxlogic.shiftiq.platform.iam.domain.model.valueobjects.Permission;
 import com.tuxlogic.shiftiq.platform.shared.infrastructure.security.MultiTenancySecurityService;
 import com.tuxlogic.shiftiq.platform.shared.interfaces.rest.transform.ErrorResponseAssembler;
 import io.swagger.v3.oas.annotations.Operation;
@@ -95,7 +96,7 @@ public class ProductsController {
     public ResponseEntity<?> addBatchToProduct(
             @PathVariable UUID productId,
             @Valid @RequestBody AddBatchToProductResource resource) {
-        validateProductAccess(productId);
+        validateProductManagerAccess(productId);
 
         var command = AddBatchToProductCommandFromResourceAssembler.toCommandFromResource(productId, resource);
         var result = productCommandService.handle(command);
@@ -140,7 +141,7 @@ public class ProductsController {
     @DeleteMapping("/{productId}")
     @Operation(summary = "Delete a product", description = "Deletes a product and all its associated batches")
     public ResponseEntity<?> deleteProduct(@PathVariable UUID productId) {
-        validateProductAccess(productId);
+        validateProductManagerAccess(productId);
         var command = new DeleteProductCommand(productId);
         var result = productCommandService.handle(command);
         if (result.isSuccess()) {
@@ -154,6 +155,14 @@ public class ProductsController {
         var product = productQueryService.handle(query);
         if (product.isPresent()) {
             multiTenancySecurityService.validateBranchAccess(product.get().getBranchId().value());
+        }
+    }
+
+    private void validateProductManagerAccess(UUID productId) {
+        var query = new GetProductByIdQuery(productId);
+        var product = productQueryService.handle(query);
+        if (product.isPresent()) {
+            multiTenancySecurityService.validateBranchPermission(product.get().getBranchId().value(), Permission.INVENTORY_MANAGE);
         }
     }
 

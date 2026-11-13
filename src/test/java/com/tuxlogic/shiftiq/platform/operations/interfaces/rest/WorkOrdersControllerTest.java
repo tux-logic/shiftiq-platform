@@ -97,6 +97,37 @@ class WorkOrdersControllerTest {
 
         assertNotNull(response);
         assertEquals(HttpStatus.NO_CONTENT, response.getStatusCode());
+        verify(multiTenancySecurityService).validateBranchPermission(
+                branchId,
+                com.tuxlogic.shiftiq.platform.iam.domain.model.valueobjects.Permission.WORKORDER_DELETE
+        );
+    }
+
+    @Test
+    void deleteWorkOrder_WhenManagerAccessDenied_ShouldThrowAccessDeniedException() {
+        UUID workOrderId = UUID.randomUUID();
+        UUID branchId = UUID.randomUUID();
+
+        WorkOrder realWorkOrder = new WorkOrder(
+                new com.tuxlogic.shiftiq.platform.operations.domain.model.valueobjects.AppointmentId(UUID.randomUUID()),
+                new BranchId(branchId),
+                new com.tuxlogic.shiftiq.platform.shared.domain.model.valueobjects.VehicleId(UUID.randomUUID()),
+                new com.tuxlogic.shiftiq.platform.shared.domain.model.valueobjects.CustomerId(UUID.randomUUID()),
+                101,
+                new com.tuxlogic.shiftiq.platform.operations.domain.model.valueobjects.DiagnosticSummary("Diagnostico test"),
+                new com.tuxlogic.shiftiq.platform.shared.domain.model.valueobjects.Mileage(50000)
+        );
+
+        when(queryService.handle(any(GetWorkOrderByIdQuery.class))).thenReturn(Optional.of(realWorkOrder));
+        doThrow(new org.springframework.security.access.AccessDeniedException("Unauthorized"))
+                .when(multiTenancySecurityService).validateBranchPermission(
+                        branchId,
+                        com.tuxlogic.shiftiq.platform.iam.domain.model.valueobjects.Permission.WORKORDER_DELETE
+                );
+
+        assertThrows(org.springframework.security.access.AccessDeniedException.class,
+                () -> controller.deleteWorkOrder(workOrderId));
+        verify(commandService, never()).handle(any(com.tuxlogic.shiftiq.platform.operations.domain.model.commands.DeleteWorkOrderCommand.class));
     }
 
     @Test

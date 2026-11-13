@@ -1,5 +1,6 @@
 package com.tuxlogic.shiftiq.platform.shared.infrastructure.security;
 
+import com.tuxlogic.shiftiq.platform.iam.domain.model.valueobjects.Permission;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -16,7 +17,10 @@ import java.util.Set;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.when;
+import org.springframework.security.access.AccessDeniedException;
 
 @ExtendWith(MockitoExtension.class)
 class MultiTenancySecurityServiceTest {
@@ -72,6 +76,44 @@ class MultiTenancySecurityServiceTest {
         assertThat(service.isAuthorizedForBranch(otherBranchId)).isTrue();
         assertThat(service.resolveNetworkAccessibleBranchIds())
                 .containsExactlyInAnyOrder(ownBranchId, otherBranchId);
+    }
+
+    @Test
+    @DisplayName("managerial branch access allows admin, owner, and branch manager, but denies operational staff")
+    void managerialBranchAccessEnforcesRolePrivilege() {
+        // Admin allowed
+        authenticate(principal(true, false, Set.of()));
+        assertThat(service.isAuthorizedManagerForBranch(ownBranchId)).isTrue();
+        assertDoesNotThrow(() -> service.validateManagerAccess(ownBranchId));
+
+        // Owner allowed for own branch
+        authenticate(principal(false, true, Set.of(ownBranchId)));
+        assertThat(service.isAuthorizedManagerForBranch(ownBranchId)).isTrue();
+        assertDoesNotThrow(() -> service.validateManagerAccess(ownBranchId));
+
+        // Branch manager allowed for own branch
+        authenticate(staffPrincipal(true, Set.of(ownBranchId)));
+        assertThat(service.isAuthorizedManagerForBranch(ownBranchId)).isTrue();
+        assertDoesNotThrow(() -> service.validateManagerAccess(ownBranchId));
+
+        // Branch manager denied for other branch
+        assertThat(service.isAuthorizedManagerForBranch(otherBranchId)).isFalse();
+        assertThrows(AccessDeniedException.class, () -> service.validateManagerAccess(otherBranchId));
+
+        // Assistant denied even for own branch
+        authenticate(staffPrincipal(false, Set.of(ownBranchId)));
+        assertThat(service.isAuthorizedManagerForBranch(ownBranchId)).isFalse();
+        assertThrows(AccessDeniedException.class, () -> service.validateManagerAccess(ownBranchId));
+
+        // Plain employee/user denied
+        authenticate(principal(false, false, Set.of(ownBranchId)));
+        assertThat(service.isAuthorizedManagerForBranch(ownBranchId)).isFalse();
+        assertThrows(AccessDeniedException.class, () -> service.validateManagerAccess(ownBranchId));
+
+        // Fails closed on null
+        assertThat(service.isAuthorizedManagerForBranch((UUID) null)).isFalse();
+        assertThat(service.isAuthorizedManagerForBranch((com.tuxlogic.shiftiq.platform.shared.domain.model.valueobjects.BranchId) null)).isFalse();
+        assertThrows(AccessDeniedException.class, () -> service.validateManagerAccess(null));
     }
 
     @Test
@@ -303,6 +345,85 @@ class MultiTenancySecurityServiceTest {
 
         assertThat(service.isAuthorizedForUser(userId)).isTrue();
         assertThat(service.isAuthorizedForUser(otherUserId)).isFalse();
+    }
+
+    @Test
+    @DisplayName("advisor or manager branch access allows assistant and manager, denies mechanic and customer")
+    void advisorOrManagerBranchAccessEnforcesRoles() {
+        authenticate(staffPrincipal(true, Set.of(ownBranchId)));
+        assertThat(service.isAuthorizedAdvisorOrManagerForBranch(ownBranchId)).isTrue();
+        assertThat(service.isAuthorizedAdvisorOrManagerForBranch(otherBranchId)).isFalse();
+
+        authenticate(staffPrincipal(false, Set.of(ownBranchId)));
+        assertThat(service.isAuthorizedAdvisorOrManagerForBranch(ownBranchId)).isTrue();
+        service.validateAdvisorOrManagerAccess(ownBranchId);
+
+        authenticate(principal(false, false, Set.of(ownBranchId)));
+        assertThat(service.isAuthorizedAdvisorOrManagerForBranch(ownBranchId)).isFalse();
+        assertThrows(AccessDeniedException.class, () -> service.validateAdvisorOrManagerAccess(ownBranchId));
+    }
+
+    @Test
+    @DisplayName("manager workshop access allows owner and branch manager, denies assistant and mechanic")
+    void managerWorkshopAccessEnforcesRoles() {
+        when(tenantScopeResolver.findWorkshopIdsForUser(userId)).thenReturn(Set.of(ownWorkshopId));
+        authenticate(principal(false, true, Set.of()));
+        assertThat(service.isAuthorizedManagerForWorkshop(ownWorkshopId)).isTrue();
+        assertThat(service.isAuthorizedManagerForWorkshop(otherWorkshopId)).isFalse();
+
+        when(tenantScopeResolver.findWorkshopIdForBranch(ownBranchId)).thenReturn(ownWorkshopId);
+        authenticate(staffPrincipal(true, Set.of(ownBranchId)));
+        assertThat(service.isAuthorizedManagerForWorkshop(ownWorkshopId)).isTrue();
+        service.validateManagerWorkshopAccess(ownWorkshopId);
+
+        authenticate(staffPrincipal(false, Set.of(ownBranchId)));
+        assertThat(service.isAuthorizedManagerForWorkshop(ownWorkshopId)).isFalse();
+        assertThrows(AccessDeniedException.class, () -> service.validateManagerWorkshopAccess(ownWorkshopId));
+
+        authenticate(principal(false, false, Set.of(ownBranchId)));
+        assertThat(service.isAuthorizedManagerForWorkshop(ownWorkshopId)).isFalse();
+    }
+
+    @Test
+    @DisplayName("hasPermissionForBranch enforces both permission authority and branch tenant scope")
+    void hasPermissionForBranchEnforcesPermissionAndTenantScope() {
+        var warehousePrincipal = Mockito.mock(AuthenticatedPrincipal.class);
+        Mockito.lenient().when(warehousePrincipal.getId()).thenReturn(userId);
+        Mockito.lenient().when(warehousePrincipal.getBranchIds()).thenReturn(Set.of(ownBranchId));
+        Mockito.lenient().when(warehousePrincipal.hasBranch(ownBranchId)).thenReturn(true);
+        Mockito.lenient().when(warehousePrincipal.hasBranch(otherBranchId)).thenReturn(false);
+        Mockito.lenient().when(warehousePrincipal.getPermissions()).thenReturn(Set.of("INVENTORY_MANAGE"));
+        Mockito.lenient().when(warehousePrincipal.hasPermission("INVENTORY_MANAGE")).thenReturn(true);
+
+        authenticate(warehousePrincipal);
+
+        assertThat(service.hasPermissionForBranch(ownBranchId, Permission.INVENTORY_MANAGE)).isTrue();
+        assertDoesNotThrow(() -> service.validateBranchPermission(ownBranchId, Permission.INVENTORY_MANAGE));
+
+        // Same permission on another branch is denied
+        assertThat(service.hasPermissionForBranch(otherBranchId, Permission.INVENTORY_MANAGE)).isFalse();
+        assertThrows(AccessDeniedException.class, () -> service.validateBranchPermission(otherBranchId, Permission.INVENTORY_MANAGE));
+
+        // Unheld permission on own branch is denied
+        assertThat(service.hasPermissionForBranch(ownBranchId, Permission.CHECKOUT_PROCESS)).isFalse();
+    }
+
+    @Test
+    @DisplayName("hasPermissionForWorkshop enforces both permission authority and workshop scope")
+    void hasPermissionForWorkshopEnforcesPermissionAndWorkshopScope() {
+        var customRolePrincipal = Mockito.mock(AuthenticatedPrincipal.class);
+        Mockito.lenient().when(customRolePrincipal.getId()).thenReturn(userId);
+        Mockito.lenient().when(customRolePrincipal.getBranchIds()).thenReturn(Set.of(ownBranchId));
+        Mockito.lenient().when(customRolePrincipal.getPermissions()).thenReturn(Set.of("ROLE_MANAGE"));
+        Mockito.lenient().when(customRolePrincipal.hasPermission("ROLE_MANAGE")).thenReturn(true);
+        when(tenantScopeResolver.findWorkshopIdForBranch(ownBranchId)).thenReturn(ownWorkshopId);
+
+        authenticate(customRolePrincipal);
+
+        assertThat(service.hasPermissionForWorkshop(ownWorkshopId, Permission.ROLE_MANAGE)).isTrue();
+        assertThat(service.hasPermissionForWorkshop(otherWorkshopId, Permission.ROLE_MANAGE)).isFalse();
+        assertThat(service.hasPermissionForWorkshop(ownWorkshopId, Permission.BRANCH_MANAGE)).isFalse();
+        assertThrows(AccessDeniedException.class, () -> service.validateWorkshopPermission(otherWorkshopId, Permission.ROLE_MANAGE));
     }
 
     private AuthenticatedPrincipal principal(boolean admin, boolean owner, Set<UUID> memberships) {
