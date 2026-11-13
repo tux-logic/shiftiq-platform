@@ -8,7 +8,7 @@
 
 ## `POST /api/v1/services` — Crear Servicio
 
-**Security**: `@PreAuthorize("isAuthenticated()")` + validación manual `isAuthorizedForBranch(branchId)`  
+**Security**: `@PreAuthorize("isAuthenticated() and @multiTenancySecurityService.isAuthorizedManagerForBranch(#resource.branchId())")` (Requiere rol `OWNER`, `BRANCH_MANAGER` o `ADMIN`)  
 **Description**: Crea servicio en catálogo de una sede.
 
 ### Request
@@ -77,7 +77,7 @@
 
 ## `PUT /api/v1/services/{serviceId}` — Actualizar Servicio
 
-**Security**: Validación manual `isAuthorizedForBranch(service.branchId)`  
+**Security**: Validación manual `validateManagerAccess(service.branchId)` (Requiere rol `OWNER`, `BRANCH_MANAGER` o `ADMIN`)  
 **Description**: Actualiza nombre y/o precio del servicio.
 
 ### Request
@@ -104,14 +104,14 @@
 | HTTP Code | Error Code | Descripción |
 |-----------|------------|-------------|
 | 400 | `VALIDATION_ERROR` | Precio negativo |
-| 403 | `ACCESS_DENIED` | Sin acceso a la sede del servicio |
+| 403 | `ACCESS_DENIED` | Sin acceso a la sede o rol no gerencial |
 | 404 | `NOT_FOUND` | Servicio no existe |
 
 ---
 
 ## `DELETE /api/v1/services/{serviceId}` — Eliminar Servicio
 
-**Security**: Validación manual `isAuthorizedForBranch(service.branchId)`  
+**Security**: Validación manual `validateManagerAccess(service.branchId)` (Requiere rol `OWNER`, `BRANCH_MANAGER` o `ADMIN`)  
 **Description**: Elimina servicio del catálogo.
 
 ### Success Response (204 NO CONTENT)
@@ -120,7 +120,7 @@
 
 | HTTP Code | Error Code | Descripción |
 |-----------|------------|-------------|
-| 403 | `ACCESS_DENIED` | Sin acceso a la sede |
+| 403 | `ACCESS_DENIED` | Sin acceso a la sede o rol no gerencial |
 | 404 | `NOT_FOUND` | Servicio no existe |
 | 409 | `CONFLICT` | Servicio usado en Work Order Tasks activas |
 
