@@ -19,6 +19,7 @@ import com.tuxlogic.shiftiq.platform.core.interfaces.rest.transform.BranchResour
 import com.tuxlogic.shiftiq.platform.core.interfaces.rest.transform.BranchSubscriptionResourceFromEntityAssembler;
 import com.tuxlogic.shiftiq.platform.core.interfaces.rest.transform.CreateBranchCommandFromResourceAssembler;
 import com.tuxlogic.shiftiq.platform.core.interfaces.rest.transform.UpdateBranchCommandFromResourceAssembler;
+import com.tuxlogic.shiftiq.platform.iam.domain.model.valueobjects.Permission;
 import com.tuxlogic.shiftiq.platform.shared.infrastructure.security.MultiTenancySecurityService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -57,9 +58,9 @@ public class BranchesController {
 
     @Operation(summary = "Create a new branch", description = "Creates a new branch associated with a specific workshop")
     @PostMapping
-    @PreAuthorize("isAuthenticated() and @multiTenancySecurityService.isAuthorizedForWorkshop(#resource.workshopId())")
+    @PreAuthorize("isAuthenticated() and @multiTenancySecurityService.hasPermissionForWorkshop(#resource.workshopId(), T(com.tuxlogic.shiftiq.platform.iam.domain.model.valueobjects.Permission).BRANCH_MANAGE)")
     public ResponseEntity<BranchResource> createBranch(@Valid @RequestBody CreateBranchResource resource) {
-        multiTenancySecurityService.validateWorkshopAccess(resource.workshopId());
+        multiTenancySecurityService.validateWorkshopPermission(resource.workshopId(), Permission.BRANCH_MANAGE);
         var command = CreateBranchCommandFromResourceAssembler.toCommandFromResource(resource);
         var branch = branchCommandService.handle(command);
         if (branch.isEmpty()) {
@@ -73,7 +74,7 @@ public class BranchesController {
     @Operation(summary = "Update an existing branch", description = "Updates the details of a branch by its ID")
     @PutMapping("/{branchId}")
     public ResponseEntity<BranchResource> updateBranch(@PathVariable UUID branchId, @Valid @RequestBody UpdateBranchResource resource) {
-        multiTenancySecurityService.validateBranchAccess(branchId);
+        multiTenancySecurityService.validateBranchPermission(branchId, Permission.BRANCH_MANAGE);
         var command = UpdateBranchCommandFromResourceAssembler.toCommandFromResource(branchId, resource);
         var branch = branchCommandService.handle(command);
         if (branch.isEmpty()) {
@@ -114,11 +115,11 @@ public class BranchesController {
 
     @Operation(summary = "Simulate payment and assign subscription", description = "Simulates a payment using a dummy credit card and assigns the subscription plan")
     @PostMapping("/{branchId}/subscriptions")
-    @PreAuthorize("isAuthenticated() and @multiTenancySecurityService.isAuthorizedForBranch(#branchId)")
+    @PreAuthorize("isAuthenticated() and @multiTenancySecurityService.hasPermissionForBranch(#branchId, T(com.tuxlogic.shiftiq.platform.iam.domain.model.valueobjects.Permission).BRANCH_MANAGE)")
     public ResponseEntity<BranchSubscriptionResource> assignSubscription(
             @PathVariable UUID branchId, 
             @Valid @RequestBody AssignSubscriptionResource resource) {
-        multiTenancySecurityService.validateBranchAccess(branchId);
+        multiTenancySecurityService.validateBranchPermission(branchId, Permission.BRANCH_MANAGE);
         var command = AssignSubscriptionCommandFromResourceAssembler.toCommandFromResource(branchId, resource);
         var subscription = subscriptionCommandService.handle(command);
         if (subscription.isEmpty()) {
@@ -132,7 +133,7 @@ public class BranchesController {
     @Operation(summary = "Cancel an active subscription", description = "Cancels the currently active subscription of a branch")
     @DeleteMapping("/{branchId}/subscription")
     public ResponseEntity<Void> cancelSubscription(@PathVariable UUID branchId) {
-        multiTenancySecurityService.validateBranchAccess(branchId);
+        multiTenancySecurityService.validateBranchPermission(branchId, Permission.BRANCH_MANAGE);
         var command = new CancelSubscriptionCommand(new BranchId(branchId));
         var subscription = subscriptionCommandService.handle(command);
         if (subscription.isEmpty()) {

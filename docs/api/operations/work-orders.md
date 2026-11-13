@@ -250,7 +250,7 @@
 
 ## `DELETE /api/v1/work-orders/{id}` — Eliminar Orden de Trabajo
 
-**Security**: Validación manual `isAuthorizedForBranch(ot.branchId)`  
+**Security**: Validación manual `validateManagerAccess(ot.branchId)` (Requiere rol `OWNER`, `BRANCH_MANAGER` o `ADMIN` en la sede)  
 **Description**: Cancela y borra OT. **Libera inmediatamente todas las reservas de stock** en tareas.
 
 ### Success Response (204 NO CONTENT)
@@ -259,7 +259,7 @@
 
 | HTTP Code | Error Code | Descripción |
 |-----------|------------|-------------|
-| 403 | `ACCESS_DENIED` | Sin acceso a la sede |
+| 403 | `ACCESS_DENIED` | Sin acceso a la sede o rol no gerencial |
 | 404 | `NOT_FOUND` | OT no existe |
 | 409 | `CONFLICT` | OT ya `COMPLETED` (no se puede borrar, usar reabrir tasks) |
 

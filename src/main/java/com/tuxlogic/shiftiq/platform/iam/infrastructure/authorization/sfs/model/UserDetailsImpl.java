@@ -1,6 +1,8 @@
 package com.tuxlogic.shiftiq.platform.iam.infrastructure.authorization.sfs.model;
 
 import com.tuxlogic.shiftiq.platform.iam.domain.model.aggregates.User;
+import com.tuxlogic.shiftiq.platform.iam.domain.model.valueobjects.DefaultRolePermissions;
+import com.tuxlogic.shiftiq.platform.iam.domain.model.valueobjects.Permission;
 import com.tuxlogic.shiftiq.platform.iam.domain.model.valueobjects.UserStatus;
 import com.tuxlogic.shiftiq.platform.shared.infrastructure.security.AuthenticatedPrincipal;
 import com.fasterxml.jackson.annotation.JsonIgnore;
@@ -9,10 +11,13 @@ import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.List;
 import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Getter
 public class UserDetailsImpl implements UserDetails, AuthenticatedPrincipal {
@@ -51,6 +56,23 @@ public class UserDetailsImpl implements UserDetails, AuthenticatedPrincipal {
     }
 
     @Override
+    public boolean hasPermission(String permission) {
+        return permission != null && authorities != null && authorities.stream()
+                .anyMatch(authority -> authority.getAuthority().equals(permission));
+    }
+
+    @Override
+    public Set<String> getPermissions() {
+        if (authorities == null) {
+            return Collections.emptySet();
+        }
+        return authorities.stream()
+                .map(GrantedAuthority::getAuthority)
+                .filter(auth -> !auth.startsWith("ROLE_"))
+                .collect(Collectors.toUnmodifiableSet());
+    }
+
+    @Override
     public boolean hasBranch(UUID branchId) {
         return branchId != null && branchIds != null && branchIds.contains(branchId);
     }
@@ -61,15 +83,25 @@ public class UserDetailsImpl implements UserDetails, AuthenticatedPrincipal {
     }
 
     public static UserDetailsImpl build(User user) {
+        return build(user, DefaultRolePermissions.permissionsFor(user.getRole()));
+    }
+
+    public static UserDetailsImpl build(User user, Set<Permission> effectivePermissions) {
         String roleName = user.getRole() != null ? user.getRole().name() : "ROLE_USER";
-        GrantedAuthority authority = new SimpleGrantedAuthority(roleName);
+        List<GrantedAuthority> grantedAuthorities = new ArrayList<>();
+        grantedAuthorities.add(new SimpleGrantedAuthority(roleName));
+        if (effectivePermissions != null) {
+            effectivePermissions.stream()
+                    .map(permission -> new SimpleGrantedAuthority(permission.name()))
+                    .forEach(grantedAuthorities::add);
+        }
         boolean enabled = user.getStatus() == UserStatus.ACTIVE;
 
         return new UserDetailsImpl(
                 user.getId().value(),
                 user.getEmail().value(),
                 user.getPassword().value(),
-                Collections.singletonList(authority),
+                Collections.unmodifiableList(grantedAuthorities),
                 user.getBranchIds(),
                 enabled
         );

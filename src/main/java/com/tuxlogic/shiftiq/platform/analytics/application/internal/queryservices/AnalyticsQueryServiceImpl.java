@@ -5,11 +5,17 @@ import com.tuxlogic.shiftiq.platform.analytics.application.internal.dto.DailyAna
 import com.tuxlogic.shiftiq.platform.analytics.application.internal.support.AnalyticsClock;
 import com.tuxlogic.shiftiq.platform.analytics.domain.model.aggregates.BranchAnalyticsSnapshot;
 import com.tuxlogic.shiftiq.platform.analytics.domain.model.queries.BranchAnalyticsSummary;
+import com.tuxlogic.shiftiq.platform.analytics.domain.model.queries.CustomerDashboardSummary;
+import com.tuxlogic.shiftiq.platform.analytics.domain.model.queries.EmployeeDashboardSummary;
 import com.tuxlogic.shiftiq.platform.analytics.domain.model.queries.GetBranchAnalyticsByDateRangeQuery;
 import com.tuxlogic.shiftiq.platform.analytics.domain.model.queries.GetBranchAnalyticsSummaryQuery;
+import com.tuxlogic.shiftiq.platform.analytics.domain.model.queries.GetCustomerDashboardSummaryQuery;
+import com.tuxlogic.shiftiq.platform.analytics.domain.model.queries.GetEmployeeDashboardSummaryQuery;
 import com.tuxlogic.shiftiq.platform.analytics.domain.model.queries.GetNetworkAnalyticsOverviewQuery;
 import com.tuxlogic.shiftiq.platform.analytics.domain.model.queries.NetworkAnalyticsOverview;
 import com.tuxlogic.shiftiq.platform.analytics.domain.repositories.BranchAnalyticsRepository;
+import com.tuxlogic.shiftiq.platform.analytics.domain.services.CustomerDashboardPort;
+import com.tuxlogic.shiftiq.platform.analytics.domain.services.EmployeeDashboardPort;
 import com.tuxlogic.shiftiq.platform.shared.application.result.Result;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -23,10 +29,19 @@ public class AnalyticsQueryServiceImpl implements AnalyticsQueryService {
 
     private final BranchAnalyticsRepository repository;
     private final AnalyticsClock clock;
+    private final CustomerDashboardPort customerDashboardPort;
+    private final EmployeeDashboardPort employeeDashboardPort;
 
-    public AnalyticsQueryServiceImpl(BranchAnalyticsRepository repository, AnalyticsClock clock) {
+    public AnalyticsQueryServiceImpl(
+            BranchAnalyticsRepository repository,
+            AnalyticsClock clock,
+            CustomerDashboardPort customerDashboardPort,
+            EmployeeDashboardPort employeeDashboardPort
+    ) {
         this.repository = repository;
         this.clock = clock;
+        this.customerDashboardPort = customerDashboardPort;
+        this.employeeDashboardPort = employeeDashboardPort;
     }
 
     @Override
@@ -104,6 +119,30 @@ public class AnalyticsQueryServiceImpl implements AnalyticsQueryService {
             return Result.success(overview);
         } catch (Exception ex) {
             log.error("Error retrieving network analytics overview: {}", ex.getMessage());
+            return Result.failure("analytics.error.retrievalFailed");
+        }
+    }
+
+    @Override
+    public Result<CustomerDashboardSummary, String> handle(GetCustomerDashboardSummaryQuery query) {
+        try {
+            return customerDashboardPort.loadSummaryForUser(query.userId())
+                    .map(Result::<CustomerDashboardSummary, String>success)
+                    .orElseGet(() -> Result.failure("analytics.error.customerNotFound"));
+        } catch (Exception ex) {
+            log.error("Error retrieving customer dashboard summary for user {}: {}", query.userId(), ex.getMessage());
+            return Result.failure("analytics.error.retrievalFailed");
+        }
+    }
+
+    @Override
+    public Result<EmployeeDashboardSummary, String> handle(GetEmployeeDashboardSummaryQuery query) {
+        try {
+            return employeeDashboardPort.loadSummaryForUser(query.userId())
+                    .map(Result::<EmployeeDashboardSummary, String>success)
+                    .orElseGet(() -> Result.failure("analytics.error.employeeNotFound"));
+        } catch (Exception ex) {
+            log.error("Error retrieving employee dashboard summary for user {}: {}", query.userId(), ex.getMessage());
             return Result.failure("analytics.error.retrievalFailed");
         }
     }

@@ -29,6 +29,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import java.util.UUID;
 import java.util.List;
 
+import com.tuxlogic.shiftiq.platform.iam.domain.model.valueobjects.Permission;
 import com.tuxlogic.shiftiq.platform.shared.infrastructure.security.MultiTenancySecurityService;
 import org.springframework.security.access.prepost.PreAuthorize;
 
@@ -61,7 +62,7 @@ public class VouchersController {
     @Operation(summary = "Generate a new voucher", description = "Generates a new Voucher (Invoice/Receipt) based on an Approved Quote and sends it to SUNAT via Facthub")
     public ResponseEntity<?> generateVoucher(@Valid @RequestBody GenerateVoucherResource resource) {
         var quote = quoteQueryService.handle(new com.tuxlogic.shiftiq.platform.billing.domain.model.queries.GetQuoteByIdQuery(resource.quoteId()));
-        quote.ifPresent(q -> multiTenancySecurityService.validateBranchAccess(q.getBranchId().value()));
+        quote.ifPresent(q -> multiTenancySecurityService.validateBranchPermission(q.getBranchId().value(), Permission.CHECKOUT_PROCESS));
 
         com.tuxlogic.shiftiq.platform.billing.domain.model.commands.GenerateVoucherCommand command;
         try {
@@ -81,18 +82,18 @@ public class VouchersController {
         return toErrorResponse(result.failure().get());
     }
 
-    private com.tuxlogic.shiftiq.platform.billing.domain.model.aggregates.Voucher validateVoucherAccess(UUID voucherId) {
+    private com.tuxlogic.shiftiq.platform.billing.domain.model.aggregates.Voucher validateVoucherPermission(UUID voucherId, Permission permission) {
         var voucher = queryService.handle(new GetVoucherByIdQuery(voucherId))
                 .orElseThrow(() -> new IllegalArgumentException("billing.error.voucher.notFound"));
         var quote = quoteQueryService.handle(new com.tuxlogic.shiftiq.platform.billing.domain.model.queries.GetQuoteByIdQuery(voucher.getQuoteId()));
-        quote.ifPresent(q -> multiTenancySecurityService.validateBranchAccess(q.getBranchId().value()));
+        quote.ifPresent(q -> multiTenancySecurityService.validateBranchPermission(q.getBranchId().value(), permission));
         return voucher;
     }
 
     @GetMapping("/{voucherId}")
     @Operation(summary = "Get voucher by ID", description = "Retrieves a voucher using its unique identifier")
     public ResponseEntity<VoucherResource> getVoucherById(@PathVariable UUID voucherId) {
-        validateVoucherAccess(voucherId);
+        validateVoucherPermission(voucherId, Permission.VOUCHER_READ);
         var query = new GetVoucherByIdQuery(voucherId);
         var voucher = queryService.handle(query);
         
@@ -121,7 +122,7 @@ public class VouchersController {
     @PostMapping("/{voucherId}/payments")
     @Operation(summary = "Add a payment to a voucher", description = "Records a partial or full payment for a given voucher")
     public ResponseEntity<?> addPayment(@PathVariable UUID voucherId, @Valid @RequestBody AddPaymentResource resource) {
-        validateVoucherAccess(voucherId);
+        validateVoucherPermission(voucherId, Permission.CHECKOUT_PROCESS);
         PaymentMethod paymentMethod;
         try {
             paymentMethod = resource.method() != null ? PaymentMethod.valueOf(resource.method().toUpperCase()) : PaymentMethod.CASH;
@@ -148,7 +149,7 @@ public class VouchersController {
     @org.springframework.web.bind.annotation.DeleteMapping("/{voucherId}/payments/{paymentId}")
     @Operation(summary = "Remove a payment from a voucher", description = "Deletes a previously recorded payment and updates the voucher's balance and status")
     public ResponseEntity<?> removePayment(@PathVariable UUID voucherId, @PathVariable UUID paymentId) {
-        validateVoucherAccess(voucherId);
+        validateVoucherPermission(voucherId, Permission.CHECKOUT_PROCESS);
         var command = new com.tuxlogic.shiftiq.platform.billing.domain.model.commands.RemovePaymentCommand(voucherId, paymentId);
         
         var result = commandService.handle(command);

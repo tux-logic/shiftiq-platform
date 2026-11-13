@@ -14,6 +14,7 @@
 |---------|--------|------|---------------|
 | **IAM** | Identity & Access Management | [`iam/authentication.md`](iam/authentication.md) | Login, Refresh, Logout, Google OAuth, OTP, Password Recovery |
 | | | [`iam/users.md`](iam/users.md) | Sign Up, Get User, Update Email/Password |
+| | | [`iam/roles-and-permissions.md`](iam/roles-and-permissions.md) | Permission Catalog, Custom Workshop Roles, Assignments, Audit Logs |
 | **Core** | Workshops, Branches, Profiles | [`core/workshops.md`](core/workshops.md) | Workshops, Specialties (CRUD + History) |
 | | | [`core/branches.md`](core/branches.md) | Branches, Subscriptions |
 | | | [`core/owners.md`](core/owners.md) | Owner Profiles (self-only access) |

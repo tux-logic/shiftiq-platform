@@ -192,7 +192,7 @@ Mismo formato que listado principal.
 
 ## `POST /api/v1/inventory/products/{productId}/batches` — Ingreso de Lote / Ajuste de Stock
 
-**Security**: Validación manual `isAuthorizedForBranch(product.branchId)`  
+**Security**: Validación manual `validateManagerAccess(product.branchId)` (Requiere rol `OWNER`, `BRANCH_MANAGER` o `ADMIN` en la sede)  
 **Description**: Añade stock (compra) o ajusta (negativo). Crea lote FIFO.
 
 ### Request
@@ -257,7 +257,7 @@ may reflect the resulting product stock snapshot used by the assembler.
 
 ## `DELETE /api/v1/inventory/products/{productId}` — Eliminar Producto
 
-**Security**: Validación manual `isAuthorizedForBranch(product.branchId)`  
+**Security**: Validación manual `validateManagerAccess(product.branchId)` (Requiere rol `OWNER`, `BRANCH_MANAGER` o `ADMIN` en la sede)  
 **Description**: Soft-delete del producto (y lotes asociados). Bloqueado si hay referencias activas en OT.
 
 ### Success Response (204 NO CONTENT)
@@ -266,7 +266,7 @@ may reflect the resulting product stock snapshot used by the assembler.
 
 | HTTP Code | Error Code | Descripción |
 |-----------|------------|-------------|
-| 403 | `ACCESS_DENIED` | Sin acceso a la sede |
+| 403 | `ACCESS_DENIED` | Sin acceso a la sede o rol no gerencial |
 | 404 | `PRODUCT_NOT_FOUND` | Producto no existe |
 | 409 | `PRODUCT_CONFLICT` | Producto referenciado en `work_order_task_products` activas (dominio: `PRODUCT_IN_USE`) |
 

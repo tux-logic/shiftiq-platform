@@ -10,6 +10,7 @@ import com.tuxlogic.shiftiq.platform.billing.domain.model.queries.GetQuoteByIdQu
 import com.tuxlogic.shiftiq.platform.billing.domain.model.queries.GetVoucherByIdQuery;
 import com.tuxlogic.shiftiq.platform.billing.interfaces.rest.resources.GenerateVoucherResource;
 import com.tuxlogic.shiftiq.platform.shared.application.result.Result;
+import com.tuxlogic.shiftiq.platform.iam.domain.model.valueobjects.Permission;
 import com.tuxlogic.shiftiq.platform.shared.domain.model.valueobjects.BranchId;
 import com.tuxlogic.shiftiq.platform.shared.domain.model.valueobjects.Money;
 import com.tuxlogic.shiftiq.platform.shared.infrastructure.security.MultiTenancySecurityService;
@@ -68,7 +69,7 @@ class VouchersControllerTest {
 
         when(quoteQueryService.handle(any(GetQuoteByIdQuery.class))).thenReturn(Optional.of(quote));
         doThrow(new AccessDeniedException("Unauthorized branch access"))
-                .when(multiTenancySecurityService).validateBranchAccess(branchId);
+                .when(multiTenancySecurityService).validateBranchPermission(branchId, Permission.CHECKOUT_PROCESS);
 
         assertThrows(AccessDeniedException.class, () -> controller.generateVoucher(resource));
     }
