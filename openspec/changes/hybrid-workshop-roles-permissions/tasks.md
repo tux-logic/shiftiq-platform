@@ -17,7 +17,7 @@
 ## 4. Workshop Role Management API, Anti-Escalation & Audit
 
 - [x] 4.1 Implement `WorkshopRoleCommandService`, `WorkshopRoleQueryService`, and `WorkshopRoleAuditService` enforcing workshop isolation, system-role immutability, anti-privilege-escalation (subset check + `PLATFORM_ADMIN` exclusion), and audit log persistence; verify with service unit tests (`./mvnw test -Dtest=WorkshopRoleCommandServiceTest`).
-- [ ] 4.2 Expose `/api/v1/permissions` (`PermissionsController`) and `/api/v1/workshops/{workshopId}/roles` (`WorkshopRolesController` for list, create, update, deactivate, and assign role to staff user), plus controller tests verifying 201/200/204 and 403 anti-escalation/cross-tenant denials (`./mvnw test -Dtest=WorkshopRolesControllerTest,PermissionsControllerTest`).
+- [x] 4.2 Expose `/api/v1/permissions` (`PermissionsController`) and `/api/v1/workshops/{workshopId}/roles` (`WorkshopRolesController` for list, create, update, deactivate, and assign role to staff user), plus controller tests verifying 201/200/204 and 403 anti-escalation/cross-tenant denials (`./mvnw test -Dtest=WorkshopRolesControllerTest,PermissionsControllerTest`).
 
 ## 5. Controller Migration & Integration Verification
 
