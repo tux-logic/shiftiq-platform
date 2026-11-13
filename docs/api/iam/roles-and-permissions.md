@@ -31,6 +31,7 @@ The backend owns the atomic `Permission` catalog. All workshop-assignable permis
 | `BRANCH_READ` | View branch details |
 | `BRANCH_MANAGE` | Create and update branches and manage branch subscriptions |
 | `MEDIA_UPLOAD` | Upload media assets for workshop operations |
+| `ANALYTICS_READ` | View branch operational and financial analytics |
 | `ROLE_MANAGE` | Create, update, deactivate, and assign custom workshop roles |
 
 ---

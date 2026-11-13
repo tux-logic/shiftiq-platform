@@ -19,7 +19,7 @@
 
 ## `GET /api/v1/analytics/branches/{branchId}/summary` — Resumen Ejecutivo del Día
 
-**Security**: Validación manual `isAuthorizedForBranch(branchId)` + `branchExists(branchId)`  
+**Security**: `hasPermissionForBranch(branchId, Permission.ANALYTICS_READ)` + `branchExists(branchId)`  
 **Description**: KPIs del día actual (zona `America/Lima`) para una sede.
 
 ### Request
@@ -60,7 +60,7 @@
 
 ## `GET /api/v1/analytics/branches/{branchId}/financial` — Analítica Financiera Histórica
 
-**Security**: Validación manual `isAuthorizedForBranch(branchId)` + `branchExists(branchId)`  
+**Security**: `hasPermissionForBranch(branchId, Permission.ANALYTICS_READ)` + `branchExists(branchId)`  
 **Description**: Serie histórica de snapshots diarios para gráficos (barras/líneas).
 
 ### Request
@@ -191,3 +191,98 @@ ReplayPendingAnalyticsDeltasJob (cron 5 min)
 - **Reintentos**: Máx 10 (config `analytics.replay-deltas.max-attempts`)
 - **Orden**: FIFO por `created_at` — respeta causalidad
 - **Monitoreo**: Alertar si `pending_deltas` crece o `attempt_count` alto
+
+---
+
+## `GET /api/v1/analytics/me/customer-summary` — Customer Self-Service Dashboard Summary
+
+**Security**: `@PreAuthorize("isAuthenticated()")` (scoped strictly to the authenticated user's `Customer` profile)  
+**Description**: Aggregates active vehicles, active DTC alerts, upcoming `PENDING` appointments, active work orders (`PENDING` / `IN_PROGRESS`), and `DRAFT` quotes for the authenticated customer via read-only ACL ports.
+
+### Success Response (200 OK)
+
+```json
+{
+  "customerId": "11111111-2222-3333-4444-555555555555",
+  "activeVehiclesCount": 2,
+  "activeDtcAlertsCount": 1,
+  "upcomingAppointmentsCount": 1,
+  "activeWorkOrdersCount": 1,
+  "pendingQuotesCount": 1,
+  "upcomingAppointments": [
+    {
+      "appointmentId": "aaaa1111-2222-3333-4444-555555555555",
+      "branchId": "c3d4e5f6-3333-4444-5555-666677778888",
+      "vehicleId": "bbbb1111-2222-3333-4444-555555555555",
+      "scheduledStart": "2026-11-15T10:00:00",
+      "status": "PENDING"
+    }
+  ],
+  "activeWorkOrders": [
+    {
+      "workOrderId": "cccc1111-2222-3333-4444-555555555555",
+      "branchId": "c3d4e5f6-3333-4444-5555-666677778888",
+      "vehicleId": "bbbb1111-2222-3333-4444-555555555555",
+      "internalNumber": 1042,
+      "status": "IN_PROGRESS"
+    }
+  ],
+  "pendingQuotes": [
+    {
+      "quoteId": "dddd1111-2222-3333-4444-555555555555",
+      "workOrderId": "cccc1111-2222-3333-4444-555555555555",
+      "branchId": "c3d4e5f6-3333-4444-5555-666677778888",
+      "totalAmount": 250.00,
+      "status": "DRAFT"
+    }
+  ]
+}
+```
+
+### Error Responses
+
+| HTTP Code | Error Code | Description |
+|-----------|------------|-------------|
+| 401 | `UNAUTHORIZED` | Missing, invalid, or expired JWT |
+| 404 | `CUSTOMER_NOT_FOUND` | Authenticated user has no linked `Customer` profile |
+
+---
+
+## `GET /api/v1/analytics/me/employee-summary` — Employee Personal Work Queue Summary
+
+**Security**: `@PreAuthorize("hasAnyRole('ADMIN', 'OWNER', 'BRANCH_MANAGER', 'ASSISTANT', 'EMPLOYEE')")`  
+**Description**: Aggregates assigned active work orders, pending/completed task counts for the authenticated employee, and active DTC alerts on vehicles in their active queue via read-only ACL ports.
+
+### Success Response (200 OK)
+
+```json
+{
+  "employeeId": "22222222-3333-4444-5555-666666666666",
+  "branchIds": [
+    "c3d4e5f6-3333-4444-5555-666677778888"
+  ],
+  "assignedWorkOrdersCount": 1,
+  "pendingTasksCount": 2,
+  "completedTasksCount": 5,
+  "activeDtcAlertsCount": 1,
+  "assignedWorkOrders": [
+    {
+      "workOrderId": "cccc1111-2222-3333-4444-555555555555",
+      "branchId": "c3d4e5f6-3333-4444-5555-666677778888",
+      "vehicleId": "bbbb1111-2222-3333-4444-555555555555",
+      "internalNumber": 1042,
+      "status": "IN_PROGRESS",
+      "assignedTasksCount": 2,
+      "pendingTasksCount": 1
+    }
+  ]
+}
+```
+
+### Error Responses
+
+| HTTP Code | Error Code | Description |
+|-----------|------------|-------------|
+| 401 | `UNAUTHORIZED` | Missing, invalid, or expired JWT |
+| 403 | `ACCESS_DENIED` | Caller is `ROLE_USER` (customer) |
+| 404 | `EMPLOYEE_NOT_FOUND` | Authenticated staff user has no linked `Employee` profile |
