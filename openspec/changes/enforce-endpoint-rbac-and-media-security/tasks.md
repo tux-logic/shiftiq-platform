@@ -10,7 +10,7 @@
 
 ## 2. Test Verification and Documentation
 
-- [ ] 2.1 Add security slice and integration tests in `EndpointRbacSecurityTest` asserting HTTP 403 for unauthorized staff roles and HTTP 200/201/204 for authorized managers and verify with `mvn test`.
+- [x] 2.1 Add security slice and integration tests in `EndpointRbacSecurityTest` asserting HTTP 403 for unauthorized staff roles and HTTP 200/201/204 for authorized managers and verify with `mvn test`.
 - [ ] 2.2 Update API documentation in `docs/api/` reflecting RBAC requirements for affected endpoints and verify docs consistency.
 
 ## Workflow follow-up
