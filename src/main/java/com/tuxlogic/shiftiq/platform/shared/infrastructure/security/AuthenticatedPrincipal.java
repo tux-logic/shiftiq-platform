@@ -25,6 +25,21 @@ public interface AuthenticatedPrincipal {
     boolean hasRole(String role);
 
     /**
+     * @param permission the permission code to look for, e.g. {@code INVENTORY_MANAGE}
+     * @return true when the principal holds the given permission authority
+     */
+    default boolean hasPermission(String permission) {
+        return permission != null && hasRole(permission);
+    }
+
+    /**
+     * @return the permission codes held by the principal, never null
+     */
+    default Set<String> getPermissions() {
+        return Set.of();
+    }
+
+    /**
      * @param branchId the branch to look for
      * @return true when the principal is a member of the given branch
      */

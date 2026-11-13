@@ -1,5 +1,6 @@
 package com.tuxlogic.shiftiq.platform.inventory.application.internal.commandservices;
 
+import com.tuxlogic.shiftiq.platform.inventory.application.outboundservices.ProductUsageChecker;
 import com.tuxlogic.shiftiq.platform.inventory.domain.model.aggregates.Product;
 import com.tuxlogic.shiftiq.platform.inventory.domain.model.commands.CreateProductCommand;
 import com.tuxlogic.shiftiq.platform.inventory.domain.model.commands.DeleteProductCommand;
@@ -19,7 +20,6 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.dao.DataIntegrityViolationException;
 
 import java.math.BigDecimal;
 import java.util.Optional;
@@ -34,6 +34,9 @@ class ProductCommandServiceImplTest {
 
     @Mock
     private ProductRepository productRepository;
+
+    @Mock
+    private ProductUsageChecker productUsageChecker;
 
     @InjectMocks
     private ProductCommandServiceImpl productCommandService;
@@ -94,12 +97,25 @@ class ProductCommandServiceImplTest {
     void deleteProduct_WhenProductIsInUse_ShouldReturnProductInUseFailure() {
         UUID productId = UUID.randomUUID();
         when(productRepository.existsById(productId)).thenReturn(true);
-        doThrow(new DataIntegrityViolationException("FK violation")).when(productRepository).deleteById(productId);
+        when(productUsageChecker.isReferencedByWorkOrderTasks(productId)).thenReturn(true);
 
         Result<Void, ProductCommandFailure> result = productCommandService.handle(new DeleteProductCommand(productId));
 
         assertTrue(result.isFailure());
         assertEquals(ProductCommandFailure.PRODUCT_IN_USE, result.failure().get());
+        verify(productRepository, never()).deleteById(productId);
+    }
+
+    @Test
+    void deleteProduct_WhenProductIsNotReferenced_ShouldSoftDelete() {
+        UUID productId = UUID.randomUUID();
+        when(productRepository.existsById(productId)).thenReturn(true);
+        when(productUsageChecker.isReferencedByWorkOrderTasks(productId)).thenReturn(false);
+
+        Result<Void, ProductCommandFailure> result = productCommandService.handle(new DeleteProductCommand(productId));
+
+        assertTrue(result.isSuccess());
+        verify(productRepository, times(1)).deleteById(productId);
     }
 
     @Test

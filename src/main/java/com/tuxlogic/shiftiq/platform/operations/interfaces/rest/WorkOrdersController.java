@@ -28,6 +28,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 
 import com.tuxlogic.shiftiq.platform.operations.domain.model.valueobjects.OperationsMessageKeys;
 import com.tuxlogic.shiftiq.platform.shared.application.result.ApplicationError;
+import com.tuxlogic.shiftiq.platform.iam.domain.model.valueobjects.Permission;
 import com.tuxlogic.shiftiq.platform.shared.infrastructure.security.MultiTenancySecurityService;
 import com.tuxlogic.shiftiq.platform.shared.interfaces.rest.transform.ErrorResponseAssembler;
 
@@ -77,6 +78,13 @@ public class WorkOrdersController {
         return workOrder;
     }
 
+    private WorkOrder validateWorkOrderManagerAccess(UUID id) {
+        WorkOrder workOrder = queryService.handle(new GetWorkOrderByIdQuery(new WorkOrderId(id)))
+                .orElseThrow(() -> new IllegalArgumentException(OperationsMessageKeys.WORK_ORDER_NOT_FOUND));
+        multiTenancySecurityService.validateBranchPermission(workOrder.getBranchId().value(), Permission.WORKORDER_DELETE);
+        return workOrder;
+    }
+
     @PostMapping
     @Operation(summary = "Create a new Work Order", description = "Creates a new Work Order for a specific branch and vehicle")
     @PreAuthorize("isAuthenticated() and @multiTenancySecurityService.isAuthorizedForBranch(#resource.branchId())")
@@ -121,7 +129,7 @@ public class WorkOrdersController {
     @Operation(summary = "Soft delete a Work Order", description = "Soft deletes a Work Order, releasing all active stock reservations")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<?> deleteWorkOrder(@PathVariable UUID id) {
-        validateWorkOrderAccess(id);
+        validateWorkOrderManagerAccess(id);
         var command = new DeleteWorkOrderCommand(new WorkOrderId(id));
         var result = commandService.handle(command);
         return toResponse(result, HttpStatus.NO_CONTENT);

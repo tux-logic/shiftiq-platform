@@ -19,6 +19,9 @@
 | `name` | string | Sí | Body | Nombre visible (ej: "Sede Principal Santiago de Surco") |
 | `address` | string | Sí | Body | Dirección completa |
 | `phone` | string | Sí | Body | Teléfono de contacto (ej: `+51987654321`) |
+| `coverImageUrl` | string | No | Body | Optional cover image URL (e.g., Cloudinary URL) |
+| `latitude` | number | No | Body | Optional branch latitude (`-90.0` to `90.0`, required if `longitude` is provided) |
+| `longitude` | number | No | Body | Optional branch longitude (`-180.0` to `180.0`, required if `latitude` is provided) |
 
 **Request Example**:
 ```json
@@ -27,7 +30,10 @@
   "code": "BR-SURCO-01",
   "name": "Sede Principal Santiago de Surco",
   "address": "Av. Primavera 1234, Santiago de Surco, Lima",
-  "phone": "+51987654321"
+  "phone": "+51987654321",
+  "coverImageUrl": "https://res.cloudinary.com/demo/image/upload/v1/shiftiq/branches/surco.jpg",
+  "latitude": -12.111062,
+  "longitude": -76.991944
 }
 ```
 
@@ -40,7 +46,10 @@
   "code": "BR-SURCO-01",
   "name": "Sede Principal Santiago de Surco",
   "address": "Av. Primavera 1234, Santiago de Surco, Lima",
-  "phone": "+51987654321"
+  "phone": "+51987654321",
+  "coverImageUrl": "https://res.cloudinary.com/demo/image/upload/v1/shiftiq/branches/surco.jpg",
+  "latitude": -12.111062,
+  "longitude": -76.991944
 }
 ```
 
@@ -58,6 +67,18 @@
 - **Autorización**: `isAuthorizedForWorkshop(workshopId)` — ADMIN, OWNER del taller, BRANCH_MANAGER/ASSISTANT con sede en ese taller
 - **Código único**: Por taller (case-insensitive)
 - **Uso**: Requerido para citas, inventario, facturación, analytics
+
+### Frontend & Mobile Map / Location Integration Guide
+
+Users should **never** enter `latitude` or `longitude` manually. Web and mobile clients should capture coordinates visually and send them alongside `address` to `POST /api/v1/branches` and `PUT /api/v1/branches/{branchId}`:
+
+1. **Create / Edit Branch Form (Web & Mobile)**:
+   - **Interactive Map Pin / Address Autocomplete**: Render a map picker (e.g., Google Maps / Mapbox / Leaflet on Web; Google Maps Compose / Mapbox / OSMDroid on Mobile) and/or a Places Autocomplete search input. When the user drops a pin or selects a place, extract `latitude`, `longitude`, and the formatted `address` automatically.
+   - **"Use My Current Location" (Mobile GPS)**: Request foreground location permission (`ACCESS_FINE_LOCATION` / `CLLocationManager`) to read the device's current `latitude` and `longitude`, and optionally run reverse geocoding (`Geocoder` / Places API) to prefill `address`.
+   - **Cover Image (`coverImageUrl`)**: Upload the branch cover photo first via `POST /api/v1/media/upload` (Cloudinary) and include the returned `url` in `coverImageUrl`.
+   - **Partial-Coordinate Rule**: Both `latitude` (`-90.0..90.0`) and `longitude` (`-180.0..180.0`) are optional, but if one is sent, the other **must** also be provided (otherwise the API rejects the request).
+2. **Owner / Admin Branch Map View**:
+   - Fetch branches via `GET /api/v1/branches` (or `GET /api/v1/branches?workshopId={workshopId}`), filter entries where `latitude != null && longitude != null`, and render map markers/cards showing `name`, `code`, `address`, `phone`, and `coverImageUrl`.
 
 ---
 

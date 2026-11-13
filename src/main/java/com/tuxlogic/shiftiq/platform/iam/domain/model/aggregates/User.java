@@ -32,6 +32,7 @@ public class User extends AbstractDomainAggregateRoot<User> {
     private GoogleId googleId;
     private UserStatus status;
     private Roles role;
+    private UUID workshopRoleId;
     private Set<UUID> branchIds = new HashSet<>();
     private Instant createdAt;
     private Instant updatedAt;
@@ -94,6 +95,10 @@ public class User extends AbstractDomainAggregateRoot<User> {
             throw new IllegalArgumentException("iam.error.role.required");
         }
         this.role = role;
+    }
+
+    public void assignWorkshopRole(UUID workshopRoleId) {
+        this.workshopRoleId = workshopRoleId;
     }
 
     public void assignBranch(UUID branchId) {

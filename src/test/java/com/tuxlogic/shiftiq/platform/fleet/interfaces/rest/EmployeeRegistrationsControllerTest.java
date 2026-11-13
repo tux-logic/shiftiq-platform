@@ -7,6 +7,7 @@ import com.tuxlogic.shiftiq.platform.fleet.domain.model.commands.DeleteEmployeeR
 import com.tuxlogic.shiftiq.platform.fleet.domain.model.commands.UpdateEmployeeRegistrationCommand;
 import com.tuxlogic.shiftiq.platform.fleet.domain.model.queries.GetEmployeeRegistrationByIdQuery;
 import com.tuxlogic.shiftiq.platform.fleet.interfaces.rest.resources.UpdateEmployeeRegistrationResource;
+import com.tuxlogic.shiftiq.platform.iam.domain.model.valueobjects.Permission;
 import com.tuxlogic.shiftiq.platform.shared.application.result.Result;
 import com.tuxlogic.shiftiq.platform.shared.domain.model.valueobjects.BranchId;
 import com.tuxlogic.shiftiq.platform.shared.infrastructure.security.MultiTenancySecurityService;
@@ -95,7 +96,7 @@ class EmployeeRegistrationsControllerTest {
         UpdateEmployeeRegistrationResource resource = new UpdateEmployeeRegistrationResource("ELECTRICISTA", "Electricista automotriz", new BigDecimal("2000.00"));
 
         when(queryService.handle(any(GetEmployeeRegistrationByIdQuery.class))).thenReturn(Result.success(registration));
-        when(multiTenancySecurityService.isAuthorizedForBranch(new BranchId(branchId))).thenReturn(false);
+        when(multiTenancySecurityService.hasPermissionForBranch(new BranchId(branchId), Permission.STAFF_MANAGE)).thenReturn(false);
 
         ResponseEntity<?> response = controller.updateEmployeeRegistration(id, resource);
 
@@ -118,7 +119,7 @@ class EmployeeRegistrationsControllerTest {
         UpdateEmployeeRegistrationResource resource = new UpdateEmployeeRegistrationResource("ELECTRICISTA", "Electricista automotriz", new BigDecimal("2000.00"));
 
         when(queryService.handle(any(GetEmployeeRegistrationByIdQuery.class))).thenReturn(Result.success(registration));
-        when(multiTenancySecurityService.isAuthorizedForBranch(new BranchId(branchId))).thenReturn(true);
+        when(multiTenancySecurityService.hasPermissionForBranch(new BranchId(branchId), Permission.STAFF_MANAGE)).thenReturn(true);
         when(commandService.handle(any(UpdateEmployeeRegistrationCommand.class))).thenReturn(Result.success(registration));
 
         ResponseEntity<?> response = controller.updateEmployeeRegistration(id, resource);
@@ -140,7 +141,7 @@ class EmployeeRegistrationsControllerTest {
         );
 
         when(queryService.handle(any(GetEmployeeRegistrationByIdQuery.class))).thenReturn(Result.success(registration));
-        when(multiTenancySecurityService.isAuthorizedForBranch(new BranchId(branchId))).thenReturn(false);
+        when(multiTenancySecurityService.hasPermissionForBranch(new BranchId(branchId), Permission.STAFF_MANAGE)).thenReturn(false);
 
         ResponseEntity<?> response = controller.deactivateEmployeeRegistration(id);
 
@@ -161,7 +162,7 @@ class EmployeeRegistrationsControllerTest {
         );
 
         when(queryService.handle(any(GetEmployeeRegistrationByIdQuery.class))).thenReturn(Result.success(registration));
-        when(multiTenancySecurityService.isAuthorizedForBranch(new BranchId(branchId))).thenReturn(true);
+        when(multiTenancySecurityService.hasPermissionForBranch(new BranchId(branchId), Permission.STAFF_MANAGE)).thenReturn(true);
         when(commandService.handle(any(DeleteEmployeeRegistrationCommand.class))).thenReturn(Result.success(registration));
 
         ResponseEntity<?> response = controller.deactivateEmployeeRegistration(id);
