@@ -95,7 +95,7 @@ public class ProductsController {
     public ResponseEntity<?> addBatchToProduct(
             @PathVariable UUID productId,
             @Valid @RequestBody AddBatchToProductResource resource) {
-        validateProductAccess(productId);
+        validateProductManagerAccess(productId);
 
         var command = AddBatchToProductCommandFromResourceAssembler.toCommandFromResource(productId, resource);
         var result = productCommandService.handle(command);
@@ -140,7 +140,7 @@ public class ProductsController {
     @DeleteMapping("/{productId}")
     @Operation(summary = "Delete a product", description = "Deletes a product and all its associated batches")
     public ResponseEntity<?> deleteProduct(@PathVariable UUID productId) {
-        validateProductAccess(productId);
+        validateProductManagerAccess(productId);
         var command = new DeleteProductCommand(productId);
         var result = productCommandService.handle(command);
         if (result.isSuccess()) {
@@ -154,6 +154,14 @@ public class ProductsController {
         var product = productQueryService.handle(query);
         if (product.isPresent()) {
             multiTenancySecurityService.validateBranchAccess(product.get().getBranchId().value());
+        }
+    }
+
+    private void validateProductManagerAccess(UUID productId) {
+        var query = new GetProductByIdQuery(productId);
+        var product = productQueryService.handle(query);
+        if (product.isPresent()) {
+            multiTenancySecurityService.validateManagerAccess(product.get().getBranchId().value());
         }
     }
 
