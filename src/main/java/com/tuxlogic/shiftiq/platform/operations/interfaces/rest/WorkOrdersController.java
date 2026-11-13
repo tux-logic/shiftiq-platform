@@ -77,6 +77,13 @@ public class WorkOrdersController {
         return workOrder;
     }
 
+    private WorkOrder validateWorkOrderManagerAccess(UUID id) {
+        WorkOrder workOrder = queryService.handle(new GetWorkOrderByIdQuery(new WorkOrderId(id)))
+                .orElseThrow(() -> new IllegalArgumentException(OperationsMessageKeys.WORK_ORDER_NOT_FOUND));
+        multiTenancySecurityService.validateManagerAccess(workOrder.getBranchId().value());
+        return workOrder;
+    }
+
     @PostMapping
     @Operation(summary = "Create a new Work Order", description = "Creates a new Work Order for a specific branch and vehicle")
     @PreAuthorize("isAuthenticated() and @multiTenancySecurityService.isAuthorizedForBranch(#resource.branchId())")
@@ -121,7 +128,7 @@ public class WorkOrdersController {
     @Operation(summary = "Soft delete a Work Order", description = "Soft deletes a Work Order, releasing all active stock reservations")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<?> deleteWorkOrder(@PathVariable UUID id) {
-        validateWorkOrderAccess(id);
+        validateWorkOrderManagerAccess(id);
         var command = new DeleteWorkOrderCommand(new WorkOrderId(id));
         var result = commandService.handle(command);
         return toResponse(result, HttpStatus.NO_CONTENT);
