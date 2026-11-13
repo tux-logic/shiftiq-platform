@@ -8,7 +8,7 @@
 ## 2. IAM Domain, Persistence & Authority Loading
 
 - [x] 2.1 Implement `WorkshopRole` aggregate, `WorkshopRoleAuditLog` entity, JPA persistence entities/assemblers/repositories, and `User` `workshopRoleId` support; verify repository/domain unit tests pass (`./mvnw test -Dtest=WorkshopRoleTest`).
-- [ ] 2.2 Update `UserDetailsImpl` and `AuthenticatedPrincipal` to expose effective `Permission` authorities (from `workshop_role_permissions` when `workshop_role_id` is present, or `DefaultRolePermissions` fallback otherwise) and verify with `UserDetailsImplTest` (`./mvnw test -Dtest=UserDetailsImplTest`).
+- [x] 2.2 Update `UserDetailsImpl` and `AuthenticatedPrincipal` to expose effective `Permission` authorities (from `workshop_role_permissions` when `workshop_role_id` is present, or `DefaultRolePermissions` fallback otherwise) and verify with `UserDetailsImplTest` (`./mvnw test -Dtest=UserDetailsImplTest`).
 
 ## 3. Tenant-Scoped Permission Evaluation in Security Service
 
