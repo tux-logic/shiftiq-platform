@@ -1,5 +1,8 @@
 package com.tuxlogic.shiftiq.platform.shared.infrastructure.security;
 
+import com.tuxlogic.shiftiq.platform.iam.domain.model.valueobjects.DefaultRolePermissions;
+import com.tuxlogic.shiftiq.platform.iam.domain.model.valueobjects.Permission;
+import com.tuxlogic.shiftiq.platform.iam.domain.model.valueobjects.Roles;
 import com.tuxlogic.shiftiq.platform.shared.domain.model.valueobjects.BranchId;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -339,6 +342,99 @@ public class MultiTenancySecurityService {
         if (!isAuthorizedManagerForWorkshop(workshopId)) {
             throw new AccessDeniedException("Unauthorized managerial access for requested workshop identifier: " + workshopId);
         }
+    }
+
+    /**
+     * Checks whether the caller belongs to the target branch and holds the requested {@link Permission}.
+     *
+     * @param branchId   target branch identifier
+     * @param permission required permission
+     * @return true if authorized for the branch and holding the permission
+     */
+    public boolean hasPermissionForBranch(UUID branchId, Permission permission) {
+        if (permission == null || !isAuthorizedForBranch(branchId)) {
+            return false;
+        }
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null || !authentication.isAuthenticated()) {
+            return false;
+        }
+        if (authentication.getPrincipal() instanceof AuthenticatedPrincipal authenticatedPrincipal) {
+            return principalHasPermission(authenticatedPrincipal, permission);
+        }
+        return false;
+    }
+
+    public boolean hasPermissionForBranch(BranchId branchId, Permission permission) {
+        return hasPermissionForBranch(branchId == null ? null : branchId.value(), permission);
+    }
+
+    public void validateBranchPermission(UUID branchId, Permission permission) {
+        if (!hasPermissionForBranch(branchId, permission)) {
+            throw new AccessDeniedException("Missing permission " + permission + " for branch: " + branchId);
+        }
+    }
+
+    /**
+     * Checks whether the caller belongs to the target workshop (as owner, branch staff, or admin)
+     * and holds the requested {@link Permission}.
+     *
+     * @param workshopId target workshop identifier
+     * @param permission required permission
+     * @return true if authorized for the workshop and holding the permission
+     */
+    public boolean hasPermissionForWorkshop(UUID workshopId, Permission permission) {
+        if (workshopId == null || permission == null) {
+            return false;
+        }
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null || !authentication.isAuthenticated()) {
+            return false;
+        }
+        if (!(authentication.getPrincipal() instanceof AuthenticatedPrincipal authenticatedPrincipal)) {
+            return false;
+        }
+        if (!principalHasPermission(authenticatedPrincipal, permission)) {
+            return false;
+        }
+        if (authenticatedPrincipal.hasRole("ROLE_ADMIN") || authenticatedPrincipal.hasPermission(Permission.PLATFORM_ADMIN.name())) {
+            return true;
+        }
+        if (authenticatedPrincipal.hasRole("ROLE_OWNER")
+                && tenantScopeResolver.findWorkshopIdsForUser(authenticatedPrincipal.getId()).contains(workshopId)) {
+            return true;
+        }
+        for (UUID assignedBranchId : authenticatedPrincipal.getBranchIds()) {
+            if (workshopId.equals(tenantScopeResolver.findWorkshopIdForBranch(assignedBranchId))) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    public void validateWorkshopPermission(UUID workshopId, Permission permission) {
+        if (!hasPermissionForWorkshop(workshopId, permission)) {
+            throw new AccessDeniedException("Missing permission " + permission + " for workshop: " + workshopId);
+        }
+    }
+
+    private boolean principalHasPermission(AuthenticatedPrincipal principal, Permission permission) {
+        if (principal.hasRole("ROLE_ADMIN") || principal.hasPermission(Permission.PLATFORM_ADMIN.name())) {
+            return true;
+        }
+        if (principal.hasPermission(permission.name())) {
+            return true;
+        }
+        // Fallback for legacy test mocks that only stub hasRole(...) without permission authorities
+        Set<String> explicitPermissions = principal.getPermissions();
+        if (explicitPermissions == null || explicitPermissions.isEmpty()) {
+            for (Roles role : Roles.values()) {
+                if (principal.hasRole(role.name()) && DefaultRolePermissions.hasPermission(role, permission)) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 
     /**

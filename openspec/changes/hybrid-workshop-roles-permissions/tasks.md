@@ -12,7 +12,7 @@
 
 ## 3. Tenant-Scoped Permission Evaluation in Security Service
 
-- [ ] 3.1 Add `hasPermissionForBranch`, `validateBranchPermission`, `hasPermissionForWorkshop`, and `validateWorkshopPermission` to `MultiTenancySecurityService` (preserving `PLATFORM_ADMIN` bypass and backward-compatible `Roles` fallback for legacy test mocks) and add unit tests in `MultiTenancySecurityServiceTest` (`./mvnw test -Dtest=MultiTenancySecurityServiceTest`).
+- [x] 3.1 Add `hasPermissionForBranch`, `validateBranchPermission`, `hasPermissionForWorkshop`, and `validateWorkshopPermission` to `MultiTenancySecurityService` (preserving `PLATFORM_ADMIN` bypass and backward-compatible `Roles` fallback for legacy test mocks) and add unit tests in `MultiTenancySecurityServiceTest` (`./mvnw test -Dtest=MultiTenancySecurityServiceTest`).
 
 ## 4. Workshop Role Management API, Anti-Escalation & Audit
 
