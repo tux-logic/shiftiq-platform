@@ -6,7 +6,7 @@
 - [x] 1.2 Enforce manager authorization on product deletion and stock batch management in `ProductsController` and verify compilation and existing unit tests pass.
 - [x] 1.3 Enforce manager authorization on work order deletion in `WorkOrdersController` and verify compilation and existing unit tests pass.
 - [x] 1.4 Enforce manager authorization on service creation, update, and deletion in `ServicesController` and verify compilation and existing unit tests pass.
-- [ ] 1.5 Enforce folder whitelisting and role restriction in `MediaController` and verify compilation and unit tests in `MediaControllerTest` pass.
+- [x] 1.5 Enforce folder whitelisting and role restriction in `MediaController` and verify compilation and unit tests in `MediaControllerTest` pass.
 
 ## 2. Test Verification and Documentation
 
