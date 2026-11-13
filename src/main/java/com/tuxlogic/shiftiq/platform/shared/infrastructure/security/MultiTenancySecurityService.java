@@ -77,6 +77,40 @@ public class MultiTenancySecurityService {
     }
 
     /**
+     * Checks whether the caller is authorized for the given branch and holds a managerial role
+     * (ROLE_ADMIN, ROLE_OWNER, or ROLE_BRANCH_MANAGER).
+     *
+     * @param branchId target branch identifier
+     * @return true if caller has managerial authority for the branch, false otherwise
+     */
+    public boolean isAuthorizedManagerForBranch(UUID branchId) {
+        if (!isAuthorizedForBranch(branchId)) {
+            return false;
+        }
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null || !authentication.isAuthenticated()) {
+            return false;
+        }
+        Object principal = authentication.getPrincipal();
+        if (principal instanceof AuthenticatedPrincipal authenticatedPrincipal) {
+            return authenticatedPrincipal.hasRole("ROLE_ADMIN")
+                    || authenticatedPrincipal.hasRole("ROLE_OWNER")
+                    || authenticatedPrincipal.hasRole("ROLE_BRANCH_MANAGER");
+        }
+        return false;
+    }
+
+    public boolean isAuthorizedManagerForBranch(BranchId branchId) {
+        return isAuthorizedManagerForBranch(branchId == null ? null : branchId.value());
+    }
+
+    public void validateManagerAccess(UUID branchId) {
+        if (!isAuthorizedManagerForBranch(branchId)) {
+            throw new AccessDeniedException("Unauthorized managerial access for requested branch identifier: " + branchId);
+        }
+    }
+
+    /**
      * Broad check for resources keyed by a user id where no tenant scoping exists in the
      * data model (customer and employee profiles are global records with no branch or
      * workshop owner). Allows the caller itself, {@code ROLE_ADMIN}, {@code ROLE_OWNER}

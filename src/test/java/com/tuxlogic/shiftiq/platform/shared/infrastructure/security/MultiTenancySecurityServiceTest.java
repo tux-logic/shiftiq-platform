@@ -16,7 +16,10 @@ import java.util.Set;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.when;
+import org.springframework.security.access.AccessDeniedException;
 
 @ExtendWith(MockitoExtension.class)
 class MultiTenancySecurityServiceTest {
@@ -72,6 +75,44 @@ class MultiTenancySecurityServiceTest {
         assertThat(service.isAuthorizedForBranch(otherBranchId)).isTrue();
         assertThat(service.resolveNetworkAccessibleBranchIds())
                 .containsExactlyInAnyOrder(ownBranchId, otherBranchId);
+    }
+
+    @Test
+    @DisplayName("managerial branch access allows admin, owner, and branch manager, but denies operational staff")
+    void managerialBranchAccessEnforcesRolePrivilege() {
+        // Admin allowed
+        authenticate(principal(true, false, Set.of()));
+        assertThat(service.isAuthorizedManagerForBranch(ownBranchId)).isTrue();
+        assertDoesNotThrow(() -> service.validateManagerAccess(ownBranchId));
+
+        // Owner allowed for own branch
+        authenticate(principal(false, true, Set.of(ownBranchId)));
+        assertThat(service.isAuthorizedManagerForBranch(ownBranchId)).isTrue();
+        assertDoesNotThrow(() -> service.validateManagerAccess(ownBranchId));
+
+        // Branch manager allowed for own branch
+        authenticate(staffPrincipal(true, Set.of(ownBranchId)));
+        assertThat(service.isAuthorizedManagerForBranch(ownBranchId)).isTrue();
+        assertDoesNotThrow(() -> service.validateManagerAccess(ownBranchId));
+
+        // Branch manager denied for other branch
+        assertThat(service.isAuthorizedManagerForBranch(otherBranchId)).isFalse();
+        assertThrows(AccessDeniedException.class, () -> service.validateManagerAccess(otherBranchId));
+
+        // Assistant denied even for own branch
+        authenticate(staffPrincipal(false, Set.of(ownBranchId)));
+        assertThat(service.isAuthorizedManagerForBranch(ownBranchId)).isFalse();
+        assertThrows(AccessDeniedException.class, () -> service.validateManagerAccess(ownBranchId));
+
+        // Plain employee/user denied
+        authenticate(principal(false, false, Set.of(ownBranchId)));
+        assertThat(service.isAuthorizedManagerForBranch(ownBranchId)).isFalse();
+        assertThrows(AccessDeniedException.class, () -> service.validateManagerAccess(ownBranchId));
+
+        // Fails closed on null
+        assertThat(service.isAuthorizedManagerForBranch((UUID) null)).isFalse();
+        assertThat(service.isAuthorizedManagerForBranch((com.tuxlogic.shiftiq.platform.shared.domain.model.valueobjects.BranchId) null)).isFalse();
+        assertThrows(AccessDeniedException.class, () -> service.validateManagerAccess(null));
     }
 
     @Test
