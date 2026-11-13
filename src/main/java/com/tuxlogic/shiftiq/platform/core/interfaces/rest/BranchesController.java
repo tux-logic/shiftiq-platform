@@ -57,9 +57,9 @@ public class BranchesController {
 
     @Operation(summary = "Create a new branch", description = "Creates a new branch associated with a specific workshop")
     @PostMapping
-    @PreAuthorize("isAuthenticated() and @multiTenancySecurityService.isAuthorizedForWorkshop(#resource.workshopId())")
+    @PreAuthorize("isAuthenticated() and @multiTenancySecurityService.isAuthorizedManagerForWorkshop(#resource.workshopId())")
     public ResponseEntity<BranchResource> createBranch(@Valid @RequestBody CreateBranchResource resource) {
-        multiTenancySecurityService.validateWorkshopAccess(resource.workshopId());
+        multiTenancySecurityService.validateManagerWorkshopAccess(resource.workshopId());
         var command = CreateBranchCommandFromResourceAssembler.toCommandFromResource(resource);
         var branch = branchCommandService.handle(command);
         if (branch.isEmpty()) {
@@ -73,7 +73,7 @@ public class BranchesController {
     @Operation(summary = "Update an existing branch", description = "Updates the details of a branch by its ID")
     @PutMapping("/{branchId}")
     public ResponseEntity<BranchResource> updateBranch(@PathVariable UUID branchId, @Valid @RequestBody UpdateBranchResource resource) {
-        multiTenancySecurityService.validateBranchAccess(branchId);
+        multiTenancySecurityService.validateManagerAccess(branchId);
         var command = UpdateBranchCommandFromResourceAssembler.toCommandFromResource(branchId, resource);
         var branch = branchCommandService.handle(command);
         if (branch.isEmpty()) {
@@ -114,11 +114,11 @@ public class BranchesController {
 
     @Operation(summary = "Simulate payment and assign subscription", description = "Simulates a payment using a dummy credit card and assigns the subscription plan")
     @PostMapping("/{branchId}/subscriptions")
-    @PreAuthorize("isAuthenticated() and @multiTenancySecurityService.isAuthorizedForBranch(#branchId)")
+    @PreAuthorize("isAuthenticated() and @multiTenancySecurityService.isAuthorizedManagerForBranch(#branchId)")
     public ResponseEntity<BranchSubscriptionResource> assignSubscription(
             @PathVariable UUID branchId, 
             @Valid @RequestBody AssignSubscriptionResource resource) {
-        multiTenancySecurityService.validateBranchAccess(branchId);
+        multiTenancySecurityService.validateManagerAccess(branchId);
         var command = AssignSubscriptionCommandFromResourceAssembler.toCommandFromResource(branchId, resource);
         var subscription = subscriptionCommandService.handle(command);
         if (subscription.isEmpty()) {
@@ -132,7 +132,7 @@ public class BranchesController {
     @Operation(summary = "Cancel an active subscription", description = "Cancels the currently active subscription of a branch")
     @DeleteMapping("/{branchId}/subscription")
     public ResponseEntity<Void> cancelSubscription(@PathVariable UUID branchId) {
-        multiTenancySecurityService.validateBranchAccess(branchId);
+        multiTenancySecurityService.validateManagerAccess(branchId);
         var command = new CancelSubscriptionCommand(new BranchId(branchId));
         var subscription = subscriptionCommandService.handle(command);
         if (subscription.isEmpty()) {

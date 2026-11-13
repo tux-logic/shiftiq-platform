@@ -53,11 +53,11 @@ public class WorkshopSpecialtiesController {
 
     @PostMapping
     @Operation(summary = "Create a new specialty for a workshop", description = "Adds a customizable technician specialty to the workshop catalog")
-    @PreAuthorize("isAuthenticated() and @multiTenancySecurityService.isAuthorizedForWorkshop(#workshopId)")
+    @PreAuthorize("isAuthenticated() and @multiTenancySecurityService.isAuthorizedManagerForWorkshop(#workshopId)")
     public ResponseEntity<WorkshopSpecialtyResource> createSpecialty(
             @PathVariable UUID workshopId,
             @Valid @RequestBody CreateWorkshopSpecialtyResource resource) {
-        multiTenancySecurityService.validateWorkshopAccess(workshopId);
+        multiTenancySecurityService.validateManagerWorkshopAccess(workshopId);
         var command = CreateWorkshopSpecialtyCommandFromResourceAssembler.toCommand(workshopId, resource);
         var result = commandService.handle(command);
         return result.map(specialty -> ResponseEntity.status(HttpStatus.CREATED)
@@ -95,12 +95,12 @@ public class WorkshopSpecialtiesController {
 
     @PutMapping("/{specialtyId}")
     @Operation(summary = "Update a workshop specialty", description = "Updates the display name and description of an existing specialty")
-    @PreAuthorize("isAuthenticated() and @multiTenancySecurityService.isAuthorizedForWorkshop(#workshopId)")
+    @PreAuthorize("isAuthenticated() and @multiTenancySecurityService.isAuthorizedManagerForWorkshop(#workshopId)")
     public ResponseEntity<WorkshopSpecialtyResource> updateSpecialty(
             @PathVariable UUID workshopId,
             @PathVariable UUID specialtyId,
             @Valid @RequestBody UpdateWorkshopSpecialtyResource resource) {
-        multiTenancySecurityService.validateWorkshopAccess(workshopId);
+        multiTenancySecurityService.validateManagerWorkshopAccess(workshopId);
         var existing = queryService.handle(new GetWorkshopSpecialtyByIdQuery(new WorkshopSpecialtyId(specialtyId)));
         if (existing.isEmpty() || !existing.get().getWorkshopId().value().equals(workshopId)) {
             return ResponseEntity.notFound().build();
@@ -114,11 +114,11 @@ public class WorkshopSpecialtiesController {
 
     @DeleteMapping("/{specialtyId}")
     @Operation(summary = "Deactivate a workshop specialty", description = "Deactivates a specialty so it cannot be assigned to new staff")
-    @PreAuthorize("isAuthenticated() and @multiTenancySecurityService.isAuthorizedForWorkshop(#workshopId)")
+    @PreAuthorize("isAuthenticated() and @multiTenancySecurityService.isAuthorizedManagerForWorkshop(#workshopId)")
     public ResponseEntity<Void> deactivateSpecialty(
             @PathVariable UUID workshopId,
             @PathVariable UUID specialtyId) {
-        multiTenancySecurityService.validateWorkshopAccess(workshopId);
+        multiTenancySecurityService.validateManagerWorkshopAccess(workshopId);
         var existing = queryService.handle(new GetWorkshopSpecialtyByIdQuery(new WorkshopSpecialtyId(specialtyId)));
         if (existing.isEmpty() || !existing.get().getWorkshopId().value().equals(workshopId)) {
             return ResponseEntity.notFound().build();

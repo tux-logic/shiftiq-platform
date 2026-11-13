@@ -52,7 +52,7 @@ class BranchesControllerTest {
         CreateBranchResource resource = new CreateBranchResource(workshopId, "BR-01", "Branch Principal", "Av. Peru 123", "999888777");
 
         doThrow(new AccessDeniedException("Unauthorized access"))
-                .when(multiTenancySecurityService).validateWorkshopAccess(workshopId);
+                .when(multiTenancySecurityService).validateManagerWorkshopAccess(workshopId);
 
         assertThrows(AccessDeniedException.class, () -> controller.createBranch(resource));
     }
@@ -70,6 +70,6 @@ class BranchesControllerTest {
 
         assertNotNull(response);
         assertEquals(HttpStatus.CREATED, response.getStatusCode());
-        verify(multiTenancySecurityService).validateWorkshopAccess(workshopId);
+        verify(multiTenancySecurityService).validateManagerWorkshopAccess(workshopId);
     }
 }

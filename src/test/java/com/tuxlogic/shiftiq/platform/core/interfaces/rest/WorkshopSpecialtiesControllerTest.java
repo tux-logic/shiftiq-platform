@@ -66,7 +66,7 @@ class WorkshopSpecialtiesControllerTest {
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CREATED);
         assertThat(response.getBody()).isNotNull();
         assertThat(response.getBody().name()).isEqualTo("Mecánica");
-        verify(securityService).validateWorkshopAccess(workshopId);
+        verify(securityService).validateManagerWorkshopAccess(workshopId);
     }
 
     @Test
@@ -75,7 +75,7 @@ class WorkshopSpecialtiesControllerTest {
         UUID workshopId = UUID.randomUUID();
         var resource = new CreateWorkshopSpecialtyResource("Mecánica", "MEC", "Desc");
 
-        doThrow(new AccessDeniedException("Forbidden")).when(securityService).validateWorkshopAccess(workshopId);
+        doThrow(new AccessDeniedException("Forbidden")).when(securityService).validateManagerWorkshopAccess(workshopId);
 
         assertThatThrownBy(() -> controller.createSpecialty(workshopId, resource))
                 .isInstanceOf(AccessDeniedException.class);
