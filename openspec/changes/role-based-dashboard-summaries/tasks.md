@@ -5,7 +5,7 @@
 - [x] 1.2 Enforce `Permission.ANALYTICS_READ` via `MultiTenancySecurityService.validateBranchPermission(branchId, Permission.ANALYTICS_READ)` in `AnalyticsController` for `/branches/{branchId}/summary` and `/branches/{branchId}/financial`; update `AnalyticsControllerTest` and `EndpointRbacSecurityTest` (`./mvnw test -Dtest=AnalyticsControllerTest,EndpointRbacSecurityTest`).
 
 ## 2. ACL Dashboard Ports & Query Services
-- [ ] 2.1 Define `CustomerDashboardPort`, `EmployeeDashboardPort`, and domain summary records/queries in `analytics/domain`, and implement `CustomerDashboardPortImpl` and `EmployeeDashboardPortImpl` in `analytics/infrastructure/acl/` with unit tests (`./mvnw test -Dtest=CustomerDashboardPortImplTest,EmployeeDashboardPortImplTest`).
+- [x] 2.1 Define `CustomerDashboardPort`, `EmployeeDashboardPort`, and domain summary records/queries in `analytics/domain`, and implement `CustomerDashboardPortImpl` and `EmployeeDashboardPortImpl` in `analytics/infrastructure/acl/` with unit tests (`./mvnw test -Dtest=CustomerDashboardPortImplTest,EmployeeDashboardPortImplTest`).
 - [ ] 2.2 Wire `GetCustomerDashboardSummaryQuery` and `GetEmployeeDashboardSummaryQuery` into `AnalyticsQueryService` and `AnalyticsQueryServiceImpl` with unit tests (`./mvnw test -Dtest=AnalyticsQueryServiceImplTest`).
 
 ## 3. Self-Service Dashboard Endpoints & Documentation
