@@ -3,7 +3,7 @@
 ## 1. Permission Catalog & Database Schema
 
 - [x] 1.1 Define the `Permission` enum and `DefaultRolePermissions` mapping in `iam.domain.model.valueobjects` with unit tests verifying every `Roles` enum value maps to its expected default permission set (`./mvnw test -Dtest=PermissionCatalogTest`).
-- [ ] 1.2 Create Flyway migration `V21__create_workshop_roles_and_permissions.sql` adding `workshop_roles`, `workshop_role_permissions`, `workshop_role_audit_logs`, nullable `users.workshop_role_id`, and seeding immutable system role templates (`ROLE_OWNER`, `ROLE_BRANCH_MANAGER`, `ROLE_ASSISTANT`, `ROLE_EMPLOYEE`, `ROLE_WAREHOUSE`, `ROLE_CASHIER`, `ROLE_ACCOUNTANT`); verify SQL syntax and schema alignment with persistence entities (`./mvnw test -Dtest=WorkshopRolePersistenceTest`).
+- [x] 1.2 Create Flyway migration `V21__create_workshop_roles_and_permissions.sql` adding `workshop_roles`, `workshop_role_permissions`, `workshop_role_audit_logs`, nullable `users.workshop_role_id`, and seeding immutable system role templates (`ROLE_OWNER`, `ROLE_BRANCH_MANAGER`, `ROLE_ASSISTANT`, `ROLE_EMPLOYEE`, `ROLE_WAREHOUSE`, `ROLE_CASHIER`, `ROLE_ACCOUNTANT`); verify SQL syntax and schema alignment with persistence entities (`./mvnw test -Dtest=WorkshopRolePersistenceTest`).
 
 ## 2. IAM Domain, Persistence & Authority Loading
 
