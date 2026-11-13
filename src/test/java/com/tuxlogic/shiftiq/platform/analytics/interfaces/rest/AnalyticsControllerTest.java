@@ -11,6 +11,7 @@ import com.tuxlogic.shiftiq.platform.analytics.domain.model.queries.NetworkAnaly
 import com.tuxlogic.shiftiq.platform.analytics.interfaces.rest.resources.BranchAnalyticsSnapshotResource;
 import com.tuxlogic.shiftiq.platform.analytics.interfaces.rest.resources.BranchAnalyticsSummaryResource;
 import com.tuxlogic.shiftiq.platform.analytics.interfaces.rest.resources.NetworkAnalyticsOverviewResource;
+import com.tuxlogic.shiftiq.platform.iam.domain.model.valueobjects.Permission;
 import com.tuxlogic.shiftiq.platform.shared.application.result.Result;
 import com.tuxlogic.shiftiq.platform.shared.infrastructure.security.MultiTenancySecurityService;
 import com.tuxlogic.shiftiq.platform.shared.interfaces.rest.resources.ErrorResource;
@@ -49,7 +50,7 @@ class AnalyticsControllerTest {
     @DisplayName("getBranchSummary returns 403 with standard error body when user not authorized for branch")
     void getBranchSummaryUnauthorized() {
         var branchId = UUID.randomUUID();
-        when(securityService.isAuthorizedForBranch(branchId)).thenReturn(false);
+        when(securityService.hasPermissionForBranch(branchId, Permission.ANALYTICS_READ)).thenReturn(false);
 
         ResponseEntity<?> response = controller.getBranchSummary(branchId);
 
@@ -63,7 +64,7 @@ class AnalyticsControllerTest {
     @DisplayName("getBranchSummary returns 404 with standard error body when the branch does not exist")
     void getBranchSummaryBranchNotFound() {
         var branchId = UUID.randomUUID();
-        when(securityService.isAuthorizedForBranch(branchId)).thenReturn(true);
+        when(securityService.hasPermissionForBranch(branchId, Permission.ANALYTICS_READ)).thenReturn(true);
         when(securityService.branchExists(branchId)).thenReturn(false);
 
         ResponseEntity<?> response = controller.getBranchSummary(branchId);
@@ -78,7 +79,7 @@ class AnalyticsControllerTest {
     @DisplayName("getBranchSummary returns 500 with standard error body when the query fails")
     void getBranchSummaryInternalFailure() {
         var branchId = UUID.randomUUID();
-        when(securityService.isAuthorizedForBranch(branchId)).thenReturn(true);
+        when(securityService.hasPermissionForBranch(branchId, Permission.ANALYTICS_READ)).thenReturn(true);
         when(securityService.branchExists(branchId)).thenReturn(true);
         when(queryService.handle(any(GetBranchAnalyticsSummaryQuery.class)))
                 .thenReturn(Result.failure("analytics.error.retrievalFailed"));
@@ -94,7 +95,7 @@ class AnalyticsControllerTest {
     @DisplayName("getBranchSummary returns 200 OK with summary resource")
     void getBranchSummarySuccess() {
         var branchId = UUID.randomUUID();
-        when(securityService.isAuthorizedForBranch(branchId)).thenReturn(true);
+        when(securityService.hasPermissionForBranch(branchId, Permission.ANALYTICS_READ)).thenReturn(true);
         when(securityService.branchExists(branchId)).thenReturn(true);
 
         var summary = new BranchAnalyticsSummary(branchId, new BigDecimal("1200.00"), 4, 6, 1, 0);
@@ -114,7 +115,7 @@ class AnalyticsControllerTest {
     @DisplayName("getBranchFinancialRange returns 200 OK with list of snapshot resources")
     void getBranchFinancialRangeSuccess() {
         var branchId = UUID.randomUUID();
-        when(securityService.isAuthorizedForBranch(branchId)).thenReturn(true);
+        when(securityService.hasPermissionForBranch(branchId, Permission.ANALYTICS_READ)).thenReturn(true);
         when(securityService.branchExists(branchId)).thenReturn(true);
 
         var snapshot = new DailyAnalyticsSnapshot(
@@ -139,7 +140,7 @@ class AnalyticsControllerTest {
     @DisplayName("getBranchFinancialRange rejects an inverted date range with 400")
     void getBranchFinancialRangeRejectsInvertedRange() {
         var branchId = UUID.randomUUID();
-        when(securityService.isAuthorizedForBranch(branchId)).thenReturn(true);
+        when(securityService.hasPermissionForBranch(branchId, Permission.ANALYTICS_READ)).thenReturn(true);
         when(securityService.branchExists(branchId)).thenReturn(true);
 
         assertThat(org.junit.jupiter.api.Assertions.assertThrows(IllegalArgumentException.class,
@@ -155,7 +156,7 @@ class AnalyticsControllerTest {
     @DisplayName("getBranchFinancialRange returns 403 with standard error body when user not authorized")
     void getBranchFinancialRangeUnauthorized() {
         var branchId = UUID.randomUUID();
-        when(securityService.isAuthorizedForBranch(branchId)).thenReturn(false);
+        when(securityService.hasPermissionForBranch(branchId, Permission.ANALYTICS_READ)).thenReturn(false);
 
         ResponseEntity<?> response = controller.getBranchFinancialRange(branchId, null, null);
 

@@ -8,6 +8,7 @@ import com.tuxlogic.shiftiq.platform.analytics.domain.model.queries.GetNetworkAn
 import com.tuxlogic.shiftiq.platform.analytics.interfaces.rest.resources.BranchAnalyticsSnapshotResource;
 import com.tuxlogic.shiftiq.platform.analytics.interfaces.rest.resources.BranchAnalyticsSummaryResource;
 import com.tuxlogic.shiftiq.platform.analytics.interfaces.rest.resources.NetworkAnalyticsOverviewResource;
+import com.tuxlogic.shiftiq.platform.iam.domain.model.valueobjects.Permission;
 import com.tuxlogic.shiftiq.platform.shared.application.result.ApplicationError;
 import com.tuxlogic.shiftiq.platform.shared.domain.model.valueobjects.BranchId;
 import com.tuxlogic.shiftiq.platform.shared.infrastructure.security.MultiTenancySecurityService;
@@ -115,7 +116,7 @@ public class AnalyticsController {
      * standard error envelope. Returns {@code null} when the caller may proceed.
      */
     private ResponseEntity<?> requireBranchAccess(UUID branchId) {
-        if (!multiTenancySecurityService.isAuthorizedForBranch(branchId)) {
+        if (!multiTenancySecurityService.hasPermissionForBranch(branchId, Permission.ANALYTICS_READ)) {
             return ErrorResponseAssembler.toErrorResponseFromApplicationError(
                     new ApplicationError("ACCESS_DENIED", "Access denied: insufficient permissions"));
         }

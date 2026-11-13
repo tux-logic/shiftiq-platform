@@ -2,7 +2,7 @@
 
 ## 1. IAM Permission & Branch Analytics Guard
 - [x] 1.1 Add `ANALYTICS_READ` to `Permission` and `DefaultRolePermissions` (granted to `ADMIN`, `OWNER`, `BRANCH_MANAGER`, `ASSISTANT`; excluded from `EMPLOYEE` and `USER`), and update `PermissionCatalogTest` (`./mvnw test -Dtest=PermissionCatalogTest`).
-- [ ] 1.2 Enforce `Permission.ANALYTICS_READ` via `MultiTenancySecurityService.validateBranchPermission(branchId, Permission.ANALYTICS_READ)` in `AnalyticsController` for `/branches/{branchId}/summary` and `/branches/{branchId}/financial`; update `AnalyticsControllerTest` and `EndpointRbacSecurityTest` (`./mvnw test -Dtest=AnalyticsControllerTest,EndpointRbacSecurityTest`).
+- [x] 1.2 Enforce `Permission.ANALYTICS_READ` via `MultiTenancySecurityService.validateBranchPermission(branchId, Permission.ANALYTICS_READ)` in `AnalyticsController` for `/branches/{branchId}/summary` and `/branches/{branchId}/financial`; update `AnalyticsControllerTest` and `EndpointRbacSecurityTest` (`./mvnw test -Dtest=AnalyticsControllerTest,EndpointRbacSecurityTest`).
 
 ## 2. ACL Dashboard Ports & Query Services
 - [ ] 2.1 Define `CustomerDashboardPort`, `EmployeeDashboardPort`, and domain summary records/queries in `analytics/domain`, and implement `CustomerDashboardPortImpl` and `EmployeeDashboardPortImpl` in `analytics/infrastructure/acl/` with unit tests (`./mvnw test -Dtest=CustomerDashboardPortImplTest,EmployeeDashboardPortImplTest`).
