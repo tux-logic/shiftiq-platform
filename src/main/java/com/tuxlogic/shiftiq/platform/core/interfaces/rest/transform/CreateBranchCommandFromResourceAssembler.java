@@ -16,7 +16,8 @@ public final class CreateBranchCommandFromResourceAssembler {
                 resource.code(),
                 resource.name(),
                 new Address(resource.address()),
-                new Phone(resource.phone())
+                new Phone(resource.phone()),
+                resource.coverImageUrl()
         );
     }
 }

@@ -25,6 +25,7 @@ public final class BranchPersistenceAssembler {
             entity.setAddress(branch.getAddress().value());
         }
         entity.setPhone(branch.getPhone() != null ? branch.getPhone().value() : null);
+        entity.setCoverImageUrl(branch.getCoverImageUrl());
         entity.setCreatedAt(branch.getCreatedAt());
         entity.setUpdatedAt(branch.getUpdatedAt());
         entity.setDeletedAt(branch.getDeletedAt());
@@ -42,6 +43,7 @@ public final class BranchPersistenceAssembler {
                 entity.getName(),
                 new Address(entity.getAddress()),
                 new Phone(entity.getPhone()),
+                entity.getCoverImageUrl(),
                 entity.getCreatedAt(),
                 entity.getUpdatedAt(),
                 entity.getDeletedAt(),

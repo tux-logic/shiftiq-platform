@@ -46,6 +46,9 @@ public class BranchPersistenceEntity extends AuditableAbstractPersistenceEntity 
     @Column(nullable = false)
     private String phone;
 
+    @Column(name = "cover_image_url", length = 512)
+    private String coverImageUrl;
+
     @Column(name = "deleted_at")
     private Instant deletedAt;
 

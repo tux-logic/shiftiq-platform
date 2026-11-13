@@ -73,4 +73,24 @@ class BranchesControllerTest {
         assertEquals(HttpStatus.CREATED, response.getStatusCode());
         verify(multiTenancySecurityService).validateWorkshopPermission(workshopId, Permission.BRANCH_MANAGE);
     }
+
+    @Test
+    void createBranch_WhenCoverImageUrlProvided_ShouldIncludeInResource() {
+        UUID workshopId = UUID.randomUUID();
+        String coverUrl = "https://res.cloudinary.com/demo/image/upload/v1/shiftiq/branches/cover.jpg";
+        CreateBranchResource resource = new CreateBranchResource(workshopId, "BR-02", "Branch Norte", "Av. Norte 456", "999111222", coverUrl);
+        Branch branch = mock(Branch.class);
+        when(branch.getId()).thenReturn(new BranchId(UUID.randomUUID()));
+        when(branch.getCoverImageUrl()).thenReturn(coverUrl);
+
+        when(branchCommandService.handle(any(CreateBranchCommand.class))).thenReturn(Optional.of(branch));
+
+        ResponseEntity<?> response = controller.createBranch(resource);
+
+        assertNotNull(response);
+        assertEquals(HttpStatus.CREATED, response.getStatusCode());
+        var body = (com.tuxlogic.shiftiq.platform.core.interfaces.rest.resources.BranchResource) response.getBody();
+        assertNotNull(body);
+        assertEquals(coverUrl, body.coverImageUrl());
+    }
 }

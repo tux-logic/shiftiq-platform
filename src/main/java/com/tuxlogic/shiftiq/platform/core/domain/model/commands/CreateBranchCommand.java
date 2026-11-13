@@ -9,10 +9,15 @@ public record CreateBranchCommand(
         String code,
         String name,
         Address address,
-        Phone phone
+        Phone phone,
+        String coverImageUrl
 ) {
     public CreateBranchCommand {
         if (code == null || code.isBlank()) throw new IllegalArgumentException("core.error.code.required");
         if (name == null || name.isBlank()) throw new IllegalArgumentException("core.error.name.required");
+    }
+
+    public CreateBranchCommand(WorkshopId workshopId, String code, String name, Address address, Phone phone) {
+        this(workshopId, code, name, address, phone, null);
     }
 }

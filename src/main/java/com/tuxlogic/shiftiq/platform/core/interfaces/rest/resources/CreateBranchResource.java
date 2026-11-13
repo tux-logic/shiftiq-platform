@@ -9,6 +9,10 @@ public record CreateBranchResource(
         @NotBlank(message = "code is required") String code,
         @NotBlank(message = "name is required") String name,
         @NotBlank(message = "address is required") String address,
-        @NotBlank(message = "phone is required") String phone
+        @NotBlank(message = "phone is required") String phone,
+        String coverImageUrl
 ) {
+    public CreateBranchResource(UUID workshopId, String code, String name, String address, String phone) {
+        this(workshopId, code, name, address, phone, null);
+    }
 }

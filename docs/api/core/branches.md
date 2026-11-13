@@ -19,6 +19,7 @@
 | `name` | string | Sí | Body | Nombre visible (ej: "Sede Principal Santiago de Surco") |
 | `address` | string | Sí | Body | Dirección completa |
 | `phone` | string | Sí | Body | Teléfono de contacto (ej: `+51987654321`) |
+| `coverImageUrl` | string | No | Body | Optional cover image URL (e.g., Cloudinary URL) |
 
 **Request Example**:
 ```json
@@ -27,7 +28,8 @@
   "code": "BR-SURCO-01",
   "name": "Sede Principal Santiago de Surco",
   "address": "Av. Primavera 1234, Santiago de Surco, Lima",
-  "phone": "+51987654321"
+  "phone": "+51987654321",
+  "coverImageUrl": "https://res.cloudinary.com/demo/image/upload/v1/shiftiq/branches/surco.jpg"
 }
 ```
 
@@ -40,7 +42,8 @@
   "code": "BR-SURCO-01",
   "name": "Sede Principal Santiago de Surco",
   "address": "Av. Primavera 1234, Santiago de Surco, Lima",
-  "phone": "+51987654321"
+  "phone": "+51987654321",
+  "coverImageUrl": "https://res.cloudinary.com/demo/image/upload/v1/shiftiq/branches/surco.jpg"
 }
 ```
 
