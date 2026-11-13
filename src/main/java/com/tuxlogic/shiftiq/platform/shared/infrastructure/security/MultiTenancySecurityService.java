@@ -111,6 +111,41 @@ public class MultiTenancySecurityService {
     }
 
     /**
+     * Checks whether the caller is authorized for the given branch and holds an advisor or managerial role
+     * (ROLE_ADMIN, ROLE_OWNER, ROLE_BRANCH_MANAGER, or ROLE_ASSISTANT).
+     *
+     * @param branchId target branch identifier
+     * @return true if caller has advisor or managerial authority for the branch, false otherwise
+     */
+    public boolean isAuthorizedAdvisorOrManagerForBranch(UUID branchId) {
+        if (!isAuthorizedForBranch(branchId)) {
+            return false;
+        }
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null || !authentication.isAuthenticated()) {
+            return false;
+        }
+        Object principal = authentication.getPrincipal();
+        if (principal instanceof AuthenticatedPrincipal authenticatedPrincipal) {
+            return authenticatedPrincipal.hasRole("ROLE_ADMIN")
+                    || authenticatedPrincipal.hasRole("ROLE_OWNER")
+                    || authenticatedPrincipal.hasRole("ROLE_BRANCH_MANAGER")
+                    || authenticatedPrincipal.hasRole("ROLE_ASSISTANT");
+        }
+        return false;
+    }
+
+    public boolean isAuthorizedAdvisorOrManagerForBranch(BranchId branchId) {
+        return isAuthorizedAdvisorOrManagerForBranch(branchId == null ? null : branchId.value());
+    }
+
+    public void validateAdvisorOrManagerAccess(UUID branchId) {
+        if (!isAuthorizedAdvisorOrManagerForBranch(branchId)) {
+            throw new AccessDeniedException("Unauthorized advisor or managerial access for requested branch identifier: " + branchId);
+        }
+    }
+
+    /**
      * Broad check for resources keyed by a user id where no tenant scoping exists in the
      * data model (customer and employee profiles are global records with no branch or
      * workshop owner). Allows the caller itself, {@code ROLE_ADMIN}, {@code ROLE_OWNER}
@@ -261,6 +296,48 @@ public class MultiTenancySecurityService {
     public void validateWorkshopAccess(UUID workshopId) {
         if (!isAuthorizedForWorkshop(workshopId)) {
             throw new AccessDeniedException("Unauthorized access for requested workshop identifier: " + workshopId);
+        }
+    }
+
+    /**
+     * Checks whether the caller is authorized for the given workshop and holds a managerial role
+     * (ROLE_ADMIN, ROLE_OWNER of the workshop, or ROLE_BRANCH_MANAGER of a branch in that workshop).
+     *
+     * @param workshopId target workshop identifier
+     * @return true if caller has managerial authority for the workshop, false otherwise
+     */
+    public boolean isAuthorizedManagerForWorkshop(UUID workshopId) {
+        if (workshopId == null) {
+            LOGGER.warn("Workshop access denied: no workshop identifier was provided");
+            return false;
+        }
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null || !authentication.isAuthenticated()) {
+            return false;
+        }
+        Object principal = authentication.getPrincipal();
+        if (principal instanceof AuthenticatedPrincipal authenticatedPrincipal) {
+            if (authenticatedPrincipal.hasRole("ROLE_ADMIN")) {
+                return true;
+            }
+            if (authenticatedPrincipal.hasRole("ROLE_OWNER")) {
+                return tenantScopeResolver.findWorkshopIdsForUser(authenticatedPrincipal.getId()).contains(workshopId);
+            }
+            if (authenticatedPrincipal.hasRole("ROLE_BRANCH_MANAGER")) {
+                for (UUID assignedBranchId : authenticatedPrincipal.getBranchIds()) {
+                    if (workshopId.equals(tenantScopeResolver.findWorkshopIdForBranch(assignedBranchId))) {
+                        return true;
+                    }
+                }
+            }
+            return false;
+        }
+        return false;
+    }
+
+    public void validateManagerWorkshopAccess(UUID workshopId) {
+        if (!isAuthorizedManagerForWorkshop(workshopId)) {
+            throw new AccessDeniedException("Unauthorized managerial access for requested workshop identifier: " + workshopId);
         }
     }
 
