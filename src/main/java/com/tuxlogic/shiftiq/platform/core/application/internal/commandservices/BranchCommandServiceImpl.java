@@ -43,7 +43,9 @@ public class BranchCommandServiceImpl implements BranchCommandService {
                 command.name(),
                 command.address(),
                 command.phone(),
-                command.coverImageUrl()
+                command.coverImageUrl(),
+                command.latitude(),
+                command.longitude()
         );
 
         var savedBranch = branchRepository.save(branch);
@@ -65,7 +67,9 @@ public class BranchCommandServiceImpl implements BranchCommandService {
             command.name(),
             command.address(),
             command.phone(),
-            command.coverImageUrl()
+            command.coverImageUrl(),
+            command.latitude(),
+            command.longitude()
         );
 
         var savedBranch = branchRepository.save(branch);

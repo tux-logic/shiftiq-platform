@@ -93,4 +93,42 @@ class BranchesControllerTest {
         assertNotNull(body);
         assertEquals(coverUrl, body.coverImageUrl());
     }
+
+    @Test
+    void createBranch_WhenCoordinatesProvided_ShouldIncludeInResource() {
+        UUID workshopId = UUID.randomUUID();
+        Double lat = -12.111062;
+        Double lng = -76.991944;
+        CreateBranchResource resource = new CreateBranchResource(
+                workshopId, "BR-03", "Branch Surco", "Av. Primavera 1234", "999222333", null, lat, lng);
+        Branch branch = mock(Branch.class);
+        when(branch.getId()).thenReturn(new BranchId(UUID.randomUUID()));
+        when(branch.getLatitude()).thenReturn(lat);
+        when(branch.getLongitude()).thenReturn(lng);
+
+        when(branchCommandService.handle(any(CreateBranchCommand.class))).thenReturn(Optional.of(branch));
+
+        ResponseEntity<?> response = controller.createBranch(resource);
+
+        assertNotNull(response);
+        assertEquals(HttpStatus.CREATED, response.getStatusCode());
+        var body = (com.tuxlogic.shiftiq.platform.core.interfaces.rest.resources.BranchResource) response.getBody();
+        assertNotNull(body);
+        assertEquals(lat, body.latitude());
+        assertEquals(lng, body.longitude());
+    }
+
+    @Test
+    void branchDomain_WhenCoordinatesIncompleteOrOutOfRange_ShouldThrow() {
+        var workshopId = new com.tuxlogic.shiftiq.platform.core.domain.model.valueobjects.WorkshopId(UUID.randomUUID());
+        var addr = new com.tuxlogic.shiftiq.platform.shared.domain.model.valueobjects.Address("Av. Lima 123");
+        var phone = new com.tuxlogic.shiftiq.platform.core.domain.model.valueobjects.Phone("+51999888777");
+
+        assertThrows(IllegalArgumentException.class,
+                () -> new Branch(workshopId, "BR-X", "Test", addr, phone, null, -12.0, null));
+        assertThrows(IllegalArgumentException.class,
+                () -> new Branch(workshopId, "BR-X", "Test", addr, phone, null, 95.0, -77.0));
+        assertThrows(IllegalArgumentException.class,
+                () -> new Branch(workshopId, "BR-X", "Test", addr, phone, null, -12.0, 190.0));
+    }
 }

@@ -9,6 +9,8 @@ public record BranchResource(
         String name,
         String address,
         String phone,
-        String coverImageUrl
+        String coverImageUrl,
+        Double latitude,
+        Double longitude
 ) {
 }

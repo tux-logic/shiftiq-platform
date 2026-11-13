@@ -10,7 +10,9 @@ public record UpdateBranchCommand(
         String name,
         Address address,
         Phone phone,
-        String coverImageUrl
+        String coverImageUrl,
+        Double latitude,
+        Double longitude
 ) {
     public UpdateBranchCommand {
         if (code == null || code.isBlank()) throw new IllegalArgumentException("core.error.code.required");
@@ -18,7 +20,11 @@ public record UpdateBranchCommand(
     }
 
     public UpdateBranchCommand(BranchId id, String code, String name, Address address, Phone phone) {
-        this(id, code, name, address, phone, null);
+        this(id, code, name, address, phone, null, null, null);
+    }
+
+    public UpdateBranchCommand(BranchId id, String code, String name, Address address, Phone phone, String coverImageUrl) {
+        this(id, code, name, address, phone, coverImageUrl, null, null);
     }
 }
 

@@ -19,7 +19,9 @@ public final class UpdateBranchCommandFromResourceAssembler {
                 resource.name(),
                 new Address(resource.address()),
                 new Phone(resource.phone()),
-                resource.coverImageUrl()
+                resource.coverImageUrl(),
+                resource.latitude(),
+                resource.longitude()
         );
     }
 }

@@ -20,6 +20,8 @@
 | `address` | string | Sí | Body | Dirección completa |
 | `phone` | string | Sí | Body | Teléfono de contacto (ej: `+51987654321`) |
 | `coverImageUrl` | string | No | Body | Optional cover image URL (e.g., Cloudinary URL) |
+| `latitude` | number | No | Body | Optional branch latitude (`-90.0` to `90.0`, required if `longitude` is provided) |
+| `longitude` | number | No | Body | Optional branch longitude (`-180.0` to `180.0`, required if `latitude` is provided) |
 
 **Request Example**:
 ```json
@@ -29,7 +31,9 @@
   "name": "Sede Principal Santiago de Surco",
   "address": "Av. Primavera 1234, Santiago de Surco, Lima",
   "phone": "+51987654321",
-  "coverImageUrl": "https://res.cloudinary.com/demo/image/upload/v1/shiftiq/branches/surco.jpg"
+  "coverImageUrl": "https://res.cloudinary.com/demo/image/upload/v1/shiftiq/branches/surco.jpg",
+  "latitude": -12.111062,
+  "longitude": -76.991944
 }
 ```
 
@@ -43,7 +47,9 @@
   "name": "Sede Principal Santiago de Surco",
   "address": "Av. Primavera 1234, Santiago de Surco, Lima",
   "phone": "+51987654321",
-  "coverImageUrl": "https://res.cloudinary.com/demo/image/upload/v1/shiftiq/branches/surco.jpg"
+  "coverImageUrl": "https://res.cloudinary.com/demo/image/upload/v1/shiftiq/branches/surco.jpg",
+  "latitude": -12.111062,
+  "longitude": -76.991944
 }
 ```
 

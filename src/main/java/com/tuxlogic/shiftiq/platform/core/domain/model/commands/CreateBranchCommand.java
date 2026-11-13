@@ -10,7 +10,9 @@ public record CreateBranchCommand(
         String name,
         Address address,
         Phone phone,
-        String coverImageUrl
+        String coverImageUrl,
+        Double latitude,
+        Double longitude
 ) {
     public CreateBranchCommand {
         if (code == null || code.isBlank()) throw new IllegalArgumentException("core.error.code.required");
@@ -18,6 +20,10 @@ public record CreateBranchCommand(
     }
 
     public CreateBranchCommand(WorkshopId workshopId, String code, String name, Address address, Phone phone) {
-        this(workshopId, code, name, address, phone, null);
+        this(workshopId, code, name, address, phone, null, null, null);
+    }
+
+    public CreateBranchCommand(WorkshopId workshopId, String code, String name, Address address, Phone phone, String coverImageUrl) {
+        this(workshopId, code, name, address, phone, coverImageUrl, null, null);
     }
 }
