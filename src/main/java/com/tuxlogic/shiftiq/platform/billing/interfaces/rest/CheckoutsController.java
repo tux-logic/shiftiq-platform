@@ -53,7 +53,7 @@ public class CheckoutsController {
     private Quote validateQuoteAccess(UUID quoteId) {
         var quote = quoteQueryService.handle(new GetQuoteByIdQuery(quoteId))
                 .orElseThrow(() -> new IllegalArgumentException("billing.error.quote.notFound"));
-        multiTenancySecurityService.validateBranchAccess(quote.getBranchId().value());
+        multiTenancySecurityService.validateAdvisorOrManagerAccess(quote.getBranchId().value());
         return quote;
     }
 

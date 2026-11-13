@@ -68,7 +68,7 @@ class VouchersControllerTest {
 
         when(quoteQueryService.handle(any(GetQuoteByIdQuery.class))).thenReturn(Optional.of(quote));
         doThrow(new AccessDeniedException("Unauthorized branch access"))
-                .when(multiTenancySecurityService).validateBranchAccess(branchId);
+                .when(multiTenancySecurityService).validateAdvisorOrManagerAccess(branchId);
 
         assertThrows(AccessDeniedException.class, () -> controller.generateVoucher(resource));
     }

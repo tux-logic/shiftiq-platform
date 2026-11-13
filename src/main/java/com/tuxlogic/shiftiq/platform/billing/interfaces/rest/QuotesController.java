@@ -60,7 +60,7 @@ public class QuotesController {
     @PostMapping
     @Operation(summary = "Create a new quote", description = "Creates a new Quote based on a Work Order")
     public ResponseEntity<?> createQuote(@Valid @RequestBody CreateQuoteResource resource) {
-        multiTenancySecurityService.validateBranchAccess(resource.branchId());
+        multiTenancySecurityService.validateAdvisorOrManagerAccess(resource.branchId());
         var command = CreateQuoteCommandFromResourceAssembler.toCommandFromResource(resource);
         var result = commandService.handle(command);
         if (result.isSuccess()) {
@@ -85,10 +85,24 @@ public class QuotesController {
         return quote;
     }
 
+    private com.tuxlogic.shiftiq.platform.billing.domain.model.aggregates.Quote validateQuoteAdvisorOrManagerAccess(UUID id) {
+        var quote = queryService.handle(new GetQuoteByIdQuery(id))
+                .orElseThrow(() -> new IllegalArgumentException("billing.error.quote.notFound"));
+        multiTenancySecurityService.validateAdvisorOrManagerAccess(quote.getBranchId().value());
+        return quote;
+    }
+
+    private com.tuxlogic.shiftiq.platform.billing.domain.model.aggregates.Quote validateQuoteManagerAccess(UUID id) {
+        var quote = queryService.handle(new GetQuoteByIdQuery(id))
+                .orElseThrow(() -> new IllegalArgumentException("billing.error.quote.notFound"));
+        multiTenancySecurityService.validateManagerAccess(quote.getBranchId().value());
+        return quote;
+    }
+
     @PutMapping("/{id}")
     @Operation(summary = "Update quote discount", description = "Updates the discount percentage of an existing DRAFT quote")
     public ResponseEntity<?> updateQuoteDiscount(@PathVariable UUID id, @Valid @RequestBody UpdateQuoteResource resource) {
-        validateQuoteAccess(id);
+        validateQuoteAdvisorOrManagerAccess(id);
         var command = UpdateQuoteCommandFromResourceAssembler.toCommandFromResource(id, resource);
         var result = commandService.handle(command);
         if (result.isSuccess()) {
@@ -101,7 +115,7 @@ public class QuotesController {
     @PostMapping("/{id}/approvals")
     @Operation(summary = "Approve a quote", description = "Approves a Quote, transitioning its state from DRAFT to APPROVED")
     public ResponseEntity<?> approveQuote(@PathVariable UUID id) {
-        validateQuoteAccess(id);
+        validateQuoteAdvisorOrManagerAccess(id);
         var command = new ApproveQuoteCommand(id);
         var result = commandService.handle(command);
         if (result.isSuccess()) {
@@ -114,7 +128,7 @@ public class QuotesController {
     @PostMapping("/{id}/cancellations")
     @Operation(summary = "Cancel a quote", description = "Cancels a Quote, transitioning its state to CANCELED")
     public ResponseEntity<?> cancelQuote(@PathVariable UUID id) {
-        validateQuoteAccess(id);
+        validateQuoteManagerAccess(id);
         var command = new CancelQuoteCommand(id);
         var result = commandService.handle(command);
         if (result.isSuccess()) {

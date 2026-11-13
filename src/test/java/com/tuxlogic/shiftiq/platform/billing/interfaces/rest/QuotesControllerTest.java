@@ -54,7 +54,7 @@ class QuotesControllerTest {
         CreateQuoteResource resource = new CreateQuoteResource(workOrderId, branchId, 10.0);
 
         doThrow(new AccessDeniedException("Unauthorized branch access"))
-                .when(multiTenancySecurityService).validateBranchAccess(branchId);
+                .when(multiTenancySecurityService).validateAdvisorOrManagerAccess(branchId);
 
         assertThrows(AccessDeniedException.class, () -> controller.createQuote(resource));
     }
@@ -76,7 +76,7 @@ class QuotesControllerTest {
 
         assertNotNull(response);
         assertEquals(HttpStatus.CREATED, response.getStatusCode());
-        verify(multiTenancySecurityService).validateBranchAccess(branchId);
+        verify(multiTenancySecurityService).validateAdvisorOrManagerAccess(branchId);
     }
 }
 

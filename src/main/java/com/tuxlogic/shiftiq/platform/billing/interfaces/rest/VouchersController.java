@@ -61,7 +61,7 @@ public class VouchersController {
     @Operation(summary = "Generate a new voucher", description = "Generates a new Voucher (Invoice/Receipt) based on an Approved Quote and sends it to SUNAT via Facthub")
     public ResponseEntity<?> generateVoucher(@Valid @RequestBody GenerateVoucherResource resource) {
         var quote = quoteQueryService.handle(new com.tuxlogic.shiftiq.platform.billing.domain.model.queries.GetQuoteByIdQuery(resource.quoteId()));
-        quote.ifPresent(q -> multiTenancySecurityService.validateBranchAccess(q.getBranchId().value()));
+        quote.ifPresent(q -> multiTenancySecurityService.validateAdvisorOrManagerAccess(q.getBranchId().value()));
 
         com.tuxlogic.shiftiq.platform.billing.domain.model.commands.GenerateVoucherCommand command;
         try {
@@ -86,6 +86,14 @@ public class VouchersController {
                 .orElseThrow(() -> new IllegalArgumentException("billing.error.voucher.notFound"));
         var quote = quoteQueryService.handle(new com.tuxlogic.shiftiq.platform.billing.domain.model.queries.GetQuoteByIdQuery(voucher.getQuoteId()));
         quote.ifPresent(q -> multiTenancySecurityService.validateBranchAccess(q.getBranchId().value()));
+        return voucher;
+    }
+
+    private com.tuxlogic.shiftiq.platform.billing.domain.model.aggregates.Voucher validateVoucherAdvisorOrManagerAccess(UUID voucherId) {
+        var voucher = queryService.handle(new GetVoucherByIdQuery(voucherId))
+                .orElseThrow(() -> new IllegalArgumentException("billing.error.voucher.notFound"));
+        var quote = quoteQueryService.handle(new com.tuxlogic.shiftiq.platform.billing.domain.model.queries.GetQuoteByIdQuery(voucher.getQuoteId()));
+        quote.ifPresent(q -> multiTenancySecurityService.validateAdvisorOrManagerAccess(q.getBranchId().value()));
         return voucher;
     }
 
@@ -121,7 +129,7 @@ public class VouchersController {
     @PostMapping("/{voucherId}/payments")
     @Operation(summary = "Add a payment to a voucher", description = "Records a partial or full payment for a given voucher")
     public ResponseEntity<?> addPayment(@PathVariable UUID voucherId, @Valid @RequestBody AddPaymentResource resource) {
-        validateVoucherAccess(voucherId);
+        validateVoucherAdvisorOrManagerAccess(voucherId);
         PaymentMethod paymentMethod;
         try {
             paymentMethod = resource.method() != null ? PaymentMethod.valueOf(resource.method().toUpperCase()) : PaymentMethod.CASH;
