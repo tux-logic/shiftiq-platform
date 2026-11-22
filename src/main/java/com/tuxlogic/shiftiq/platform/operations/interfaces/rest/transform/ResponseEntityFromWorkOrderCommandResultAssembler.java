@@ -1,6 +1,7 @@
 package com.tuxlogic.shiftiq.platform.operations.interfaces.rest.transform;
 
 import com.tuxlogic.shiftiq.platform.operations.application.commandservices.WorkOrderCommandFailure;
+import com.tuxlogic.shiftiq.platform.operations.application.outboundservices.ExternalVehicleService.VehicleSummary;
 import com.tuxlogic.shiftiq.platform.operations.domain.model.aggregates.WorkOrder;
 import com.tuxlogic.shiftiq.platform.shared.application.result.Result;
 import org.springframework.context.MessageSource;
@@ -36,10 +37,21 @@ public final class ResponseEntityFromWorkOrderCommandResultAssembler {
             MessageSource messageSource,
             String branchCode,
             HttpStatus successStatus) {
+        return toResourceResponseEntityFromResult(result, messageSource, branchCode, null, null, successStatus);
+    }
+
+    public static ResponseEntity<?> toResourceResponseEntityFromResult(
+            Result<WorkOrder, WorkOrderCommandFailure> result,
+            MessageSource messageSource,
+            String branchCode,
+            String customerName,
+            VehicleSummary vehicleSummary,
+            HttpStatus successStatus) {
 
         return result.fold(
                 workOrder -> new ResponseEntity<>(
-                        WorkOrderResourceFromAggregateAssembler.toResourceFromAggregate(workOrder, branchCode),
+                        WorkOrderResourceFromAggregateAssembler.toResourceFromAggregate(
+                                workOrder, branchCode, customerName, vehicleSummary),
                         successStatus
                 ),
                 failure -> {

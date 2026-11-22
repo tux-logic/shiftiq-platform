@@ -154,4 +154,41 @@ class WorkOrdersControllerTest {
         assertNotNull(response);
         assertEquals(HttpStatus.NO_CONTENT, response.getStatusCode());
     }
+
+    @Test
+    void getWorkOrderById_ShouldIncludeCustomerNameAndVehicleSummary() {
+        UUID workOrderId = UUID.randomUUID();
+        UUID branchId = UUID.randomUUID();
+        UUID vehicleId = UUID.randomUUID();
+        UUID customerId = UUID.randomUUID();
+
+        WorkOrder realWorkOrder = new WorkOrder(
+                new com.tuxlogic.shiftiq.platform.operations.domain.model.valueobjects.AppointmentId(UUID.randomUUID()),
+                new BranchId(branchId),
+                new com.tuxlogic.shiftiq.platform.shared.domain.model.valueobjects.VehicleId(vehicleId),
+                new com.tuxlogic.shiftiq.platform.shared.domain.model.valueobjects.CustomerId(customerId),
+                1,
+                new com.tuxlogic.shiftiq.platform.operations.domain.model.valueobjects.DiagnosticSummary("Diagnostico test"),
+                new com.tuxlogic.shiftiq.platform.shared.domain.model.valueobjects.Mileage(35000)
+        );
+
+        when(queryService.handle(any(GetWorkOrderByIdQuery.class))).thenReturn(Optional.of(realWorkOrder));
+        when(queryService.getBranchCode(branchId)).thenReturn("BR-MIRA-01");
+        when(queryService.getCustomerName(customerId)).thenReturn(Optional.of("ALAN JAIVI MAMANI VILCA"));
+        when(queryService.getVehicleSummary(vehicleId)).thenReturn(Optional.of(
+                new com.tuxlogic.shiftiq.platform.operations.application.outboundservices.ExternalVehicleService.VehicleSummary(
+                        "B5K-412", "Toyota", "Corolla", 2022)));
+
+        ResponseEntity<?> response = controller.getWorkOrderById(workOrderId);
+
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        var body = assertInstanceOf(
+                com.tuxlogic.shiftiq.platform.operations.interfaces.rest.resources.WorkOrderResource.class,
+                response.getBody());
+        assertEquals("ALAN JAIVI MAMANI VILCA", body.customerName());
+        assertEquals("B5K-412", body.vehiclePlateNumber());
+        assertEquals("Toyota", body.vehicleBrand());
+        assertEquals("Corolla", body.vehicleModel());
+        assertEquals(2022, body.vehicleYear());
+    }
 }

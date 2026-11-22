@@ -46,4 +46,18 @@ public interface WorkOrderQueryService {
      * @return the short code, or "WO" as fallback
      */
     String getBranchCode(java.util.UUID branchId);
+
+    /**
+     * Gets the display name for a customer.
+     * @param customerId the unique identifier of the customer
+     * @return an Optional containing the customer's display name if found
+     */
+    Optional<String> getCustomerName(java.util.UUID customerId);
+
+    /**
+     * Gets summary details for a vehicle.
+     * @param vehicleId the unique identifier of the vehicle
+     * @return an Optional containing the vehicle summary if found
+     */
+    Optional<com.tuxlogic.shiftiq.platform.operations.application.outboundservices.ExternalVehicleService.VehicleSummary> getVehicleSummary(java.util.UUID vehicleId);
 }
