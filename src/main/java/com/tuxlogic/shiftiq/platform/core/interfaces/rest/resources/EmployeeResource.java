@@ -9,6 +9,7 @@ public record EmployeeResource(
         String lastName,
         String documentType,
         String documentNumber,
-        String phone
+        String phone,
+        String profileImageUrl
 ) {
 }

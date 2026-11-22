@@ -47,6 +47,9 @@ public class OwnerPersistenceEntity extends AuditableAbstractPersistenceEntity i
     @Column(nullable = false)
     private String phone;
 
+    @Column(name = "profile_image_url")
+    private String profileImageUrl;
+
     @Column(name = "deleted_at")
     private Instant deletedAt;
 }

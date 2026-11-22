@@ -45,6 +45,33 @@ No requiere parámetros de query ni cuerpo. La identidad se resuelve a partir de
 
 ---
 
+## `PUT /api/v1/profiles/me/image` (también `PATCH`) — Actualizar Foto de Perfil
+
+**Security**: `isAuthenticated()`  
+**Description**: Actualiza `profileImageUrl` en todos los perfiles Core (`owner`, `employee`, `customer`) asociados al usuario autenticado y retorna el `UserProfileContextResource` actualizado. Primero subir la imagen vía `POST /api/v1/media/upload` y luego enviar la `url` devuelta aquí.
+
+### Request
+
+```json
+{
+  "profileImageUrl": "https://res.cloudinary.com/demo/image/upload/v1234/shiftiq/customers/avatar.jpg"
+}
+```
+
+### Success Response (200 OK)
+
+Retorna `UserProfileContextResource` actualizado con `profileImageUrl` persistido.
+
+### Error Responses
+
+| HTTP Code | Error Code | Descripción |
+|-----------|------------|-------------|
+| 400 | `VALIDATION_ERROR` | `profileImageUrl` vacío o faltante |
+| 401 | `UNAUTHORIZED` | Token JWT ausente o inválido |
+| 404 | `NOT_FOUND` | El usuario no tiene perfiles Core asociados |
+
+---
+
 ## `GET /api/v1/profiles/roles?userId={userId}` — Obtener Roles Activos del Usuario
 
 **Security**: Validación manual `validateUserAccess(userId)`  
