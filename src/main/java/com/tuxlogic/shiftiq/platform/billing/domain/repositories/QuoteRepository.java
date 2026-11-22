@@ -44,6 +44,11 @@ public interface QuoteRepository {
     List<Quote> findAllByBranchId(BranchId branchId);
 
     /**
+     * Finds all Quotes associated with any of the given work order identifiers.
+     */
+    List<Quote> findAllByWorkOrderIds(List<UUID> workOrderIds);
+
+    /**
      * Checks if a Quote exists for a specific Work Order.
      * 
      * @param workOrderId The unique identifier of the work order.

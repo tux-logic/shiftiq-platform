@@ -80,6 +80,19 @@ public class WorkOrderQueryServiceImpl implements WorkOrderQueryService {
     }
 
     @Override
+    public List<WorkOrder> handle(GetWorkOrdersByCustomerIdQuery query) {
+        if (query.customerId() == null) {
+            throw new IllegalArgumentException("customerId is required");
+        }
+        return workOrderRepository.findAllByCustomerId(query.customerId());
+    }
+
+    @Override
+    public Optional<UUID> getCustomerIdByUserId(UUID userId) {
+        return externalCustomerService.fetchCustomerIdByUserId(userId);
+    }
+
+    @Override
     public String getBranchCode(UUID branchId) {
         return externalBranchService.fetchBranchCode(branchId).orElse("WO");
     }

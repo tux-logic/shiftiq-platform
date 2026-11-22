@@ -133,9 +133,20 @@
 
 ---
 
+## `GET /api/v1/work-orders/me` — Listar Mis Órdenes de Trabajo (Cliente — Solo Lectura)
+
+**Security**: `@PreAuthorize("isAuthenticated()")`  
+**Description**: Retorna todas las Órdenes de Trabajo del cliente autenticado en modo solo lectura, incluyendo el progreso de cada tarea, repuestos y fotos de evidencia (`evidenceImages`) subidas por el mecánico.
+
+### Success Response (200 OK)
+
+Array de `WorkOrderResource` con `tasks`, `products`, `evidenceImages`, `customerName` y datos del vehículo (`vehiclePlateNumber`, `vehicleBrand`, `vehicleModel`, `vehicleYear`).
+
+---
+
 ## `GET /api/v1/work-orders/{id}` — Detalle Completo de OT
 
-**Security**: Validación manual `isAuthorizedForBranch(ot.branchId)`  
+**Security**: Staff autorizado de la sede (`isAuthorizedForBranch(ot.branchId)`) o el cliente dueño de la OT (solo lectura)  
 **Description**: **Endpoint principal** — retorna OT con tareas, mecánicos asignados, repuestos, fotos y montos consolidados.
 
 ### Success Response (200 OK)

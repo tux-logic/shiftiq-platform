@@ -97,6 +97,17 @@
 
 ---
 
+## `GET /api/v1/quotes/me` — Listar Mis Cotizaciones (Cliente — Solo Lectura)
+
+**Security**: `@PreAuthorize("isAuthenticated()")`  
+**Description**: Lista todas las cotizaciones asociadas a las órdenes de trabajo del cliente autenticado (incluyendo cotizaciones `APPROVED` listas para pago desde la app móvil).
+
+### Success Response (200 OK)
+
+Array de `QuoteResource`.
+
+---
+
 ## `GET /api/v1/quotes?branchId={branchId}` — Listar Cotizaciones de Sede
 
 **Security**: `@PreAuthorize("isAuthenticated() and @multiTenancySecurityService.isAuthorizedForBranch(#branchId)")`  

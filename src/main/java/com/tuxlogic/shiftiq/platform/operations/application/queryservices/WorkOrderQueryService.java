@@ -41,6 +41,20 @@ public interface WorkOrderQueryService {
     List<WorkOrder> handle(GetWorkOrdersByVehicleIdQuery query);
 
     /**
+     * Handles the retrieval of all Work Orders associated with a specific Customer ID.
+     * @param query The query object containing the Customer ID.
+     * @return A list of Work Orders associated with the specified Customer ID.
+     */
+    List<WorkOrder> handle(GetWorkOrdersByCustomerIdQuery query);
+
+    /**
+     * Resolves the customer profile ID for an authenticated IAM user ID.
+     * @param userId the IAM user ID
+     * @return an Optional containing the customer ID if found
+     */
+    Optional<java.util.UUID> getCustomerIdByUserId(java.util.UUID userId);
+
+    /**
      * Gets the short code for a branch.
      * @param branchId the unique identifier of the branch
      * @return the short code, or "WO" as fallback

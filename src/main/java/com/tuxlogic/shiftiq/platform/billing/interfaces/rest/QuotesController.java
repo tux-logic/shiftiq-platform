@@ -25,8 +25,13 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.security.access.prepost.PreAuthorize;
 
+import com.tuxlogic.shiftiq.platform.billing.application.outboundservices.ExternalBillingContextService;
 import com.tuxlogic.shiftiq.platform.iam.domain.model.valueobjects.Permission;
+import com.tuxlogic.shiftiq.platform.shared.infrastructure.security.AuthenticatedPrincipal;
 import com.tuxlogic.shiftiq.platform.shared.infrastructure.security.MultiTenancySecurityService;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.core.Authentication;
 
 /**
  * REST controller for managing billing quotes.
@@ -43,12 +48,19 @@ public class QuotesController {
     private final QuoteQueryService queryService;
     private final org.springframework.context.MessageSource messageSource;
     private final MultiTenancySecurityService multiTenancySecurityService;
+    private final ExternalBillingContextService externalBillingContextService;
 
     public QuotesController(QuoteCommandService commandService, QuoteQueryService queryService, org.springframework.context.MessageSource messageSource, MultiTenancySecurityService multiTenancySecurityService) {
+        this(commandService, queryService, messageSource, multiTenancySecurityService, null);
+    }
+
+    @Autowired
+    public QuotesController(QuoteCommandService commandService, QuoteQueryService queryService, org.springframework.context.MessageSource messageSource, MultiTenancySecurityService multiTenancySecurityService, ExternalBillingContextService externalBillingContextService) {
         this.commandService = commandService;
         this.queryService = queryService;
         this.messageSource = messageSource;
         this.multiTenancySecurityService = multiTenancySecurityService;
+        this.externalBillingContextService = externalBillingContextService;
     }
 
     /**
@@ -125,16 +137,42 @@ public class QuotesController {
         return toErrorResponse(result.failure().get());
     }
 
+    @GetMapping("/me")
+    @Operation(summary = "Get my quotes", description = "Retrieves all Quotes associated with the authenticated customer's work orders in read-only mode")
+    public ResponseEntity<List<QuoteResource>> getMyQuotes(Authentication authentication) {
+        if (authentication == null || !(authentication.getPrincipal() instanceof AuthenticatedPrincipal principal)) {
+            throw new AccessDeniedException("Authentication required");
+        }
+        if (externalBillingContextService == null) {
+            return ResponseEntity.ok(List.of());
+        }
+        List<UUID> workOrderIds = externalBillingContextService.findWorkOrderIdsByUserId(principal.getId());
+        if (workOrderIds.isEmpty()) {
+            return ResponseEntity.ok(List.of());
+        }
+        var resources = queryService.findAllByWorkOrderIds(workOrderIds).stream()
+                .map(QuoteResourceFromAggregateAssembler::toResourceFromAggregate)
+                .collect(Collectors.toList());
+        return ResponseEntity.ok(resources);
+    }
+
     @GetMapping("/{id}")
-    @Operation(summary = "Get quote by ID", description = "Retrieves a Quote by its unique identifier")
-    public ResponseEntity<QuoteResource> getQuoteById(@PathVariable UUID id) {
-        validateQuotePermission(id, Permission.QUOTE_READ);
-        var query = new GetQuoteByIdQuery(id);
-        var quote = queryService.handle(query);
-        if (quote.isEmpty()) {
+    @Operation(summary = "Get quote by ID", description = "Retrieves a Quote by its unique identifier for authorized branch staff or the owning customer")
+    public ResponseEntity<QuoteResource> getQuoteById(@PathVariable UUID id, Authentication authentication) {
+        var quoteOpt = queryService.handle(new GetQuoteByIdQuery(id));
+        if (quoteOpt.isEmpty()) {
             return ResponseEntity.notFound().build();
         }
-        var resource = QuoteResourceFromAggregateAssembler.toResourceFromAggregate(quote.get());
+        var quote = quoteOpt.get();
+        boolean isCustomerOwner = externalBillingContextService != null
+                && authentication != null
+                && authentication.getPrincipal() instanceof AuthenticatedPrincipal principal
+                && externalBillingContextService.isCustomerOwnerOfWorkOrder(principal.getId(), quote.getWorkOrderId());
+
+        if (!isCustomerOwner) {
+            multiTenancySecurityService.validateBranchPermission(quote.getBranchId().value(), Permission.QUOTE_READ);
+        }
+        var resource = QuoteResourceFromAggregateAssembler.toResourceFromAggregate(quote);
         return ResponseEntity.ok(resource);
     }
 
