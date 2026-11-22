@@ -8,8 +8,8 @@
 
 ## `POST /api/v1/payments/mercadopago/preferences` — Crear Preferencia de Pago
 
-**Security**: `@PreAuthorize("isAuthenticated()")` + validación manual `isAuthorizedForBranch(quote.branchId)`  
-**Description**: Genera preferencia MP desde cotización `APPROVED`. Persiste `PaymentIntent` para webhook autónomo.
+**Security**: `@PreAuthorize("isAuthenticated()")` — Staff autorizado de la sede (`isAuthorizedForBranch(quote.branchId)`) o el **cliente dueño de la orden de trabajo** (cuando la OT está `COMPLETED`)  
+**Description**: Genera preferencia MP desde cotización `APPROVED`. Persiste `PaymentIntent` para webhook autónomo. Si `billing.electronic-invoicing.enabled=false`, al confirmarse el pago se marca el comprobante interno y la OT como `PAID` sin invocar a Factos.
 
 ### Request
 
