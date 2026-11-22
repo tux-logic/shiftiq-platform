@@ -13,7 +13,7 @@ import java.util.UUID;
 /**
  * Adapter encapsulating customer display name query execution across the Operations-Core boundary.
  */
-@Service
+@Service("operationsExternalCustomerService")
 public class ExternalCustomerServiceImpl implements ExternalCustomerService {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(ExternalCustomerServiceImpl.class);

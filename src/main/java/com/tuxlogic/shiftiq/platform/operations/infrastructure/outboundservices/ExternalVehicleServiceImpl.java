@@ -13,7 +13,7 @@ import java.util.UUID;
 /**
  * Adapter encapsulating vehicle summary query execution across the Operations-IoT boundary.
  */
-@Service
+@Service("operationsExternalVehicleService")
 public class ExternalVehicleServiceImpl implements ExternalVehicleService {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(ExternalVehicleServiceImpl.class);
