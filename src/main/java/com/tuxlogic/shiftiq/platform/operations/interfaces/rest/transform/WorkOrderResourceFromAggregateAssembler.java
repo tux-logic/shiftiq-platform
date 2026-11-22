@@ -1,5 +1,6 @@
 package com.tuxlogic.shiftiq.platform.operations.interfaces.rest.transform;
 
+import com.tuxlogic.shiftiq.platform.operations.application.outboundservices.ExternalVehicleService.VehicleSummary;
 import com.tuxlogic.shiftiq.platform.operations.domain.model.aggregates.WorkOrder;
 import com.tuxlogic.shiftiq.platform.operations.domain.model.entities.WorkOrderTask;
 import com.tuxlogic.shiftiq.platform.operations.domain.model.entities.WorkOrderTaskProduct;
@@ -22,6 +23,17 @@ public final class WorkOrderResourceFromAggregateAssembler {
      * @return A WorkOrderResource that represents the given WorkOrder aggregate, including its tasks and products. This resource is suitable for use in REST API responses, providing a structured representation of the work order data that can be easily consumed by clients.
      */
     public static WorkOrderResource toResourceFromAggregate(WorkOrder workOrder, String branchCode) {
+        return toResourceFromAggregate(workOrder, branchCode, null, null);
+    }
+
+    /**
+     * Transform a WorkOrder aggregate into a WorkOrderResource, enriching it with customer name and vehicle summary details.
+     */
+    public static WorkOrderResource toResourceFromAggregate(
+            WorkOrder workOrder,
+            String branchCode,
+            String customerName,
+            VehicleSummary vehicleSummary) {
         List<WorkOrderTaskResource> taskResources = new ArrayList<>();
 
         for (WorkOrderTask task : workOrder.getTasks()) {
@@ -37,7 +49,12 @@ public final class WorkOrderResourceFromAggregateAssembler {
                 workOrder.getAppointmentId().value(),
                 workOrder.getBranchId().value(),
                 workOrder.getVehicleId().value(),
+                vehicleSummary != null ? vehicleSummary.plateNumber() : null,
+                vehicleSummary != null ? vehicleSummary.brand() : null,
+                vehicleSummary != null ? vehicleSummary.model() : null,
+                vehicleSummary != null ? vehicleSummary.year() : null,
                 workOrder.getCustomerId().value(),
+                customerName,
                 workOrder.getInternalNumber(),
                 formattedNumber,
                 workOrder.getStatus().name(),

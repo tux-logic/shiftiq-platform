@@ -68,7 +68,14 @@ public class WorkOrdersController {
         String branchCode = result.success()
                 .map(wo -> queryService.getBranchCode(wo.getBranchId().value()))
                 .orElse("WO");
-        return ResponseEntityFromWorkOrderCommandResultAssembler.toResponseEntityFromResult(result, messageSource, branchCode, status);
+        String customerName = result.success()
+                .flatMap(wo -> queryService.getCustomerName(wo.getCustomerId().value()))
+                .orElse(null);
+        var vehicleSummary = result.success()
+                .flatMap(wo -> queryService.getVehicleSummary(wo.getVehicleId().value()))
+                .orElse(null);
+        return ResponseEntityFromWorkOrderCommandResultAssembler.toResourceResponseEntityFromResult(
+                result, messageSource, branchCode, customerName, vehicleSummary, status);
     }
 
     private WorkOrder validateWorkOrderAccess(UUID id) {
@@ -135,6 +142,13 @@ public class WorkOrdersController {
         return toResponse(result, HttpStatus.NO_CONTENT);
     }
 
+    private WorkOrderResource toWorkOrderResource(WorkOrder value, String branchCode) {
+        String customerName = queryService.getCustomerName(value.getCustomerId().value()).orElse(null);
+        var vehicleSummary = queryService.getVehicleSummary(value.getVehicleId().value()).orElse(null);
+        return WorkOrderResourceFromAggregateAssembler.toResourceFromAggregate(
+                value, branchCode, customerName, vehicleSummary);
+    }
+
     @GetMapping("/{id}")
     @Operation(summary = "Get a Work Order by ID", description = "Retrieves the details of a specific Work Order")
     @PreAuthorize("isAuthenticated()")
@@ -145,7 +159,7 @@ public class WorkOrdersController {
 
         return workOrder.map(value -> {
             String branchCode = queryService.getBranchCode(value.getBranchId().value());
-            return ResponseEntity.ok(WorkOrderResourceFromAggregateAssembler.toResourceFromAggregate(value, branchCode));
+            return ResponseEntity.ok(toWorkOrderResource(value, branchCode));
         }).orElseGet(() -> ResponseEntity.status(HttpStatus.NOT_FOUND).build());
     }
 
@@ -160,7 +174,7 @@ public class WorkOrdersController {
             List<WorkOrder> list = queryService.handle(query);
             String branchCode = queryService.getBranchCode(branchId);
             List<WorkOrderResource> resources = list.stream()
-                    .map(value -> WorkOrderResourceFromAggregateAssembler.toResourceFromAggregate(value, branchCode))
+                    .map(value -> toWorkOrderResource(value, branchCode))
                     .toList();
             return ResponseEntity.ok(resources);
         } else if (vehicleId != null) {
@@ -170,7 +184,7 @@ public class WorkOrdersController {
             List<WorkOrderResource> resources = list.stream()
                     .map(value -> {
                         String branchCode = queryService.getBranchCode(value.getBranchId().value());
-                        return WorkOrderResourceFromAggregateAssembler.toResourceFromAggregate(value, branchCode);
+                        return toWorkOrderResource(value, branchCode);
                     })
                     .toList();
             return ResponseEntity.ok(resources);

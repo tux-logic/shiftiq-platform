@@ -1,6 +1,9 @@
 package com.tuxlogic.shiftiq.platform.operations.application.internal.queryservices;
 
 import com.tuxlogic.shiftiq.platform.operations.application.outboundservices.ExternalBranchService;
+import com.tuxlogic.shiftiq.platform.operations.application.outboundservices.ExternalCustomerService;
+import com.tuxlogic.shiftiq.platform.operations.application.outboundservices.ExternalVehicleService;
+import com.tuxlogic.shiftiq.platform.operations.application.outboundservices.ExternalVehicleService.VehicleSummary;
 import com.tuxlogic.shiftiq.platform.operations.application.queryservices.WorkOrderQueryService;
 import com.tuxlogic.shiftiq.platform.operations.domain.model.aggregates.WorkOrder;
 import com.tuxlogic.shiftiq.platform.operations.domain.model.queries.*;
@@ -27,10 +30,17 @@ public class WorkOrderQueryServiceImpl implements WorkOrderQueryService {
     private static final Logger LOGGER = LoggerFactory.getLogger(WorkOrderQueryServiceImpl.class);
     private final WorkOrderRepository workOrderRepository;
     private final ExternalBranchService externalBranchService;
+    private final ExternalCustomerService externalCustomerService;
+    private final ExternalVehicleService externalVehicleService;
 
-    public WorkOrderQueryServiceImpl(WorkOrderRepository workOrderRepository, ExternalBranchService externalBranchService) {
+    public WorkOrderQueryServiceImpl(WorkOrderRepository workOrderRepository,
+                                     ExternalBranchService externalBranchService,
+                                     ExternalCustomerService externalCustomerService,
+                                     ExternalVehicleService externalVehicleService) {
         this.workOrderRepository = workOrderRepository;
         this.externalBranchService = externalBranchService;
+        this.externalCustomerService = externalCustomerService;
+        this.externalVehicleService = externalVehicleService;
     }
 
     @Override
@@ -72,5 +82,15 @@ public class WorkOrderQueryServiceImpl implements WorkOrderQueryService {
     @Override
     public String getBranchCode(UUID branchId) {
         return externalBranchService.fetchBranchCode(branchId).orElse("WO");
+    }
+
+    @Override
+    public Optional<String> getCustomerName(UUID customerId) {
+        return externalCustomerService.fetchCustomerName(customerId);
+    }
+
+    @Override
+    public Optional<VehicleSummary> getVehicleSummary(UUID vehicleId) {
+        return externalVehicleService.fetchVehicleSummary(vehicleId);
     }
 }

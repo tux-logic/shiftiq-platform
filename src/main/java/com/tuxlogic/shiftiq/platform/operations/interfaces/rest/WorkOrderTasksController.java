@@ -65,7 +65,14 @@ public class WorkOrderTasksController {
         String branchCode = result.success()
                 .map(wo -> queryService.getBranchCode(wo.getBranchId().value()))
                 .orElse("WO");
-        return ResponseEntityFromWorkOrderCommandResultAssembler.toResponseEntityFromResult(result, messageSource, branchCode, status);
+        String customerName = result.success()
+                .flatMap(wo -> queryService.getCustomerName(wo.getCustomerId().value()))
+                .orElse(null);
+        var vehicleSummary = result.success()
+                .flatMap(wo -> queryService.getVehicleSummary(wo.getVehicleId().value()))
+                .orElse(null);
+        return ResponseEntityFromWorkOrderCommandResultAssembler.toResourceResponseEntityFromResult(
+                result, messageSource, branchCode, customerName, vehicleSummary, status);
     }
 
     /**
