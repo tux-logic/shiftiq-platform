@@ -26,4 +26,9 @@ public interface QuoteQueryService {
      * @return A list of Quotes belonging to the branch, or an empty list if none are found.
      */
     java.util.List<Quote> handle(com.tuxlogic.shiftiq.platform.billing.domain.model.queries.GetQuotesByBranchIdQuery query);
+
+    /**
+     * Handles the retrieval of all Quotes associated with a list of Work Order IDs.
+     */
+    java.util.List<Quote> findAllByWorkOrderIds(java.util.List<java.util.UUID> workOrderIds);
 }

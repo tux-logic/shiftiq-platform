@@ -63,6 +63,17 @@ public class QuoteRepositoryImpl implements QuoteRepository {
     }
 
     @Override
+    public List<Quote> findAllByWorkOrderIds(List<UUID> workOrderIds) {
+        if (workOrderIds == null || workOrderIds.isEmpty()) {
+            return List.of();
+        }
+        return persistenceRepository.findAllByWorkOrderIdIn(workOrderIds)
+                .stream()
+                .map(QuotePersistenceAssembler::toAggregate)
+                .collect(Collectors.toList());
+    }
+
+    @Override
     public boolean existsByWorkOrderId(UUID workOrderId) {
         return persistenceRepository.existsByWorkOrderId(workOrderId);
     }

@@ -2,11 +2,14 @@ package com.tuxlogic.shiftiq.platform.billing.interfaces.rest;
 
 import com.tuxlogic.shiftiq.platform.billing.application.commandservices.MercadoPagoPaymentCommandService;
 import com.tuxlogic.shiftiq.platform.billing.application.commandservices.VoucherCommandService;
+import com.tuxlogic.shiftiq.platform.billing.application.outboundservices.ExternalBillingContextService;
+import com.tuxlogic.shiftiq.platform.billing.application.outboundservices.PaymentGatewayRegistry;
 import com.tuxlogic.shiftiq.platform.billing.application.queryservices.QuoteQueryService;
 import com.tuxlogic.shiftiq.platform.billing.application.queryservices.VoucherQueryService;
 import com.tuxlogic.shiftiq.platform.billing.domain.model.commands.ProcessMercadoPagoCheckoutCommand;
 import com.tuxlogic.shiftiq.platform.billing.domain.model.queries.GetQuoteByIdQuery;
 import com.tuxlogic.shiftiq.platform.billing.domain.model.queries.GetVoucherByQuoteIdQuery;
+import com.tuxlogic.shiftiq.platform.billing.domain.model.valueobjects.PaymentProvider;
 import com.tuxlogic.shiftiq.platform.billing.domain.model.valueobjects.QuoteStatus;
 import com.tuxlogic.shiftiq.platform.billing.domain.model.valueobjects.VoucherStatus;
 import com.tuxlogic.shiftiq.platform.billing.domain.model.valueobjects.VoucherType;
@@ -14,8 +17,11 @@ import com.tuxlogic.shiftiq.platform.billing.interfaces.rest.resources.CreateMer
 import com.tuxlogic.shiftiq.platform.billing.interfaces.rest.resources.MercadoPagoPreferenceResource;
 import com.tuxlogic.shiftiq.platform.billing.interfaces.rest.resources.MercadoPagoWebhookResource;
 import com.tuxlogic.shiftiq.platform.shared.application.result.ApplicationError;
+import com.tuxlogic.shiftiq.platform.shared.infrastructure.security.AuthenticatedPrincipal;
 import com.tuxlogic.shiftiq.platform.shared.infrastructure.security.MultiTenancySecurityService;
 import com.tuxlogic.shiftiq.platform.shared.interfaces.rest.transform.ErrorResponseAssembler;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.core.Authentication;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -50,6 +56,8 @@ public class MercadoPagoPaymentsController {
     private final QuoteQueryService quoteQueryService;
     private final VoucherQueryService voucherQueryService;
     private final MultiTenancySecurityService multiTenancySecurityService;
+    private final ExternalBillingContextService externalBillingContextService;
+    private final PaymentGatewayRegistry paymentGatewayRegistry;
     private final MessageSource messageSource;
     private final String webhookSecret;
 
@@ -59,6 +67,8 @@ public class MercadoPagoPaymentsController {
             QuoteQueryService quoteQueryService,
             VoucherQueryService voucherQueryService,
             MultiTenancySecurityService multiTenancySecurityService,
+            ExternalBillingContextService externalBillingContextService,
+            PaymentGatewayRegistry paymentGatewayRegistry,
             MessageSource messageSource,
             @Value("${mercadopago.webhook.secret:}") String webhookSecret) {
         this.paymentCommandService = paymentCommandService;
@@ -66,14 +76,18 @@ public class MercadoPagoPaymentsController {
         this.quoteQueryService = quoteQueryService;
         this.voucherQueryService = voucherQueryService;
         this.multiTenancySecurityService = multiTenancySecurityService;
+        this.externalBillingContextService = externalBillingContextService;
+        this.paymentGatewayRegistry = paymentGatewayRegistry;
         this.messageSource = messageSource;
         this.webhookSecret = webhookSecret;
     }
 
     @PostMapping("/preferences")
     @PreAuthorize("isAuthenticated()")
-    @Operation(summary = "Create a Mercado Pago Preference", description = "Generates a Mercado Pago checkout preference derived directly from an approved Quote")
-    public ResponseEntity<?> createPreference(@Valid @RequestBody CreateMercadoPagoPreferenceResource resource) {
+    @Operation(summary = "Create a Mercado Pago Preference", description = "Generates a Mercado Pago checkout preference derived directly from an approved Quote for branch staff or the owning customer (once work order is COMPLETED)")
+    public ResponseEntity<?> createPreference(
+            @Valid @RequestBody CreateMercadoPagoPreferenceResource resource,
+            Authentication authentication) {
         var quoteOpt = quoteQueryService.handle(new GetQuoteByIdQuery(resource.quoteId()));
         if (quoteOpt.isEmpty()) {
             String message = messageSource.getMessage("billing.error.quote.notFound", null, LocaleContextHolder.getLocale());
@@ -81,7 +95,19 @@ public class MercadoPagoPaymentsController {
         }
 
         var quote = quoteOpt.get();
-        multiTenancySecurityService.validateBranchAccess(quote.getBranchId().value());
+        boolean isBranchStaff = multiTenancySecurityService.isAuthorizedForBranch(quote.getBranchId().value());
+        if (!isBranchStaff) {
+            boolean isOwningCustomer = authentication != null
+                    && authentication.getPrincipal() instanceof AuthenticatedPrincipal principal
+                    && externalBillingContextService.isCustomerOwnerOfWorkOrder(principal.getId(), quote.getWorkOrderId());
+            if (!isOwningCustomer) {
+                throw new AccessDeniedException("Unauthorized access for requested quote: " + quote.getId());
+            }
+            if (!externalBillingContextService.isWorkOrderCompleted(quote.getWorkOrderId())) {
+                return ErrorResponseAssembler.toErrorResponseFromApplicationError(
+                        ApplicationError.conflict("preference", "Work order must be COMPLETED before customer payment."));
+            }
+        }
 
         if (quote.getStatus() != QuoteStatus.APPROVED) {
             String message = messageSource.getMessage("billing.error.voucher.notApproved", null, LocaleContextHolder.getLocale());
@@ -121,7 +147,8 @@ public class MercadoPagoPaymentsController {
                 quote.getTotalAmount().amount()
         );
 
-        var resultOpt = paymentCommandService.createPreference(
+        var strategy = paymentGatewayRegistry.resolve(PaymentProvider.MERCADO_PAGO);
+        var resultOpt = strategy.createCheckoutSession(
                 quote.getTotalAmount().amount(),
                 "PEN",
                 "Cotizacion ShiftIQ #" + quote.getId().toString().substring(0, 8),
@@ -136,9 +163,9 @@ public class MercadoPagoPaymentsController {
 
         var result = resultOpt.get();
         var responseResource = new MercadoPagoPreferenceResource(
-                result.preferenceId(),
-                result.initPoint(),
-                result.sandboxInitPoint(),
+                result.sessionId(),
+                result.checkoutUrl(),
+                result.sandboxCheckoutUrl(),
                 result.amount(),
                 result.currency(),
                 result.externalReference()

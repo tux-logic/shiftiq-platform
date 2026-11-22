@@ -41,11 +41,14 @@ class QuotesControllerTest {
     @Mock
     private MultiTenancySecurityService multiTenancySecurityService;
 
+    @Mock
+    private com.tuxlogic.shiftiq.platform.billing.application.outboundservices.ExternalBillingContextService externalBillingContextService;
+
     private QuotesController controller;
 
     @BeforeEach
     void setUp() {
-        controller = new QuotesController(commandService, queryService, messageSource, multiTenancySecurityService);
+        controller = new QuotesController(commandService, queryService, messageSource, multiTenancySecurityService, externalBillingContextService);
     }
 
     @Test
@@ -78,6 +81,48 @@ class QuotesControllerTest {
         assertNotNull(response);
         assertEquals(HttpStatus.CREATED, response.getStatusCode());
         verify(multiTenancySecurityService).validateBranchPermission(branchId, Permission.QUOTE_CREATE);
+    }
+
+    @Test
+    void getMyQuotes_WhenAuthenticatedCustomer_ShouldReturnCustomerQuotes() {
+        UUID workOrderId = UUID.randomUUID();
+        UUID branchId = UUID.randomUUID();
+        UUID userId = UUID.randomUUID();
+
+        Quote quote = new Quote(new CreateQuoteCommand(workOrderId, new BranchId(branchId), 0.0), Money.of(150.0));
+        var principal = mock(com.tuxlogic.shiftiq.platform.shared.infrastructure.security.AuthenticatedPrincipal.class);
+        when(principal.getId()).thenReturn(userId);
+        var auth = new org.springframework.security.authentication.UsernamePasswordAuthenticationToken(principal, null);
+
+        when(externalBillingContextService.findWorkOrderIdsByUserId(userId)).thenReturn(java.util.List.of(workOrderId));
+        when(queryService.findAllByWorkOrderIds(java.util.List.of(workOrderId))).thenReturn(java.util.List.of(quote));
+
+        var response = controller.getMyQuotes(auth);
+
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertNotNull(response.getBody());
+        assertEquals(1, response.getBody().size());
+    }
+
+    @Test
+    void getQuoteById_WhenOwningCustomer_ShouldAllowReadOnlyAccess() {
+        UUID workOrderId = UUID.randomUUID();
+        UUID branchId = UUID.randomUUID();
+        UUID userId = UUID.randomUUID();
+
+        Quote quote = new Quote(new CreateQuoteCommand(workOrderId, new BranchId(branchId), 0.0), Money.of(150.0));
+        var principal = mock(com.tuxlogic.shiftiq.platform.shared.infrastructure.security.AuthenticatedPrincipal.class);
+        when(principal.getId()).thenReturn(userId);
+        var auth = new org.springframework.security.authentication.UsernamePasswordAuthenticationToken(principal, null);
+
+        when(queryService.handle(any(com.tuxlogic.shiftiq.platform.billing.domain.model.queries.GetQuoteByIdQuery.class)))
+                .thenReturn(java.util.Optional.of(quote));
+        when(externalBillingContextService.isCustomerOwnerOfWorkOrder(userId, workOrderId)).thenReturn(true);
+
+        var response = controller.getQuoteById(quote.getId(), auth);
+
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        verify(multiTenancySecurityService, never()).validateBranchPermission(any(), any());
     }
 }
 

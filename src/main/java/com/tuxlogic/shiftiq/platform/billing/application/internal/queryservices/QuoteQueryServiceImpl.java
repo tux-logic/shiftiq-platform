@@ -44,4 +44,9 @@ public class QuoteQueryServiceImpl implements QuoteQueryService {
     public java.util.List<Quote> handle(com.tuxlogic.shiftiq.platform.billing.domain.model.queries.GetQuotesByBranchIdQuery query) {
         return quoteRepository.findAllByBranchId(query.branchId());
     }
+
+    @Override
+    public java.util.List<Quote> findAllByWorkOrderIds(java.util.List<java.util.UUID> workOrderIds) {
+        return quoteRepository.findAllByWorkOrderIds(workOrderIds);
+    }
 }
