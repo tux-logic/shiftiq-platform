@@ -51,4 +51,22 @@ public class ExternalCustomerServiceImpl implements ExternalCustomerService {
             return Optional.empty();
         }
     }
+
+    @Override
+    public Optional<UUID> fetchCustomerIdByUserId(UUID userId) {
+        if (userId == null) {
+            return Optional.empty();
+        }
+        try {
+            UUID customerId = jdbcTemplate.queryForObject(
+                    "SELECT id FROM customers WHERE user_id = ? AND deleted_at IS NULL",
+                    UUID.class,
+                    userId
+            );
+            return Optional.ofNullable(customerId);
+        } catch (DataAccessException e) {
+            LOGGER.debug("No customer profile found for userId: {}", userId);
+            return Optional.empty();
+        }
+    }
 }
