@@ -12,13 +12,17 @@ import com.tuxlogic.shiftiq.platform.operations.interfaces.rest.resources.*;
 import com.tuxlogic.shiftiq.platform.operations.interfaces.rest.transform.*;
 import com.tuxlogic.shiftiq.platform.shared.application.result.Result;
 import com.tuxlogic.shiftiq.platform.shared.domain.model.valueobjects.BranchId;
+import com.tuxlogic.shiftiq.platform.shared.domain.model.valueobjects.CustomerId;
 import com.tuxlogic.shiftiq.platform.shared.domain.model.valueobjects.VehicleId;
+import com.tuxlogic.shiftiq.platform.shared.infrastructure.security.AuthenticatedPrincipal;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.context.MessageSource;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -149,18 +153,48 @@ public class WorkOrdersController {
                 value, branchCode, customerName, vehicleSummary);
     }
 
-    @GetMapping("/{id}")
-    @Operation(summary = "Get a Work Order by ID", description = "Retrieves the details of a specific Work Order")
-    @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<?> getWorkOrderById(@PathVariable UUID id) {
-        validateWorkOrderAccess(id);
-        var query = new GetWorkOrderByIdQuery(new WorkOrderId(id));
-        var workOrder = queryService.handle(query);
+    private boolean isOwningCustomer(WorkOrder workOrder, Authentication authentication) {
+        if (authentication == null || !(authentication.getPrincipal() instanceof AuthenticatedPrincipal principal)) {
+            return false;
+        }
+        return queryService.getCustomerIdByUserId(principal.getId())
+                .map(customerId -> workOrder.getCustomerId() != null && customerId.equals(workOrder.getCustomerId().value()))
+                .orElse(false);
+    }
 
-        return workOrder.map(value -> {
-            String branchCode = queryService.getBranchCode(value.getBranchId().value());
-            return ResponseEntity.ok(toWorkOrderResource(value, branchCode));
-        }).orElseGet(() -> ResponseEntity.status(HttpStatus.NOT_FOUND).build());
+    @GetMapping("/me")
+    @Operation(summary = "Get my Work Orders", description = "Retrieves all Work Orders belonging to the authenticated customer in read-only mode, including task progress and mechanic evidence images")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<List<WorkOrderResource>> getMyWorkOrders(Authentication authentication) {
+        if (authentication == null || !(authentication.getPrincipal() instanceof AuthenticatedPrincipal principal)) {
+            throw new AccessDeniedException("Authentication required");
+        }
+        var customerIdOpt = queryService.getCustomerIdByUserId(principal.getId());
+        if (customerIdOpt.isEmpty()) {
+            return ResponseEntity.ok(List.of());
+        }
+        List<WorkOrder> list = queryService.handle(new GetWorkOrdersByCustomerIdQuery(new CustomerId(customerIdOpt.get())));
+        List<WorkOrderResource> resources = list.stream()
+                .map(wo -> toWorkOrderResource(wo, queryService.getBranchCode(wo.getBranchId().value())))
+                .toList();
+        return ResponseEntity.ok(resources);
+    }
+
+    @GetMapping("/{id}")
+    @Operation(summary = "Get a Work Order by ID", description = "Retrieves the details of a specific Work Order for authorized branch staff or the owning customer")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<?> getWorkOrderById(@PathVariable UUID id, Authentication authentication) {
+        var workOrderOpt = queryService.handle(new GetWorkOrderByIdQuery(new WorkOrderId(id)));
+        if (workOrderOpt.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+        }
+        WorkOrder workOrder = workOrderOpt.get();
+        if (!multiTenancySecurityService.isAuthorizedForBranch(workOrder.getBranchId().value())
+                && !isOwningCustomer(workOrder, authentication)) {
+            throw new AccessDeniedException("Unauthorized access for requested work order: " + id);
+        }
+        String branchCode = queryService.getBranchCode(workOrder.getBranchId().value());
+        return ResponseEntity.ok(toWorkOrderResource(workOrder, branchCode));
     }
 
     @GetMapping

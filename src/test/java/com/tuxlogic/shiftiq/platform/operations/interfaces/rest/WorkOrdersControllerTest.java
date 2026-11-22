@@ -173,13 +173,14 @@ class WorkOrdersControllerTest {
         );
 
         when(queryService.handle(any(GetWorkOrderByIdQuery.class))).thenReturn(Optional.of(realWorkOrder));
+        when(multiTenancySecurityService.isAuthorizedForBranch(branchId)).thenReturn(true);
         when(queryService.getBranchCode(branchId)).thenReturn("BR-MIRA-01");
         when(queryService.getCustomerName(customerId)).thenReturn(Optional.of("ALAN JAIVI MAMANI VILCA"));
         when(queryService.getVehicleSummary(vehicleId)).thenReturn(Optional.of(
                 new com.tuxlogic.shiftiq.platform.operations.application.outboundservices.ExternalVehicleService.VehicleSummary(
                         "B5K-412", "Toyota", "Corolla", 2022)));
 
-        ResponseEntity<?> response = controller.getWorkOrderById(workOrderId);
+        ResponseEntity<?> response = controller.getWorkOrderById(workOrderId, null);
 
         assertEquals(HttpStatus.OK, response.getStatusCode());
         var body = assertInstanceOf(
@@ -190,5 +191,70 @@ class WorkOrdersControllerTest {
         assertEquals("Toyota", body.vehicleBrand());
         assertEquals("Corolla", body.vehicleModel());
         assertEquals(2022, body.vehicleYear());
+    }
+
+    @Test
+    void getWorkOrderById_WhenOwningCustomer_ShouldAllowReadOnlyAccess() {
+        UUID workOrderId = UUID.randomUUID();
+        UUID branchId = UUID.randomUUID();
+        UUID vehicleId = UUID.randomUUID();
+        UUID customerId = UUID.randomUUID();
+        UUID userId = UUID.randomUUID();
+
+        WorkOrder realWorkOrder = new WorkOrder(
+                new com.tuxlogic.shiftiq.platform.operations.domain.model.valueobjects.AppointmentId(UUID.randomUUID()),
+                new BranchId(branchId),
+                new com.tuxlogic.shiftiq.platform.shared.domain.model.valueobjects.VehicleId(vehicleId),
+                new com.tuxlogic.shiftiq.platform.shared.domain.model.valueobjects.CustomerId(customerId),
+                1,
+                new com.tuxlogic.shiftiq.platform.operations.domain.model.valueobjects.DiagnosticSummary("Diagnostico test"),
+                new com.tuxlogic.shiftiq.platform.shared.domain.model.valueobjects.Mileage(35000)
+        );
+
+        var principal = mock(com.tuxlogic.shiftiq.platform.shared.infrastructure.security.AuthenticatedPrincipal.class);
+        when(principal.getId()).thenReturn(userId);
+        var auth = new org.springframework.security.authentication.UsernamePasswordAuthenticationToken(principal, null);
+
+        when(queryService.handle(any(GetWorkOrderByIdQuery.class))).thenReturn(Optional.of(realWorkOrder));
+        when(multiTenancySecurityService.isAuthorizedForBranch(branchId)).thenReturn(false);
+        when(queryService.getCustomerIdByUserId(userId)).thenReturn(Optional.of(customerId));
+        when(queryService.getBranchCode(branchId)).thenReturn("BR-MIRA-01");
+
+        ResponseEntity<?> response = controller.getWorkOrderById(workOrderId, auth);
+
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+    }
+
+    @Test
+    void getMyWorkOrders_WhenAuthenticatedCustomer_ShouldReturnCustomerWorkOrders() {
+        UUID branchId = UUID.randomUUID();
+        UUID customerId = UUID.randomUUID();
+        UUID userId = UUID.randomUUID();
+
+        WorkOrder realWorkOrder = new WorkOrder(
+                new com.tuxlogic.shiftiq.platform.operations.domain.model.valueobjects.AppointmentId(UUID.randomUUID()),
+                new BranchId(branchId),
+                new com.tuxlogic.shiftiq.platform.shared.domain.model.valueobjects.VehicleId(UUID.randomUUID()),
+                new com.tuxlogic.shiftiq.platform.shared.domain.model.valueobjects.CustomerId(customerId),
+                1,
+                new com.tuxlogic.shiftiq.platform.operations.domain.model.valueobjects.DiagnosticSummary("Diagnostico test"),
+                new com.tuxlogic.shiftiq.platform.shared.domain.model.valueobjects.Mileage(35000)
+        );
+
+        var principal = mock(com.tuxlogic.shiftiq.platform.shared.infrastructure.security.AuthenticatedPrincipal.class);
+        when(principal.getId()).thenReturn(userId);
+        var auth = new org.springframework.security.authentication.UsernamePasswordAuthenticationToken(principal, null);
+
+        when(queryService.getCustomerIdByUserId(userId)).thenReturn(Optional.of(customerId));
+        when(queryService.handle(any(com.tuxlogic.shiftiq.platform.operations.domain.model.queries.GetWorkOrdersByCustomerIdQuery.class)))
+                .thenReturn(java.util.List.of(realWorkOrder));
+        when(queryService.getBranchCode(branchId)).thenReturn("BR-MIRA-01");
+
+        ResponseEntity<java.util.List<com.tuxlogic.shiftiq.platform.operations.interfaces.rest.resources.WorkOrderResource>> response =
+                controller.getMyWorkOrders(auth);
+
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertNotNull(response.getBody());
+        assertEquals(1, response.getBody().size());
     }
 }
