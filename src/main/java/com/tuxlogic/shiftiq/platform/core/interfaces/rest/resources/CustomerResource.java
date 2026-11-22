@@ -11,6 +11,7 @@ public record CustomerResource(
         String businessName,
         String documentType,
         String documentNumber,
-        String phone
+        String phone,
+        String profileImageUrl
 ) {
 }

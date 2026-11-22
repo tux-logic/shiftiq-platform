@@ -15,7 +15,8 @@ public final class OwnerResourceFromEntityAssembler {
                 entity.getName() != null ? entity.getName().lastName() : null,
                 entity.getDocument() != null ? entity.getDocument().getDocumentType().name() : null,
                 entity.getDocument() != null ? entity.getDocument().getDocumentNumber() : null,
-                entity.getPhone() != null ? entity.getPhone().value() : null
+                entity.getPhone() != null ? entity.getPhone().value() : null,
+                entity.getProfileImageUrl()
         );
     }
 }

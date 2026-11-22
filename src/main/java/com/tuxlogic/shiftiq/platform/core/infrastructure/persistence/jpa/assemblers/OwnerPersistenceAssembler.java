@@ -32,6 +32,7 @@ public final class OwnerPersistenceAssembler {
         }
         
         entity.setPhone(owner.getPhone() != null ? owner.getPhone().value() : null);
+        entity.setProfileImageUrl(owner.getProfileImageUrl());
         entity.setCreatedAt(owner.getCreatedAt());
         entity.setUpdatedAt(owner.getUpdatedAt());
         entity.setDeletedAt(owner.getDeletedAt());
@@ -49,6 +50,7 @@ public final class OwnerPersistenceAssembler {
                 personName,
                 document,
                 new Phone(entity.getPhone()),
+                entity.getProfileImageUrl(),
                 entity.getCreatedAt(),
                 entity.getUpdatedAt(),
                 entity.getDeletedAt(),
