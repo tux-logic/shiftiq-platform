@@ -25,6 +25,7 @@ import com.tuxlogic.shiftiq.platform.operations.domain.model.valueobjects.WorkOr
 import com.tuxlogic.shiftiq.platform.inventory.application.queryservices.ProductQueryService;
 import com.tuxlogic.shiftiq.platform.inventory.domain.model.queries.GetProductByIdQuery;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -57,6 +58,9 @@ public class VoucherCommandServiceImpl implements VoucherCommandService {
     private final ProductQueryService productQueryService;
     private final VoucherExecutionService voucherExecutionService;
     private final PaymentIntentJpaRepository paymentIntentJpaRepository;
+
+    @Value("${billing.electronic-invoicing.enabled:false}")
+    private boolean electronicInvoicingEnabled;
 
     @Autowired
     public VoucherCommandServiceImpl(
@@ -270,28 +274,35 @@ public class VoucherCommandServiceImpl implements VoucherCommandService {
             }
         }
 
-        // 4. Issue Voucher via Factos outside any database transaction, using the reserved correlative
-        var invoiceResultOpt = factosGateway.issueVoucher(
-                issuerRuc,
-                type,
-                customerDocumentType,
-                customerDocumentNumber,
-                customerName,
-                getDetailedBillingItems(quote),
-                voucherToEmit.getCorrelative()
-        );
+        // 4. Issue Voucher via Factos when enabled; otherwise finalize internal voucher without external tax authority call
+        UUID externalInvoiceId;
+        String pdfUrl = null;
+        if (electronicInvoicingEnabled) {
+            var invoiceResultOpt = factosGateway.issueVoucher(
+                    issuerRuc,
+                    type,
+                    customerDocumentType,
+                    customerDocumentNumber,
+                    customerName,
+                    getDetailedBillingItems(quote),
+                    voucherToEmit.getCorrelative()
+            );
 
-        if (invoiceResultOpt.isEmpty()) {
-            voucherExecutionService.markEmissionFailed(voucherToEmit.getId());
-            return Result.failure(VoucherCommandFailure.FACTOS_ISSUANCE_FAILED);
+            if (invoiceResultOpt.isEmpty()) {
+                voucherExecutionService.markEmissionFailed(voucherToEmit.getId());
+                return Result.failure(VoucherCommandFailure.FACTOS_ISSUANCE_FAILED);
+            }
+
+            var invoiceResult = invoiceResultOpt.get();
+            externalInvoiceId = UUID.nameUUIDFromBytes((invoiceResult.series() + "-" + invoiceResult.correlative()).getBytes(StandardCharsets.UTF_8));
+            pdfUrl = invoiceResult.pdfUrl();
+        } else {
+            externalInvoiceId = UUID.nameUUIDFromBytes(("INTERNAL-" + voucherToEmit.getCorrelative()).getBytes(StandardCharsets.UTF_8));
         }
-
-        var invoiceResult = invoiceResultOpt.get();
-        UUID externalInvoiceId = UUID.nameUUIDFromBytes((invoiceResult.series() + "-" + invoiceResult.correlative()).getBytes(StandardCharsets.UTF_8));
 
         try {
             var savedVoucher = voucherExecutionService.markEmissionSuccess(
-                    voucherToEmit.getId(), externalInvoiceId, invoiceResult.pdfUrl());
+                    voucherToEmit.getId(), externalInvoiceId, pdfUrl);
             return Result.success(savedVoucher);
         } catch (IllegalStateException | IllegalArgumentException e) {
             return Result.failure(VoucherCommandFailure.INVALID_VOUCHER_DATA);
@@ -339,26 +350,34 @@ public class VoucherCommandServiceImpl implements VoucherCommandService {
             return Result.failure(VoucherCommandFailure.VOUCHER_EMISSION_IN_PROGRESS);
         }
         if (prepResult instanceof VoucherPreparationResult.ReadyToEmit ready) {
-            // Phase 2: Call Factos HTTP outside any database transaction
-            var invoiceResultOpt = factosGateway.issueVoucher(
-                    ready.issuerRuc(),
-                    command.type(),
-                    command.customerDocumentType(),
-                    command.customerDocumentNumber(),
-                    command.customerName(),
-                    getDetailedBillingItems(ready.quote()),
-                    ready.correlative()
-            );
+            UUID externalInvoiceId;
+            String pdfUrl = null;
+            if (electronicInvoicingEnabled) {
+                // Phase 2: Call Factos HTTP outside any database transaction
+                var invoiceResultOpt = factosGateway.issueVoucher(
+                        ready.issuerRuc(),
+                        command.type(),
+                        command.customerDocumentType(),
+                        command.customerDocumentNumber(),
+                        command.customerName(),
+                        getDetailedBillingItems(ready.quote()),
+                        ready.correlative()
+                );
 
-            // Phase 3: Transition status in isolated transaction (committed in REQUIRES_NEW)
-            if (invoiceResultOpt.isEmpty()) {
-                voucherExecutionService.markEmissionFailed(ready.voucher().getId());
-                return Result.failure(VoucherCommandFailure.FACTOS_ISSUANCE_FAILED);
+                // Phase 3: Transition status in isolated transaction (committed in REQUIRES_NEW)
+                if (invoiceResultOpt.isEmpty()) {
+                    voucherExecutionService.markEmissionFailed(ready.voucher().getId());
+                    return Result.failure(VoucherCommandFailure.FACTOS_ISSUANCE_FAILED);
+                }
+
+                var invoiceResult = invoiceResultOpt.get();
+                externalInvoiceId = UUID.nameUUIDFromBytes((invoiceResult.series() + "-" + invoiceResult.correlative()).getBytes(StandardCharsets.UTF_8));
+                pdfUrl = invoiceResult.pdfUrl();
+            } else {
+                externalInvoiceId = UUID.nameUUIDFromBytes(("INTERNAL-" + ready.correlative()).getBytes(StandardCharsets.UTF_8));
             }
 
-            var invoiceResult = invoiceResultOpt.get();
-            UUID externalInvoiceId = UUID.nameUUIDFromBytes((invoiceResult.series() + "-" + invoiceResult.correlative()).getBytes(StandardCharsets.UTF_8));
-            var savedVoucher = voucherExecutionService.markEmissionSuccess(ready.voucher().getId(), externalInvoiceId, invoiceResult.pdfUrl());
+            var savedVoucher = voucherExecutionService.markEmissionSuccess(ready.voucher().getId(), externalInvoiceId, pdfUrl);
 
             markIntentCompleted(command.quoteId());
 
