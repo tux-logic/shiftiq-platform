@@ -22,6 +22,7 @@ public class Owner extends AbstractDomainAggregateRoot<Owner> {
     private PersonName name;
     private Document document;
     private Phone phone;
+    private String profileImageUrl;
     private Instant createdAt;
     private Instant updatedAt;
     private Instant deletedAt;
@@ -29,12 +30,13 @@ public class Owner extends AbstractDomainAggregateRoot<Owner> {
 
     public Owner() {}
 
-    public Owner(OwnerId id, UserId userId, PersonName name, Document document, Phone phone, Instant createdAt, Instant updatedAt, Instant deletedAt, Long version) {
+    public Owner(OwnerId id, UserId userId, PersonName name, Document document, Phone phone, String profileImageUrl, Instant createdAt, Instant updatedAt, Instant deletedAt, Long version) {
         this.id = id;
         this.userId = userId;
         this.name = name;
         this.document = document;
         this.phone = phone;
+        this.profileImageUrl = profileImageUrl;
         this.createdAt = createdAt;
         this.updatedAt = updatedAt;
         this.deletedAt = deletedAt;
@@ -47,7 +49,12 @@ public class Owner extends AbstractDomainAggregateRoot<Owner> {
         this.name = name;
         this.document = document;
         this.phone = phone;
+        this.profileImageUrl = null;
         this.registerDomainEvent(new OwnerCreatedEvent(this, this.id.value(), this.userId != null ? this.userId.value() : null));
+    }
+
+    public void updateProfileImage(String profileImageUrl) {
+        this.profileImageUrl = profileImageUrl;
     }
 
     public void update(PersonName name, Document document, Phone phone) {

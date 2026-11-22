@@ -86,7 +86,8 @@ public class ProfileQueryServiceImpl implements ProfileQueryService {
                         o.getName().lastName(),
                         o.getDocument().getDocumentType().name(),
                         o.getDocument().getDocumentNumber(),
-                        o.getPhone() != null ? o.getPhone().value() : null
+                        o.getPhone() != null ? o.getPhone().value() : null,
+                        o.getProfileImageUrl()
                 )
         ).orElse(null);
 

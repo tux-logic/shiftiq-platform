@@ -16,7 +16,8 @@ public record UserProfileContextResource(
             String lastName,
             String documentType,
             String documentNumber,
-            String phone
+            String phone,
+            String profileImageUrl
     ) {}
 
     public record EmployeeSummaryResource(

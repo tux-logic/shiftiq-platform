@@ -1,12 +1,15 @@
 package com.tuxlogic.shiftiq.platform.core.interfaces.rest;
 
+import com.tuxlogic.shiftiq.platform.core.application.commandservices.ProfileCommandService;
 import com.tuxlogic.shiftiq.platform.core.application.queryservices.ProfileQueryService;
 import com.tuxlogic.shiftiq.platform.core.domain.model.queries.GetProfileRolesByUserIdQuery;
 import com.tuxlogic.shiftiq.platform.core.domain.model.valueobjects.UserId;
+import com.tuxlogic.shiftiq.platform.core.interfaces.rest.resources.UpdateProfileImageResource;
 import com.tuxlogic.shiftiq.platform.core.interfaces.rest.resources.UserProfileContextResource;
 import com.tuxlogic.shiftiq.platform.shared.infrastructure.security.AuthenticatedPrincipal;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
@@ -27,10 +30,15 @@ import com.tuxlogic.shiftiq.platform.shared.infrastructure.security.MultiTenancy
 public class ProfilesController {
 
     private final ProfileQueryService profileQueryService;
+    private final ProfileCommandService profileCommandService;
     private final MultiTenancySecurityService multiTenancySecurityService;
 
-    public ProfilesController(ProfileQueryService profileQueryService, MultiTenancySecurityService multiTenancySecurityService) {
+    public ProfilesController(
+            ProfileQueryService profileQueryService,
+            ProfileCommandService profileCommandService,
+            MultiTenancySecurityService multiTenancySecurityService) {
         this.profileQueryService = profileQueryService;
+        this.profileCommandService = profileCommandService;
         this.multiTenancySecurityService = multiTenancySecurityService;
     }
 
@@ -41,6 +49,17 @@ public class ProfilesController {
         var principal = (AuthenticatedPrincipal) authentication.getPrincipal();
         var context = profileQueryService.getUserProfileContext(new UserId(principal.getId()));
         return ResponseEntity.ok(context);
+    }
+
+    @RequestMapping(value = "/me/image", method = {RequestMethod.PUT, RequestMethod.PATCH})
+    @Operation(summary = "Update current authenticated user's profile image",
+               description = "Updates the profileImageUrl across all Core profiles (Owner, Employee, Customer) associated with the authenticated user.")
+    public ResponseEntity<UserProfileContextResource> updateCurrentUserProfileImage(
+            Authentication authentication,
+            @Valid @RequestBody UpdateProfileImageResource resource) {
+        var principal = (AuthenticatedPrincipal) authentication.getPrincipal();
+        var updatedContext = profileCommandService.updateProfileImage(new UserId(principal.getId()), resource.profileImageUrl());
+        return ResponseEntity.ok(updatedContext);
     }
 
     @GetMapping("/roles")

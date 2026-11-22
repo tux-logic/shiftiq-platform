@@ -30,11 +30,11 @@ import java.util.Set;
 public class MediaController {
 
     private static final Set<String> ALLOWED_FOLDERS = Set.of(
-            "customers", "employees", "products", "vehicles", "workorders", "uploads"
+            "customers", "employees", "owners", "products", "vehicles", "workorders", "uploads"
     );
 
     private static final Set<String> OPERATIONAL_FOLDERS = Set.of(
-            "employees", "products", "vehicles", "workorders"
+            "employees", "owners", "products", "vehicles", "workorders"
     );
 
     private final StorageService storageService;
