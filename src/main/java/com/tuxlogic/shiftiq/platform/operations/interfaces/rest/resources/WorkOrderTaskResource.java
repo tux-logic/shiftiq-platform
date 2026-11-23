@@ -25,6 +25,7 @@ public record WorkOrderTaskResource(
         UUID serviceId,
         UUID branchId,
         UUID assignedMechanicId,
+        String assignedMechanicName,
         String status,
         String description,
         BigDecimal price, // Precio total acumulado de la tarea (Mano de obra + Insumos)
