@@ -14,9 +14,7 @@ public class QuotePersistenceAssembler {
 
     public static void updateEntityFromAggregate(QuotePersistenceEntity entity, Quote aggregate) {
         if (aggregate == null || entity == null) return;
-        if (aggregate.getId() != null) {
-            entity.setId(aggregate.getId());
-        }
+        // Do not pre-assign id on a new entity: @GeneratedValue + @Version requires id == null on persist.
         entity.setWorkOrderId(aggregate.getWorkOrderId());
         entity.setBranchId(aggregate.getBranchId());
         entity.setSubtotalAmount(aggregate.getSubtotalAmount());

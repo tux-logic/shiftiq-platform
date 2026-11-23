@@ -27,7 +27,7 @@ public class QuoteRepositoryImpl implements QuoteRepository {
 
     @Override
     public Quote save(Quote quote) {
-        boolean exists = persistenceRepository.existsById(quote.getId());
+        boolean exists = quote.getId() != null && persistenceRepository.existsById(quote.getId());
         
         com.tuxlogic.shiftiq.platform.billing.infrastructure.persistence.jpa.entities.QuotePersistenceEntity entity;
         if (exists) {
