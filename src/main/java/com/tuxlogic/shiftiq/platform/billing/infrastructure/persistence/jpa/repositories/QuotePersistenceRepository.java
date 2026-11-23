@@ -18,6 +18,7 @@ public interface QuotePersistenceRepository extends JpaRepository<QuotePersisten
     List<QuotePersistenceEntity> findAllByBranchId(com.tuxlogic.shiftiq.platform.shared.domain.model.valueobjects.BranchId branchId);
     List<QuotePersistenceEntity> findAllByWorkOrderIdIn(List<UUID> workOrderIds);
     boolean existsByWorkOrderId(UUID workOrderId);
+    boolean existsByWorkOrderIdAndStatusNot(UUID workOrderId, com.tuxlogic.shiftiq.platform.billing.domain.model.valueobjects.QuoteStatus status);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT q FROM QuotePersistenceEntity q WHERE q.id = :id")

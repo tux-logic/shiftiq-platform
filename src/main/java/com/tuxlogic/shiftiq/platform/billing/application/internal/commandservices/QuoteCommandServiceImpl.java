@@ -41,7 +41,7 @@ public class QuoteCommandServiceImpl implements QuoteCommandService {
 
         var workOrder = workOrderOpt.get();
 
-        if (quoteRepository.existsByWorkOrderId(command.workOrderId())) {
+        if (quoteRepository.existsActiveByWorkOrderId(command.workOrderId())) {
             return Result.failure(QuoteCommandFailure.QUOTE_ALREADY_EXISTS_FOR_WORK_ORDER);
         }
         
@@ -72,6 +72,28 @@ public class QuoteCommandServiceImpl implements QuoteCommandService {
             return Result.failure(QuoteCommandFailure.INVALID_QUOTE_STATE);
         } catch (IllegalArgumentException e) {
             return Result.failure(QuoteCommandFailure.INVALID_QUOTE_DATA);
+        }
+    }
+
+    @Override
+    public Result<Quote, QuoteCommandFailure> handle(com.tuxlogic.shiftiq.platform.billing.domain.model.commands.SyncQuoteWithWorkOrderCommand command) {
+        var quoteOpt = quoteRepository.findById(command.quoteId());
+        if (quoteOpt.isEmpty()) {
+            return Result.failure(QuoteCommandFailure.QUOTE_NOT_FOUND);
+        }
+
+        var quote = quoteOpt.get();
+        var workOrderOpt = workOrderQueryService.handle(new GetWorkOrderByIdQuery(new WorkOrderId(quote.getWorkOrderId())));
+        if (workOrderOpt.isEmpty()) {
+            return Result.failure(QuoteCommandFailure.WORK_ORDER_NOT_FOUND);
+        }
+
+        try {
+            quote.syncSubtotal(workOrderOpt.get().getTotalAmount());
+            var savedQuote = quoteRepository.save(quote);
+            return Result.success(savedQuote);
+        } catch (IllegalStateException e) {
+            return Result.failure(QuoteCommandFailure.INVALID_QUOTE_STATE);
         }
     }
 

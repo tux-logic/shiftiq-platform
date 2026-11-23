@@ -87,6 +87,17 @@ public class Quote extends AbstractDomainAggregateRoot<Quote> {
         this.discountPercentage = newDiscount;
         calculateTotal();
     }
+
+    /**
+     * Synchronizes the quote's subtotal from the associated Work Order while still in DRAFT state.
+     */
+    public void syncSubtotal(Money newSubtotal) {
+        if (this.status != QuoteStatus.DRAFT) {
+            throw new IllegalStateException("billing.error.quote.invalidStateForUpdate");
+        }
+        this.subtotalAmount = newSubtotal;
+        calculateTotal();
+    }
     
     // For persistence rebuilding
     public Quote(UUID id, UUID workOrderId, BranchId branchId, Money subtotalAmount, Double discountPercentage, Money totalAmount, QuoteStatus status) {
