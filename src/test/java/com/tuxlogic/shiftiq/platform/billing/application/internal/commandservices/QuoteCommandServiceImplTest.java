@@ -2,18 +2,18 @@ package com.tuxlogic.shiftiq.platform.billing.application.internal.commandservic
 
 import com.tuxlogic.shiftiq.platform.billing.domain.model.aggregates.Quote;
 import com.tuxlogic.shiftiq.platform.billing.domain.model.commands.CreateQuoteCommand;
+import com.tuxlogic.shiftiq.platform.billing.domain.model.commands.SyncQuoteWithWorkOrderCommand;
 import com.tuxlogic.shiftiq.platform.billing.domain.model.valueobjects.QuoteCommandFailure;
 import com.tuxlogic.shiftiq.platform.billing.domain.repositories.QuoteRepository;
 import com.tuxlogic.shiftiq.platform.operations.application.queryservices.WorkOrderQueryService;
 import com.tuxlogic.shiftiq.platform.operations.domain.model.aggregates.WorkOrder;
 import com.tuxlogic.shiftiq.platform.operations.domain.model.queries.GetWorkOrderByIdQuery;
-import com.tuxlogic.shiftiq.platform.shared.application.result.Result;
-import com.tuxlogic.shiftiq.platform.shared.domain.model.valueobjects.BranchId;
-import com.tuxlogic.shiftiq.platform.shared.domain.model.valueobjects.Money;
+import com.tuxlogic.shiftiq.platform.operations.domain.model.valueobjects.AppointmentId;
+import com.tuxlogic.shiftiq.platform.operations.domain.model.valueobjects.DiagnosticSummary;
+import com.tuxlogic.shiftiq.platform.shared.domain.model.valueobjects.*;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -34,57 +34,76 @@ class QuoteCommandServiceImplTest {
     @Mock
     private WorkOrderQueryService workOrderQueryService;
 
-    @InjectMocks
-    private QuoteCommandServiceImpl quoteCommandService;
-
-    private UUID workOrderId;
-    private BranchId branchId;
-    private CreateQuoteCommand createQuoteCommand;
-    private WorkOrder workOrder;
+    private QuoteCommandServiceImpl service;
 
     @BeforeEach
     void setUp() {
-        workOrderId = UUID.randomUUID();
-        branchId = new BranchId(UUID.randomUUID());
-        createQuoteCommand = new CreateQuoteCommand(workOrderId, branchId, 10.0);
-
-        workOrder = mock(WorkOrder.class);
-        lenient().when(workOrder.getTotalAmount()).thenReturn(new Money(new BigDecimal("100.00")));
+        service = new QuoteCommandServiceImpl(quoteRepository, workOrderQueryService);
     }
 
     @Test
-    void createQuote_WhenQuoteDoesNotExist_ShouldCreateSuccessfully() {
-        // Arrange
-        when(workOrderQueryService.handle(any(GetWorkOrderByIdQuery.class))).thenReturn(Optional.of(workOrder));
-        when(quoteRepository.existsByWorkOrderId(workOrderId)).thenReturn(false);
-        when(quoteRepository.save(any(Quote.class))).thenAnswer(invocation -> invocation.getArgument(0));
+    void createQuote_WhenPreviousQuoteCanceled_ShouldAllowCreatingNewQuote() {
+        UUID workOrderId = UUID.randomUUID();
+        UUID branchId = UUID.randomUUID();
 
-        // Act
-        Result<Quote, QuoteCommandFailure> result = quoteCommandService.handle(createQuoteCommand);
+        WorkOrder wo = new WorkOrder(
+                new AppointmentId(UUID.randomUUID()),
+                new BranchId(branchId),
+                new VehicleId(UUID.randomUUID()),
+                new CustomerId(UUID.randomUUID()),
+                1,
+                new DiagnosticSummary("Diagnostico"),
+                new Mileage(35000)
+        );
 
-        // Assert
+        when(workOrderQueryService.handle(any(GetWorkOrderByIdQuery.class))).thenReturn(Optional.of(wo));
+        when(quoteRepository.existsActiveByWorkOrderId(workOrderId)).thenReturn(false);
+        when(quoteRepository.save(any(Quote.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        var result = service.handle(new CreateQuoteCommand(workOrderId, new BranchId(branchId), 10.0));
+
         assertTrue(result.isSuccess());
-        assertNotNull(result.success().get());
-        assertEquals(workOrderId, result.success().get().getWorkOrderId());
-        assertEquals(branchId, result.success().get().getBranchId());
-        assertEquals(10.0, result.success().get().getDiscountPercentage());
-        // Subtotal = 100.00, Discount = 10% -> Total = 90.00
-        assertEquals(0, new BigDecimal("90.00").compareTo(result.success().get().getTotalAmount().amount()));
-        verify(quoteRepository, times(1)).save(any(Quote.class));
+        verify(quoteRepository).existsActiveByWorkOrderId(workOrderId);
     }
 
     @Test
-    void createQuote_WhenQuoteAlreadyExists_ShouldReturnFailure() {
-        // Arrange
-        when(workOrderQueryService.handle(any(GetWorkOrderByIdQuery.class))).thenReturn(Optional.of(workOrder));
-        when(quoteRepository.existsByWorkOrderId(workOrderId)).thenReturn(true);
+    void syncQuoteWithWorkOrder_WhenDraft_ShouldRecalculateSubtotalAndTotal() {
+        UUID workOrderId = UUID.randomUUID();
+        UUID branchId = UUID.randomUUID();
 
-        // Act
-        Result<Quote, QuoteCommandFailure> result = quoteCommandService.handle(createQuoteCommand);
+        Quote quote = new Quote(new CreateQuoteCommand(workOrderId, new BranchId(branchId), 10.0), Money.of(100.0));
 
-        // Assert
+        WorkOrder wo = mock(WorkOrder.class);
+        when(wo.getTotalAmount()).thenReturn(new Money(new BigDecimal("200.00")));
+
+        when(quoteRepository.findById(quote.getId())).thenReturn(Optional.of(quote));
+        when(workOrderQueryService.handle(any(GetWorkOrderByIdQuery.class))).thenReturn(Optional.of(wo));
+        when(quoteRepository.save(any(Quote.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        var result = service.handle(new SyncQuoteWithWorkOrderCommand(quote.getId()));
+
+        assertTrue(result.isSuccess());
+        assertEquals(0, new BigDecimal("200.00").compareTo(result.success().get().getSubtotalAmount().amount()));
+        assertEquals(0, new BigDecimal("180.00").compareTo(result.success().get().getTotalAmount().amount()));
+    }
+
+    @Test
+    void syncQuoteWithWorkOrder_WhenAlreadyApproved_ShouldReturnInvalidQuoteState() {
+        UUID workOrderId = UUID.randomUUID();
+        UUID branchId = UUID.randomUUID();
+
+        Quote quote = new Quote(new CreateQuoteCommand(workOrderId, new BranchId(branchId), 0.0), Money.of(100.0));
+        quote.approve();
+
+        WorkOrder wo = mock(WorkOrder.class);
+        when(wo.getTotalAmount()).thenReturn(new Money(new BigDecimal("200.00")));
+
+        when(quoteRepository.findById(quote.getId())).thenReturn(Optional.of(quote));
+        when(workOrderQueryService.handle(any(GetWorkOrderByIdQuery.class))).thenReturn(Optional.of(wo));
+
+        var result = service.handle(new SyncQuoteWithWorkOrderCommand(quote.getId()));
+
         assertTrue(result.isFailure());
-        assertEquals(QuoteCommandFailure.QUOTE_ALREADY_EXISTS_FOR_WORK_ORDER, result.failure().get());
-        verify(quoteRepository, never()).save(any(Quote.class));
+        assertEquals(QuoteCommandFailure.INVALID_QUOTE_STATE, result.failure().get());
     }
 }

@@ -77,4 +77,12 @@ public class QuoteRepositoryImpl implements QuoteRepository {
     public boolean existsByWorkOrderId(UUID workOrderId) {
         return persistenceRepository.existsByWorkOrderId(workOrderId);
     }
+
+    @Override
+    public boolean existsActiveByWorkOrderId(UUID workOrderId) {
+        return persistenceRepository.existsByWorkOrderIdAndStatusNot(
+                workOrderId,
+                com.tuxlogic.shiftiq.platform.billing.domain.model.valueobjects.QuoteStatus.CANCELED
+        );
+    }
 }

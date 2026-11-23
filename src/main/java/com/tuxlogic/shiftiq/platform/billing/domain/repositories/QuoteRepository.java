@@ -55,4 +55,9 @@ public interface QuoteRepository {
      * @return true if a quote exists, false otherwise.
      */
     boolean existsByWorkOrderId(UUID workOrderId);
+
+    /**
+     * Checks whether a non-canceled Quote already exists for the given work order.
+     */
+    boolean existsActiveByWorkOrderId(UUID workOrderId);
 }
