@@ -2,7 +2,24 @@
 
 **Base Path**: `/api/v1/quotes`  
 **Context**: Billing Domain  
-**Description**: Cotizaciones generadas desde Órdenes de Trabajo. Flujo: `DRAFT` → `APPROVED` → `CANCELED`.
+**Description**: Cotizaciones generadas desde Órdenes de Trabajo. Flujo: `DRAFT` → `APPROVED` / `CANCELED`.
+
+---
+
+## Flujos de Operación en el Taller (Web & Mobile)
+
+Ambos flujos parten de la recepción del vehículo (`POST /api/v1/appointments`) y la apertura de la Orden de Trabajo (`POST /api/v1/work-orders` con diagnóstico inicial y tareas):
+
+1. **Servicio Estándar / Directo (cobro al finalizar):**
+   - El mecánico ejecuta las tareas directamente (`start` → repuestos → `evidenceImages` → `complete`), mientras el cliente sigue el avance en solo lectura (`GET /api/v1/work-orders/me`).
+   - El taller finaliza la OT (`POST /api/v1/work-orders/{id}/complete` → `COMPLETED`) y recién genera la cotización (`POST /api/v1/quotes`).
+   - El cliente aprueba la cotización (`POST /api/v1/quotes/{id}/approvals`) y paga en línea (`POST /api/v1/payments/sessions`) o presencial en caja (`POST /api/v1/checkouts`).
+
+2. **Servicio con Presupuesto Previo (autorización antes de ejecutar):**
+   - Tras la revisión inicial, el taller carga las tareas/repuestos estimados en la OT y genera la cotización (`POST /api/v1/quotes` en estado `DRAFT`).
+   - Si surgen ajustes antes de aprobar, el taller sincroniza el monto con `PUT /api/v1/quotes/{id}/sync` (o cancela y vuelve a cotizar).
+   - El cliente revisa el presupuesto (`GET /api/v1/quotes/me`) y lo aprueba (`POST /api/v1/quotes/{id}/approvals` → `APPROVED`) como autorización para iniciar el servicio *(el pago en línea permanece bloqueado hasta que la OT pase a `COMPLETED`)*.
+   - El mecánico ejecuta las tareas, el taller finaliza la OT (`COMPLETED`) y recién entonces se habilita el pago para el cliente.
 
 ---
 
