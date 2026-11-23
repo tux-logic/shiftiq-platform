@@ -149,8 +149,9 @@ public class WorkOrdersController {
     private WorkOrderResource toWorkOrderResource(WorkOrder value, String branchCode) {
         String customerName = queryService.getCustomerName(value.getCustomerId().value()).orElse(null);
         var vehicleSummary = queryService.getVehicleSummary(value.getVehicleId().value()).orElse(null);
+        var mechanicNames = queryService.getMechanicNames(value);
         return WorkOrderResourceFromAggregateAssembler.toResourceFromAggregate(
-                value, branchCode, customerName, vehicleSummary);
+                value, branchCode, customerName, vehicleSummary, mechanicNames);
     }
 
     private boolean isOwningCustomer(WorkOrder workOrder, Authentication authentication) {

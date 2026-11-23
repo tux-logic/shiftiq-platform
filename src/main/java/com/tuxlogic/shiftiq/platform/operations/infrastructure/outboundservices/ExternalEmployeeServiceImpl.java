@@ -7,6 +7,7 @@ import org.springframework.dao.DataAccessException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 
+import java.util.Optional;
 import java.util.UUID;
 
 /**
@@ -60,5 +61,39 @@ public class ExternalEmployeeServiceImpl implements ExternalEmployeeService {
         }
         // Fallback to original candidateId (let standard validations or constraints handle it)
         return candidateId;
+    }
+
+    @Override
+    public Optional<String> fetchMechanicName(UUID mechanicId) {
+        if (mechanicId == null) {
+            return Optional.empty();
+        }
+        try {
+            String byRegistrationSql = """
+                    SELECT TRIM(CONCAT(COALESCE(e.first_name, ''), ' ', COALESCE(e.last_name, '')))
+                    FROM employee_registrations er
+                    JOIN employees e ON er.employee_id = e.id
+                    WHERE er.id = ? AND e.deleted_at IS NULL
+                    LIMIT 1
+                    """;
+            var regNames = jdbcTemplate.query(byRegistrationSql, (rs, rowNum) -> rs.getString(1), mechanicId);
+            if (!regNames.isEmpty() && regNames.get(0) != null && !regNames.get(0).isBlank()) {
+                return Optional.of(regNames.get(0));
+            }
+
+            String byEmployeeSql = """
+                    SELECT TRIM(CONCAT(COALESCE(first_name, ''), ' ', COALESCE(last_name, '')))
+                    FROM employees
+                    WHERE id = ? AND deleted_at IS NULL
+                    LIMIT 1
+                    """;
+            var empNames = jdbcTemplate.query(byEmployeeSql, (rs, rowNum) -> rs.getString(1), mechanicId);
+            if (!empNames.isEmpty() && empNames.get(0) != null && !empNames.get(0).isBlank()) {
+                return Optional.of(empNames.get(0));
+            }
+        } catch (DataAccessException e) {
+            LOGGER.warn("Failed to fetch mechanic name for mechanicId: {}", mechanicId, e);
+        }
+        return Optional.empty();
     }
 }

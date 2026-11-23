@@ -8,6 +8,8 @@ import com.tuxlogic.shiftiq.platform.operations.interfaces.rest.resources.*;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.UUID;
 
 /**
  * Assembler class to translate Work Order domain aggregates/entities to REST resources.
@@ -34,11 +36,26 @@ public final class WorkOrderResourceFromAggregateAssembler {
             String branchCode,
             String customerName,
             VehicleSummary vehicleSummary) {
+        return toResourceFromAggregate(workOrder, branchCode, customerName, vehicleSummary, Map.of());
+    }
+
+    /**
+     * Transform a WorkOrder aggregate into a WorkOrderResource, enriching it with customer name, vehicle summary, and mechanic names.
+     */
+    public static WorkOrderResource toResourceFromAggregate(
+            WorkOrder workOrder,
+            String branchCode,
+            String customerName,
+            VehicleSummary vehicleSummary,
+            Map<UUID, String> mechanicNames) {
         List<WorkOrderTaskResource> taskResources = new ArrayList<>();
+        Map<UUID, String> safeMechanicNames = mechanicNames != null ? mechanicNames : Map.of();
 
         for (WorkOrderTask task : workOrder.getTasks()) {
             if (!task.isDeleted()) {
-                taskResources.add(toResourceFromTask(task));
+                UUID mechanicId = task.getAssignedMechanicId() != null ? task.getAssignedMechanicId().value() : null;
+                String mechanicName = mechanicId != null ? safeMechanicNames.get(mechanicId) : null;
+                taskResources.add(toResourceFromTask(task, mechanicName));
             }
         }
 
@@ -73,7 +90,7 @@ public final class WorkOrderResourceFromAggregateAssembler {
      * @param task The WorkOrderTask entity to be transformed into a WorkOrderTaskResource. This entity contains all the necessary information about the task, including its products, which will be included in the resulting WorkOrderTaskResource.
      * @return A WorkOrderTaskResource that represents the given WorkOrderTask entity, including its products. This resource is suitable for use in REST API responses, providing a structured representation of the task data that can be easily consumed by clients.
      */
-    private static WorkOrderTaskResource toResourceFromTask(WorkOrderTask task) {
+    private static WorkOrderTaskResource toResourceFromTask(WorkOrderTask task, String assignedMechanicName) {
         List<WorkOrderTaskProductResource> productResources = new ArrayList<>();
 
         for (WorkOrderTaskProduct product : task.getProducts()) {
@@ -87,6 +104,7 @@ public final class WorkOrderResourceFromAggregateAssembler {
                 task.getServiceId().value(),
                 task.getBranchId().value(),
                 task.getAssignedMechanicId().value(),
+                assignedMechanicName,
                 task.getStatus().name(),
                 task.getDescription().value(),
                 task.getPrice().amount(),

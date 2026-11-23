@@ -2,6 +2,7 @@ package com.tuxlogic.shiftiq.platform.operations.application.internal.queryservi
 
 import com.tuxlogic.shiftiq.platform.operations.application.outboundservices.ExternalBranchService;
 import com.tuxlogic.shiftiq.platform.operations.application.outboundservices.ExternalCustomerService;
+import com.tuxlogic.shiftiq.platform.operations.application.outboundservices.ExternalEmployeeService;
 import com.tuxlogic.shiftiq.platform.operations.application.outboundservices.ExternalVehicleService;
 import com.tuxlogic.shiftiq.platform.operations.application.outboundservices.ExternalVehicleService.VehicleSummary;
 import com.tuxlogic.shiftiq.platform.operations.application.queryservices.WorkOrderQueryService;
@@ -14,7 +15,9 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -32,15 +35,18 @@ public class WorkOrderQueryServiceImpl implements WorkOrderQueryService {
     private final ExternalBranchService externalBranchService;
     private final ExternalCustomerService externalCustomerService;
     private final ExternalVehicleService externalVehicleService;
+    private final ExternalEmployeeService externalEmployeeService;
 
     public WorkOrderQueryServiceImpl(WorkOrderRepository workOrderRepository,
                                      ExternalBranchService externalBranchService,
                                      ExternalCustomerService externalCustomerService,
-                                     ExternalVehicleService externalVehicleService) {
+                                     ExternalVehicleService externalVehicleService,
+                                     ExternalEmployeeService externalEmployeeService) {
         this.workOrderRepository = workOrderRepository;
         this.externalBranchService = externalBranchService;
         this.externalCustomerService = externalCustomerService;
         this.externalVehicleService = externalVehicleService;
+        this.externalEmployeeService = externalEmployeeService;
     }
 
     @Override
@@ -105,5 +111,23 @@ public class WorkOrderQueryServiceImpl implements WorkOrderQueryService {
     @Override
     public Optional<VehicleSummary> getVehicleSummary(UUID vehicleId) {
         return externalVehicleService.fetchVehicleSummary(vehicleId);
+    }
+
+    @Override
+    public Map<UUID, String> getMechanicNames(WorkOrder workOrder) {
+        Map<UUID, String> names = new HashMap<>();
+        if (workOrder == null || workOrder.getTasks() == null) {
+            return names;
+        }
+        for (var task : workOrder.getTasks()) {
+            if (!task.isDeleted() && task.getAssignedMechanicId() != null) {
+                UUID mechanicId = task.getAssignedMechanicId().value();
+                if (mechanicId != null && !names.containsKey(mechanicId)) {
+                    externalEmployeeService.fetchMechanicName(mechanicId)
+                            .ifPresent(name -> names.put(mechanicId, name));
+                }
+            }
+        }
+        return names;
     }
 }
