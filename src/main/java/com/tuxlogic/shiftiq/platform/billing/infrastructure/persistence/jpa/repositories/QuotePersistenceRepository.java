@@ -17,6 +17,7 @@ import java.util.UUID;
 public interface QuotePersistenceRepository extends JpaRepository<QuotePersistenceEntity, UUID> {
     List<QuotePersistenceEntity> findAllByBranchId(com.tuxlogic.shiftiq.platform.shared.domain.model.valueobjects.BranchId branchId);
     List<QuotePersistenceEntity> findAllByWorkOrderIdIn(List<UUID> workOrderIds);
+    Optional<QuotePersistenceEntity> findByWorkOrderIdAndStatus(UUID workOrderId, com.tuxlogic.shiftiq.platform.billing.domain.model.valueobjects.QuoteStatus status);
     boolean existsByWorkOrderId(UUID workOrderId);
     boolean existsByWorkOrderIdAndStatusNot(UUID workOrderId, com.tuxlogic.shiftiq.platform.billing.domain.model.valueobjects.QuoteStatus status);
 

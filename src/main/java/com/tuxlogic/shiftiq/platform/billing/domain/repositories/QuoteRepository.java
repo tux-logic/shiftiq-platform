@@ -60,4 +60,9 @@ public interface QuoteRepository {
      * Checks whether a non-canceled Quote already exists for the given work order.
      */
     boolean existsActiveByWorkOrderId(UUID workOrderId);
+
+    /**
+     * Finds the DRAFT quote associated with the given work order, if one exists.
+     */
+    Optional<Quote> findDraftByWorkOrderId(UUID workOrderId);
 }
