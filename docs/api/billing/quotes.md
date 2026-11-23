@@ -57,6 +57,26 @@
 - **Cálculo**: `subtotalAmount` = suma tasks (servicios + productos) de la OT
 - **Descuento**: Se aplica sobre subtotal → `totalAmount = subtotal * (1 - discount/100)`
 - **Estado**: Nace `DRAFT` → editable hasta `APPROVED`
+- **Re-cotización**: Solo se permite 1 cotización activa (no `CANCELED`) por OT; si una cotización en `DRAFT` se cancela, el taller puede volver a cotizar la OT.
+
+---
+
+## `PUT /api/v1/quotes/{id}/sync` — Recalcular Cotización desde la Orden de Trabajo
+
+**Security**: `Permission.QUOTE_CREATE` en la sede  
+**Description**: Sincroniza `subtotalAmount` y `totalAmount` de una cotización en estado `DRAFT` con el `totalAmount` actual de su Orden de Trabajo (útil cuando se agregan tareas o repuestos después de emitir el presupuesto inicial).
+
+### Success Response (200 OK)
+
+Retorna `QuoteResource` recalculado.
+
+### Error Responses
+
+| HTTP Code | Error Code | Descripción |
+|-----------|------------|-------------|
+| 403 | `ACCESS_DENIED` | Sin permiso en la sede |
+| 404 | `NOT_FOUND` | Cotización u OT no existe |
+| 409 | `CONFLICT` | Cotización no está en estado `DRAFT` (`INVALID_QUOTE_STATE`) |
 
 ---
 
