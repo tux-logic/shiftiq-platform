@@ -160,8 +160,8 @@ Array de `QuoteResource` (resumen sin items).
 
 ## `POST /api/v1/quotes/{id}/approvals` — Aprobar Cotización
 
-**Security**: Validación manual `isAuthorizedForBranch(quote.branchId)`  
-**Description**: `DRAFT` → `APPROVED`. Habilita emisión de comprobante (`POST /vouchers`) y pago.
+**Security**: Staff autorizado de la sede (`Permission.QUOTE_APPROVE`) o el **cliente dueño de la orden de trabajo**  
+**Description**: `DRAFT` → `APPROVED`. Habilita el pago en línea (`POST /api/v1/payments/sessions` o `POST /api/v1/payments/mercadopago/preferences`) y el checkout presencial (`POST /api/v1/checkouts`).
 
 ### Success Response (200 OK)
 
