@@ -85,4 +85,12 @@ public class QuoteRepositoryImpl implements QuoteRepository {
                 com.tuxlogic.shiftiq.platform.billing.domain.model.valueobjects.QuoteStatus.CANCELED
         );
     }
+
+    @Override
+    public Optional<Quote> findDraftByWorkOrderId(UUID workOrderId) {
+        return persistenceRepository.findByWorkOrderIdAndStatus(
+                workOrderId,
+                com.tuxlogic.shiftiq.platform.billing.domain.model.valueobjects.QuoteStatus.DRAFT
+        ).map(QuotePersistenceAssembler::toAggregate);
+    }
 }

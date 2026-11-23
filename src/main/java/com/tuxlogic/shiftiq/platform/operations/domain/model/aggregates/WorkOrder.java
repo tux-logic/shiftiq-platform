@@ -6,6 +6,7 @@ import com.tuxlogic.shiftiq.platform.operations.domain.model.events.TaskComplete
 import com.tuxlogic.shiftiq.platform.operations.domain.model.events.TaskReopenedEvent;
 import com.tuxlogic.shiftiq.platform.operations.domain.model.events.TaskStartedEvent;
 import com.tuxlogic.shiftiq.platform.operations.domain.model.events.WorkOrderCompletedEvent;
+import com.tuxlogic.shiftiq.platform.operations.domain.model.events.WorkOrderTotalChangedEvent;
 import com.tuxlogic.shiftiq.platform.operations.domain.model.events.WorkOrderPaidEvent;
 import com.tuxlogic.shiftiq.platform.operations.domain.model.events.WorkOrderReopenedEvent;
 import com.tuxlogic.shiftiq.platform.operations.domain.model.valueobjects.*;
@@ -247,6 +248,9 @@ public class WorkOrder extends AbstractDomainAggregateRoot<WorkOrder> {
                 .filter(t -> !t.isDeleted())
                 .map(WorkOrderTask::getPrice)
                 .reduce(Money.ZERO, Money::plus);
+        if (this.id != null) {
+            this.registerEvent(new WorkOrderTotalChangedEvent(this, this.id, this.totalAmount));
+        }
     }
 
 
