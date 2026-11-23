@@ -8,7 +8,7 @@
 
 ## `POST /api/v1/work-orders/{id}/tasks` — Agregar Tarea a la OT
 
-**Security**: `@PreAuthorize("isAuthenticated()")` + validación manual `isAuthorizedForBranch(ot.branchId)`  
+**Security**: `@PreAuthorize("isAuthenticated()")` + `validateAdvisorOrManagerAccess(ot.branchId)` (solo `ROLE_ADMIN`, `ROLE_OWNER`, `ROLE_BRANCH_MANAGER` o `ROLE_ASSISTANT`; `ROLE_EMPLOYEE` recibe `403`)  
 **Description**: Agrega tarea a OT existente. Estado inicial de la tarea: `PENDING`. Si la orden estaba `PENDING`, pasa a `IN_PROGRESS`.
 
 ### Request

@@ -152,5 +152,33 @@ class QuotesControllerTest {
             org.springframework.security.core.context.SecurityContextHolder.clearContext();
         }
     }
+
+    @Test
+    void cancelQuote_WhenOwningCustomer_ShouldCancelWithoutStaffPermission() {
+        UUID workOrderId = UUID.randomUUID();
+        UUID branchId = UUID.randomUUID();
+        UUID userId = UUID.randomUUID();
+
+        Quote quote = new Quote(new CreateQuoteCommand(workOrderId, new BranchId(branchId), 0.0), Money.of(150.0));
+        var principal = mock(com.tuxlogic.shiftiq.platform.shared.infrastructure.security.AuthenticatedPrincipal.class);
+        when(principal.getId()).thenReturn(userId);
+        var auth = new org.springframework.security.authentication.UsernamePasswordAuthenticationToken(principal, null);
+
+        when(queryService.handle(any(com.tuxlogic.shiftiq.platform.billing.domain.model.queries.GetQuoteByIdQuery.class)))
+                .thenReturn(java.util.Optional.of(quote));
+        when(externalBillingContextService.isCustomerOwnerOfWorkOrder(userId, workOrderId)).thenReturn(true);
+        when(commandService.handle(any(com.tuxlogic.shiftiq.platform.billing.domain.model.commands.CancelQuoteCommand.class)))
+                .thenReturn(Result.success(quote));
+
+        org.springframework.security.core.context.SecurityContextHolder.getContext().setAuthentication(auth);
+        try {
+            var response = controller.cancelQuote(quote.getId());
+
+            assertEquals(HttpStatus.OK, response.getStatusCode());
+            verify(multiTenancySecurityService, never()).validateBranchPermission(any(), any());
+        } finally {
+            org.springframework.security.core.context.SecurityContextHolder.clearContext();
+        }
+    }
 }
 

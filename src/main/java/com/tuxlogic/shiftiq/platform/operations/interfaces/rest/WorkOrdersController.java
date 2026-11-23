@@ -96,6 +96,13 @@ public class WorkOrdersController {
         return workOrder;
     }
 
+    private WorkOrder validateWorkOrderAdvisorOrManagerAccess(UUID id) {
+        WorkOrder workOrder = queryService.handle(new GetWorkOrderByIdQuery(new WorkOrderId(id)))
+                .orElseThrow(() -> new IllegalArgumentException(OperationsMessageKeys.WORK_ORDER_NOT_FOUND));
+        multiTenancySecurityService.validateAdvisorOrManagerAccess(workOrder.getBranchId().value());
+        return workOrder;
+    }
+
     @PostMapping
     @Operation(summary = "Create a new Work Order", description = "Creates a new Work Order for a specific branch and vehicle")
     @PreAuthorize("isAuthenticated() and @multiTenancySecurityService.isAuthorizedForBranch(#resource.branchId())")
@@ -106,31 +113,31 @@ public class WorkOrdersController {
     }
 
     @PostMapping("/{id}/tasks")
-    @Operation(summary = "Add a mechanic task to a Work Order", description = "Adds a new mechanic task to an existing Work Order")
+    @Operation(summary = "Add a mechanic task to a Work Order", description = "Adds a new mechanic task to an existing Work Order (advisor/manager roles only)")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<?> addTaskToWorkOrder(@PathVariable UUID id, @Valid @RequestBody AddTaskResource resource) {
-        validateWorkOrderAccess(id);
+        validateWorkOrderAdvisorOrManagerAccess(id);
         var command = WorkOrderCommandFromResourceAssembler.toCommandFromResource(id, resource);
         var result = commandService.handle(command);
         return toResponse(result, HttpStatus.CREATED);
     }
 
     @PutMapping("/{id}/tasks/{taskId}")
-    @Operation(summary = "Update mechanic task details", description = "Updates the details of a specific mechanic task")
+    @Operation(summary = "Update mechanic task details", description = "Updates the details of a specific mechanic task (advisor/manager roles only)")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<?> updateWorkOrderTaskDetails(@PathVariable UUID id, @PathVariable UUID taskId,
                                                         @Valid @RequestBody UpdateWorkOrderTaskDetailsResource resource) {
-        validateWorkOrderAccess(id);
+        validateWorkOrderAdvisorOrManagerAccess(id);
         var command = WorkOrderCommandFromResourceAssembler.toCommandFromResource(id, taskId, resource);
         var result = commandService.handle(command);
         return toResponse(result);
     }
 
     @DeleteMapping("/{id}/tasks/{taskId}")
-    @Operation(summary = "Remove a task from the Work Order", description = "Removes a task from the Work Order, releasing all its stock reservations")
+    @Operation(summary = "Remove a task from the Work Order", description = "Removes a task from the Work Order, releasing all its stock reservations (advisor/manager roles only)")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<?> removeTaskFromWorkOrder(@PathVariable UUID id, @PathVariable UUID taskId) {
-        validateWorkOrderAccess(id);
+        validateWorkOrderAdvisorOrManagerAccess(id);
         var command = new RemoveTaskFromWorkOrderCommand(new WorkOrderId(id), new WorkOrderTaskId(taskId));
         var result = commandService.handle(command);
         return toResponse(result, HttpStatus.NO_CONTENT);
