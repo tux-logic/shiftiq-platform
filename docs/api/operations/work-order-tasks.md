@@ -86,8 +86,8 @@ Retorna la orden de trabajo actualizada (`WorkOrderResource`) con el arreglo de 
 
 ## `PUT /api/v1/work-orders/{id}/tasks/{taskId}` — Actualizar Detalles de Tarea
 
-**Security**: Validación manual `isAuthorizedForBranch(ot.branchId)`  
-**Description**: Actualiza servicio, mecánico asignado, descripción, fotos.
+**Security**: `validateAdvisorOrManagerAccess(ot.branchId)` (solo `ROLE_ADMIN`, `ROLE_OWNER`, `ROLE_BRANCH_MANAGER` o `ROLE_ASSISTANT`; `ROLE_EMPLOYEE` recibe `403`)  
+**Description**: Actualiza servicio, mecánico asignado, descripción, fotos. Estados válidos de tarea: `PENDING`, `DOING`, `COMPLETED`.
 
 ### Request
 
@@ -114,7 +114,7 @@ Retorna la orden de trabajo actualizada (`WorkOrderResource`) con el arreglo de 
 
 ## `DELETE /api/v1/work-orders/{id}/tasks/{taskId}` — Eliminar Tarea
 
-**Security**: Validación manual `isAuthorizedForBranch(ot.branchId)`  
+**Security**: `validateAdvisorOrManagerAccess(ot.branchId)` (solo `ROLE_ADMIN`, `ROLE_OWNER`, `ROLE_BRANCH_MANAGER` o `ROLE_ASSISTANT`; `ROLE_EMPLOYEE` recibe `403`)  
 **Description**: Elimina tarea y **libera reservas de stock** de sus productos.
 
 ### Success Response (204 NO CONTENT)

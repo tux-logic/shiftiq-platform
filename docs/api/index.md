@@ -1,7 +1,7 @@
 # ShiftIQ Platform — API Documentation Index
 
 **Version**: 1.0  
-**Last Updated**: 2026-11-07  
+**Last Updated**: 2026-11-22  
 **Base URL (Local)**: `http://localhost:8080`  
 **Base URL (Production)**: `https://shiftiq-platform.onrender.com`  
 **Swagger UI**: `https://shiftiq-platform.onrender.com/swagger-ui/index.html`
@@ -20,7 +20,7 @@
 | | | [`core/owners.md`](core/owners.md) | Owner Profiles (self-only access) |
 | | | [`core/employees.md`](core/employees.md) | Employee Profiles (hierarchical auth) |
 | | | [`core/customers.md`](core/customers.md) | Customer Profiles (hierarchical auth) |
-| | | [`core/profiles.md`](core/profiles.md) | Profile Roles, Document Lookup |
+| | | [`core/profiles.md`](core/profiles.md) | Profile Roles, Document Lookup, `/me`, Profile Image |
 | **Fleet** | Vehicle & Staff Management | [`fleet/customer-registrations.md`](fleet/customer-registrations.md) | Customer ↔ Branch Registrations |
 | | | [`fleet/employee-registrations.md`](fleet/employee-registrations.md) | Hierarchical Staff Onboarding, Approvals |
 | | | [`fleet/appointments.md`](fleet/appointments.md) | Workshop Appointments |
@@ -29,13 +29,13 @@
 | | | [`iot/obd2-device-registrations.md`](iot/obd2-device-registrations.md) | Device ↔ Vehicle Linking |
 | | | [`iot/telemetry-batches.md`](iot/telemetry-batches.md) | Batch Telemetry Ingestion |
 | **Operations** | Work Orders & Services | [`operations/services.md`](operations/services.md) | Service Catalog |
-| | | [`operations/work-orders.md`](operations/work-orders.md) | Work Orders (Lifecycle) |
-| | | [`operations/work-order-tasks.md`](operations/work-order-tasks.md) | Tasks, Mechanics, Products (Stock Reservation) |
+| | | [`operations/work-orders.md`](operations/work-orders.md) | Work Orders (Lifecycle, Customer `/me` Read-Only, Enriched Fields) |
+| | | [`operations/work-order-tasks.md`](operations/work-order-tasks.md) | Tasks (`PENDING` / `DOING` / `COMPLETED`), Mechanics, Stock Reservation |
 | **Inventory** | Products & Stock | [`inventory/products.md`](inventory/products.md) | Products, Batches, Stock Adjustments |
-| **Billing** | Quotes, Invoicing, Payments | [`billing/quotes.md`](billing/quotes.md) | Quotes (Draft → Approved → Canceled) |
-| | | [`billing/vouchers.md`](billing/vouchers.md) | SUNAT Invoices/Receipts (Factos) |
+| **Billing** | Quotes, Invoicing, Payments | [`billing/quotes.md`](billing/quotes.md) | Quotes (`DRAFT` → `APPROVED` / `CANCELED`, Sync, `/me`, Workflows) |
+| | | [`billing/vouchers.md`](billing/vouchers.md) | Internal Vouchers / Optional SUNAT (Factos disabled by default) |
 | | | [`billing/checkouts.md`](billing/checkouts.md) | Unified Checkout (Cash + Mercado Pago) |
-| | | [`billing/mercadopago.md`](billing/mercadopago.md) | Preferences, Webhooks |
+| | | [`billing/mercadopago.md`](billing/mercadopago.md) | Payment Sessions (Strategy), Mercado Pago Checkout Pro, Webhooks |
 | **Analytics** | KPIs & Dashboards | [`analytics/analytics.md`](analytics/analytics.md) | Branch Summary, Financial Range, Network Overview |
 | **Shared** | Cross-Cutting Utilities | [`shared/health.md`](shared/health.md) | Root Ping, Health Check |
 | | | [`shared/media.md`](shared/media.md) | Cloudinary Image Upload |
