@@ -112,6 +112,19 @@ public class QuotesController {
         return toErrorResponse(result.failure().get());
     }
 
+    @PutMapping("/{id}/sync")
+    @Operation(summary = "Sync quote with Work Order", description = "Recalculates a DRAFT quote's subtotal and total from the current Work Order total amount")
+    public ResponseEntity<?> syncQuoteWithWorkOrder(@PathVariable UUID id) {
+        validateQuotePermission(id, Permission.QUOTE_CREATE);
+        var command = new com.tuxlogic.shiftiq.platform.billing.domain.model.commands.SyncQuoteWithWorkOrderCommand(id);
+        var result = commandService.handle(command);
+        if (result.isSuccess()) {
+            var quoteResource = QuoteResourceFromAggregateAssembler.toResourceFromAggregate(result.success().get());
+            return ResponseEntity.ok(quoteResource);
+        }
+        return toErrorResponse(result.failure().get());
+    }
+
     @PostMapping("/{id}/approvals")
     @Operation(summary = "Approve a quote", description = "Approves a Quote, transitioning its state from DRAFT to APPROVED. Accessible by authorized branch staff or the owning customer.")
     public ResponseEntity<?> approveQuote(@PathVariable UUID id) {

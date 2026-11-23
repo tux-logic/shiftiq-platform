@@ -30,6 +30,11 @@ public interface QuoteCommandService {
     Result<Quote, QuoteCommandFailure> handle(com.tuxlogic.shiftiq.platform.billing.domain.model.commands.UpdateQuoteDiscountCommand command);
 
     /**
+     * Synchronizes a DRAFT quote's subtotal and total with the current Work Order total amount.
+     */
+    Result<Quote, QuoteCommandFailure> handle(com.tuxlogic.shiftiq.platform.billing.domain.model.commands.SyncQuoteWithWorkOrderCommand command);
+
+    /**
      * Approves an existing Quote.
      * Validates that the Quote exists and is currently in DRAFT state.
      * 
