@@ -4,12 +4,15 @@
 **Context**: Billing Domain  
 **Description**: Flujo "todo en uno" — emite comprobante + registra pago completo en una transacción.
 
+> [!NOTE]
+> **Facturación electrónica (Factos / SUNAT) deshabilitada por defecto (`billing.electronic-invoicing.enabled=false`):** La integración con Factos/SUNAT queda como feature futuro. Con esta configuración, el checkout emite el comprobante interno (`Voucher`), registra el pago y marca la orden de trabajo como `PAID` sin invocar a Factos.
+
 ---
 
 ## `POST /api/v1/checkouts` — Checkout Directo Presencial
 
 **Security**: Validación manual `isAuthorizedForBranch(quote.branchId)`  
-**Description**: **Botón "Cobrar en Caja"** — emite voucher (Factos/SUNAT) + registra pago 100% en una transacción atómica.
+**Description**: **Botón "Cobrar en Caja"** — emite el comprobante (interno por defecto, o Factos/SUNAT si `billing.electronic-invoicing.enabled=true`) + registra pago 100% en una transacción atómica.
 
 ### Request
 

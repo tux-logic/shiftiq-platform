@@ -1,15 +1,18 @@
-# Billing — Vouchers (Comprobantes SUNAT)
+# Billing — Vouchers (Comprobantes Internos / SUNAT Opcional)
 
 **Base Path**: `/api/v1/vouchers`  
 **Context**: Billing Domain  
-**Description**: Emisión de comprobantes electrónicos (Boleta/Factura) vía Factos → SUNAT. Flujo: `PENDING` → `PAID` / `EMISSION_FAILED` / `CANCELED`.
+**Description**: Emisión de comprobantes de pago (`RECEIPT` / `INVOICE`). Flujo: `PENDING` → `PAID` / `EMISSION_FAILED` / `CANCELED`.
+
+> [!NOTE]
+> **Facturación electrónica (Factos / SUNAT) deshabilitada por defecto (`billing.electronic-invoicing.enabled=false`):** La integración fiscal con Factos/SUNAT queda diferida como feature futuro. Actualmente el backend emite y gestiona comprobantes internos (`Voucher`) sin invocar a Factos ni enviar documentos a SUNAT (`externalInvoiceId` / `pdfUrl` quedan opcionales/`null`).
 
 ---
 
 ## `POST /api/v1/vouchers` — Emitir Comprobante (Boleta / Factura)
 
 **Security**: Validación manual `isAuthorizedForBranch(quote.branchId)`  
-**Description**: Emite comprobante legal conectándose en tiempo real con Factos → SUNAT. Requiere cotización `APPROVED`.
+**Description**: Emite el comprobante de la cotización `APPROVED`. Con `billing.electronic-invoicing.enabled=false`, crea el comprobante interno directamente sin conectarse a Factos/SUNAT.
 
 ### Request
 
