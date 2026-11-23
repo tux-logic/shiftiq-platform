@@ -8,7 +8,7 @@ import java.util.Optional;
 /**
  * Strategy contract for pluggable virtual payment gateways (OCP / DIP).
  */
-public interface PaymentGatewayStrategy extends PaymentGateway {
+public interface PaymentGatewayStrategy {
 
     /**
      * @return The payment provider handled by this strategy.
@@ -24,4 +24,9 @@ public interface PaymentGatewayStrategy extends PaymentGateway {
             String title,
             String externalReference
     );
+
+    /**
+     * Queries the payment status by external payment identifier.
+     */
+    Optional<PaymentResult> getPaymentStatusByExternalId(String externalPaymentId);
 }
