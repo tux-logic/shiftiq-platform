@@ -19,10 +19,7 @@ public class VoucherPersistenceAssembler {
 
     public static void updateEntityFromAggregate(VoucherPersistenceEntity entity, Voucher aggregate) {
         if (aggregate == null || entity == null) return;
-        
-        if (aggregate.getId() != null) {
-            entity.setId(aggregate.getId());
-        }
+        // Do not pre-assign id on a new entity: @GeneratedValue + @Version requires id == null on persist.
         entity.setQuoteId(aggregate.getQuoteId());
         entity.setBranchId(aggregate.getBranchId());
         entity.setType(aggregate.getType());
