@@ -175,6 +175,7 @@ Array de `WorkOrderResource` con `tasks`, `products`, `evidenceImages`, `custome
       "serviceId": "srv1srv2-srv3-srv4-srv5-srv6srv7srv8",
       "branchId": "c3d4e5f6-3333-4444-5555-666677778888",
       "assignedMechanicId": "ereg1ereg2-ereg3-ereg4-ereg5ereg6ereg7",
+      "assignedMechanicName": "Reynaldo Machacca Gonzales",
       "status": "DOING",
       "description": "Rectificado discos + pastillas",
       "price": 200.00,
