@@ -125,9 +125,7 @@ public class QuotesController {
         return toErrorResponse(result.failure().get());
     }
 
-    @PostMapping("/{id}/approvals")
-    @Operation(summary = "Approve a quote", description = "Approves a Quote, transitioning its state from DRAFT to APPROVED. Accessible by authorized branch staff or the owning customer.")
-    public ResponseEntity<?> approveQuote(@PathVariable UUID id) {
+    private void validateQuoteCustomerOrStaffPermission(UUID id, Permission staffPermission) {
         var quote = queryService.handle(new GetQuoteByIdQuery(id))
                 .orElseThrow(() -> new IllegalArgumentException("billing.error.quote.notFound"));
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
@@ -136,8 +134,14 @@ public class QuotesController {
                 && authentication.getPrincipal() instanceof AuthenticatedPrincipal principal
                 && externalBillingContextService.isCustomerOwnerOfWorkOrder(principal.getId(), quote.getWorkOrderId());
         if (!isCustomerOwner) {
-            multiTenancySecurityService.validateBranchPermission(quote.getBranchId().value(), Permission.QUOTE_APPROVE);
+            multiTenancySecurityService.validateBranchPermission(quote.getBranchId().value(), staffPermission);
         }
+    }
+
+    @PostMapping("/{id}/approvals")
+    @Operation(summary = "Approve a quote", description = "Approves a Quote, transitioning its state from DRAFT to APPROVED. Accessible by authorized branch staff or the owning customer.")
+    public ResponseEntity<?> approveQuote(@PathVariable UUID id) {
+        validateQuoteCustomerOrStaffPermission(id, Permission.QUOTE_APPROVE);
         var command = new ApproveQuoteCommand(id);
         var result = commandService.handle(command);
         if (result.isSuccess()) {
@@ -148,9 +152,9 @@ public class QuotesController {
     }
 
     @PostMapping("/{id}/cancellations")
-    @Operation(summary = "Cancel a quote", description = "Cancels a Quote, transitioning its state to CANCELED")
+    @Operation(summary = "Cancel a quote", description = "Cancels a Quote, transitioning its state to CANCELED. Accessible by authorized branch staff or the owning customer.")
     public ResponseEntity<?> cancelQuote(@PathVariable UUID id) {
-        validateQuotePermission(id, Permission.QUOTE_CANCEL);
+        validateQuoteCustomerOrStaffPermission(id, Permission.QUOTE_CANCEL);
         var command = new CancelQuoteCommand(id);
         var result = commandService.handle(command);
         if (result.isSuccess()) {
