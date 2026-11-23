@@ -1,8 +1,62 @@
-# Billing — Mercado Pago Integration
+# Billing — Virtual Payments & Mercado Pago Integration
 
-**Base Path**: `/api/v1/payments/mercadopago`  
+**Base Paths**: `/api/v1/payments`, `/api/v1/payments/mercadopago`  
 **Context**: Billing Domain  
-**Description**: Integración con Mercado Pago Checkout Pro — preferencias, webhooks, verificación.
+**Description**: Pasarela de pagos virtuales extensible (Strategy Pattern) con **Mercado Pago Checkout Pro** activo por defecto.
+
+---
+
+## Guía de Integración para Frontend (Web y Mobile)
+
+### Escenario A: Pago en línea desde la App del Cliente (Autoservicio)
+1. **Seguimiento de la Orden (Solo Lectura):**
+   - `GET /api/v1/work-orders/me` (o `GET /api/v1/work-orders/{id}`) → muestra estado de la OT (`PENDING`, `IN_PROGRESS`, `COMPLETED`, `PAID`), tareas, `assignedMechanicName` y fotos `evidenceImages`.
+2. **Consultar Cotización:**
+   - `GET /api/v1/quotes/me` → obtiene la cotización asociada a la OT.
+3. **Aprobar Cotización (si está en `DRAFT`):**
+   - `POST /api/v1/quotes/{quoteId}/approvals` → pasa la cotización a `APPROVED`.
+4. **Iniciar Pago Virtual (cuando la OT está `COMPLETED`):**
+   - `POST /api/v1/payments/sessions` con `{ "quoteId": "...", "provider": "MERCADO_PAGO" }` (o `POST /api/v1/payments/mercadopago/preferences`).
+   - Abrir `checkoutUrl` (o `sandboxCheckoutUrl` en pruebas) en WebView / navegador. Dentro de Mercado Pago el cliente elige tarjeta, Yape u otro medio habilitado.
+5. **Confirmación Automática:**
+   - El webhook `POST /api/v1/payments/mercadopago/webhooks` confirma el pago y marca el comprobante interno y la OT como `PAID` (sin requerir Factos cuando `billing.electronic-invoicing.enabled=false`).
+
+### Escenario B: Pago Presencial en Caja del Taller (Staff)
+- Si el cliente prefiere pagar en el taller (efectivo, POS físico o transferencia), el cajero/asistente/dueño registra el cobro en **`POST /api/v1/checkouts`** enviando `method` (`CASH`, `CREDIT_CARD`, `DEBIT_CARD`, `BANK_TRANSFER`).
+
+---
+
+## `POST /api/v1/payments/sessions` — Crear Sesión de Pago Virtual (Agnóstico de Pasarela)
+
+**Security**: `@PreAuthorize("isAuthenticated()")` — Staff de la sede o el **cliente dueño de la OT** (cuando la OT está `COMPLETED`)  
+**Description**: Crea una sesión de pago en la pasarela seleccionada (`MERCADO_PAGO` por defecto).
+
+### Request
+
+```json
+{
+  "quoteId": "q1q2q3q4-1234-5678-90ab-cdef12345678",
+  "provider": "MERCADO_PAGO",
+  "type": "RECEIPT",
+  "customerDocumentType": "DNI",
+  "customerDocumentNumber": "75981176",
+  "customerName": "Alan Mamani"
+}
+```
+
+### Success Response (201 CREATED)
+
+```json
+{
+  "provider": "MERCADO_PAGO",
+  "sessionId": "123456789-abcdef-1234",
+  "checkoutUrl": "https://www.mercadopago.com.pe/checkout/v1/redirect?pref_id=123456789-abcdef-1234",
+  "sandboxCheckoutUrl": "https://sandbox.mercadopago.com.pe/checkout/v1/redirect?pref_id=123456789-abcdef-1234",
+  "amount": 150.00,
+  "currency": "PEN",
+  "externalReference": "q1q2q3q4-1234-5678-90ab-cdef12345678"
+}
+```
 
 ---
 

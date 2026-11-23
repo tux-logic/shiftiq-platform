@@ -32,6 +32,7 @@ import com.tuxlogic.shiftiq.platform.shared.infrastructure.security.MultiTenancy
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 
 /**
  * REST controller for managing billing quotes.
@@ -112,9 +113,18 @@ public class QuotesController {
     }
 
     @PostMapping("/{id}/approvals")
-    @Operation(summary = "Approve a quote", description = "Approves a Quote, transitioning its state from DRAFT to APPROVED")
+    @Operation(summary = "Approve a quote", description = "Approves a Quote, transitioning its state from DRAFT to APPROVED. Accessible by authorized branch staff or the owning customer.")
     public ResponseEntity<?> approveQuote(@PathVariable UUID id) {
-        validateQuotePermission(id, Permission.QUOTE_APPROVE);
+        var quote = queryService.handle(new GetQuoteByIdQuery(id))
+                .orElseThrow(() -> new IllegalArgumentException("billing.error.quote.notFound"));
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        boolean isCustomerOwner = externalBillingContextService != null
+                && authentication != null
+                && authentication.getPrincipal() instanceof AuthenticatedPrincipal principal
+                && externalBillingContextService.isCustomerOwnerOfWorkOrder(principal.getId(), quote.getWorkOrderId());
+        if (!isCustomerOwner) {
+            multiTenancySecurityService.validateBranchPermission(quote.getBranchId().value(), Permission.QUOTE_APPROVE);
+        }
         var command = new ApproveQuoteCommand(id);
         var result = commandService.handle(command);
         if (result.isSuccess()) {

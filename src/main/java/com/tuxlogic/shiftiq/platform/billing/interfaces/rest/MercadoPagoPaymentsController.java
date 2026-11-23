@@ -1,6 +1,7 @@
 package com.tuxlogic.shiftiq.platform.billing.interfaces.rest;
 
 import com.tuxlogic.shiftiq.platform.billing.application.commandservices.MercadoPagoPaymentCommandService;
+import com.tuxlogic.shiftiq.platform.billing.application.commandservices.PaymentSessionService;
 import com.tuxlogic.shiftiq.platform.billing.application.commandservices.VoucherCommandService;
 import com.tuxlogic.shiftiq.platform.billing.application.outboundservices.ExternalBillingContextService;
 import com.tuxlogic.shiftiq.platform.billing.application.outboundservices.PaymentGatewayRegistry;
@@ -10,17 +11,14 @@ import com.tuxlogic.shiftiq.platform.billing.domain.model.commands.ProcessMercad
 import com.tuxlogic.shiftiq.platform.billing.domain.model.queries.GetQuoteByIdQuery;
 import com.tuxlogic.shiftiq.platform.billing.domain.model.queries.GetVoucherByQuoteIdQuery;
 import com.tuxlogic.shiftiq.platform.billing.domain.model.valueobjects.PaymentProvider;
-import com.tuxlogic.shiftiq.platform.billing.domain.model.valueobjects.QuoteStatus;
 import com.tuxlogic.shiftiq.platform.billing.domain.model.valueobjects.VoucherStatus;
 import com.tuxlogic.shiftiq.platform.billing.domain.model.valueobjects.VoucherType;
 import com.tuxlogic.shiftiq.platform.billing.interfaces.rest.resources.CreateMercadoPagoPreferenceResource;
 import com.tuxlogic.shiftiq.platform.billing.interfaces.rest.resources.MercadoPagoPreferenceResource;
 import com.tuxlogic.shiftiq.platform.billing.interfaces.rest.resources.MercadoPagoWebhookResource;
-import com.tuxlogic.shiftiq.platform.shared.application.result.ApplicationError;
-import com.tuxlogic.shiftiq.platform.shared.infrastructure.security.AuthenticatedPrincipal;
 import com.tuxlogic.shiftiq.platform.shared.infrastructure.security.MultiTenancySecurityService;
 import com.tuxlogic.shiftiq.platform.shared.interfaces.rest.transform.ErrorResponseAssembler;
-import org.springframework.security.access.AccessDeniedException;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.Authentication;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -58,6 +56,7 @@ public class MercadoPagoPaymentsController {
     private final MultiTenancySecurityService multiTenancySecurityService;
     private final ExternalBillingContextService externalBillingContextService;
     private final PaymentGatewayRegistry paymentGatewayRegistry;
+    private final PaymentSessionService paymentSessionService;
     private final MessageSource messageSource;
     private final String webhookSecret;
 
@@ -70,6 +69,26 @@ public class MercadoPagoPaymentsController {
             ExternalBillingContextService externalBillingContextService,
             PaymentGatewayRegistry paymentGatewayRegistry,
             MessageSource messageSource,
+            String webhookSecret) {
+        this(paymentCommandService, voucherCommandService, quoteQueryService, voucherQueryService,
+                multiTenancySecurityService, externalBillingContextService, paymentGatewayRegistry,
+                new com.tuxlogic.shiftiq.platform.billing.application.internal.commandservices.PaymentSessionServiceImpl(
+                        quoteQueryService, voucherQueryService, paymentCommandService,
+                        multiTenancySecurityService, externalBillingContextService, paymentGatewayRegistry, messageSource),
+                messageSource, webhookSecret);
+    }
+
+    @Autowired
+    public MercadoPagoPaymentsController(
+            MercadoPagoPaymentCommandService paymentCommandService,
+            VoucherCommandService voucherCommandService,
+            QuoteQueryService quoteQueryService,
+            VoucherQueryService voucherQueryService,
+            MultiTenancySecurityService multiTenancySecurityService,
+            ExternalBillingContextService externalBillingContextService,
+            PaymentGatewayRegistry paymentGatewayRegistry,
+            PaymentSessionService paymentSessionService,
+            MessageSource messageSource,
             @Value("${mercadopago.webhook.secret:}") String webhookSecret) {
         this.paymentCommandService = paymentCommandService;
         this.voucherCommandService = voucherCommandService;
@@ -78,6 +97,7 @@ public class MercadoPagoPaymentsController {
         this.multiTenancySecurityService = multiTenancySecurityService;
         this.externalBillingContextService = externalBillingContextService;
         this.paymentGatewayRegistry = paymentGatewayRegistry;
+        this.paymentSessionService = paymentSessionService;
         this.messageSource = messageSource;
         this.webhookSecret = webhookSecret;
     }
@@ -88,90 +108,30 @@ public class MercadoPagoPaymentsController {
     public ResponseEntity<?> createPreference(
             @Valid @RequestBody CreateMercadoPagoPreferenceResource resource,
             Authentication authentication) {
-        var quoteOpt = quoteQueryService.handle(new GetQuoteByIdQuery(resource.quoteId()));
-        if (quoteOpt.isEmpty()) {
-            String message = messageSource.getMessage("billing.error.quote.notFound", null, LocaleContextHolder.getLocale());
-            return ErrorResponseAssembler.toErrorResponseFromApplicationError(ApplicationError.notFound("preference", message));
-        }
-
-        var quote = quoteOpt.get();
-        boolean isBranchStaff = multiTenancySecurityService.isAuthorizedForBranch(quote.getBranchId().value());
-        if (!isBranchStaff) {
-            boolean isOwningCustomer = authentication != null
-                    && authentication.getPrincipal() instanceof AuthenticatedPrincipal principal
-                    && externalBillingContextService.isCustomerOwnerOfWorkOrder(principal.getId(), quote.getWorkOrderId());
-            if (!isOwningCustomer) {
-                throw new AccessDeniedException("Unauthorized access for requested quote: " + quote.getId());
-            }
-            if (!externalBillingContextService.isWorkOrderCompleted(quote.getWorkOrderId())) {
-                return ErrorResponseAssembler.toErrorResponseFromApplicationError(
-                        ApplicationError.conflict("preference", "Work order must be COMPLETED before customer payment."));
-            }
-        }
-
-        if (quote.getStatus() != QuoteStatus.APPROVED) {
-            String message = messageSource.getMessage("billing.error.voucher.notApproved", null, LocaleContextHolder.getLocale());
-            return ErrorResponseAssembler.toErrorResponseFromApplicationError(ApplicationError.conflict("preference", message));
-        }
-
-        if (voucherQueryService.handle(new GetVoucherByQuoteIdQuery(quote.getId())).isPresent()) {
-            String message = messageSource.getMessage("billing.error.quote.alreadyInvoiced", null, LocaleContextHolder.getLocale());
-            return ErrorResponseAssembler.toErrorResponseFromApplicationError(ApplicationError.conflict("preference", message));
-        }
-
-        if ("INVOICE".equalsIgnoreCase(resource.type())) {
-            if (resource.customerDocumentType() == null || !"RUC".equalsIgnoreCase(resource.customerDocumentType())) {
-                String msg = messageSource.getMessage("billing.error.invoice.ruc.documentType", null, LocaleContextHolder.getLocale());
-                return ErrorResponseAssembler.toErrorResponseFromApplicationError(
-                        ApplicationError.validationError("customerDocumentType", msg));
-            }
-            if (resource.customerDocumentNumber() == null || !resource.customerDocumentNumber().matches("^\\d{11}$")) {
-                String msg = messageSource.getMessage("billing.error.invoice.ruc.number", null, LocaleContextHolder.getLocale());
-                return ErrorResponseAssembler.toErrorResponseFromApplicationError(
-                        ApplicationError.validationError("customerDocumentNumber", msg));
-            }
-            if (resource.customerName() == null || resource.customerName().isBlank()) {
-                String msg = messageSource.getMessage("billing.error.invoice.customerName", null, LocaleContextHolder.getLocale());
-                return ErrorResponseAssembler.toErrorResponseFromApplicationError(
-                        ApplicationError.validationError("customerName", msg));
-            }
-        }
-
-        // Persist payment intent with customer tax data so webhook can autonomously issue voucher if client leaves
-        paymentCommandService.registerPaymentIntent(
-                quote.getId(),
-                resource.type() != null ? resource.type() : "RECEIPT",
-                resource.customerDocumentType() != null ? resource.customerDocumentType() : "DNI",
-                resource.customerDocumentNumber() != null ? resource.customerDocumentNumber() : "00000000",
-                resource.customerName() != null ? resource.customerName() : "Cliente General",
-                quote.getTotalAmount().amount()
+        var result = paymentSessionService.createCheckoutSession(
+                resource.quoteId(),
+                PaymentProvider.MERCADO_PAGO,
+                resource.type(),
+                resource.customerDocumentType(),
+                resource.customerDocumentNumber(),
+                resource.customerName(),
+                authentication
         );
 
-        var strategy = paymentGatewayRegistry.resolve(PaymentProvider.MERCADO_PAGO);
-        var resultOpt = strategy.createCheckoutSession(
-                quote.getTotalAmount().amount(),
-                "PEN",
-                "Cotizacion ShiftIQ #" + quote.getId().toString().substring(0, 8),
-                quote.getId().toString()
+        return result.fold(
+                session -> new ResponseEntity<>(
+                        new MercadoPagoPreferenceResource(
+                                session.sessionId(),
+                                session.checkoutUrl(),
+                                session.sandboxCheckoutUrl(),
+                                session.amount(),
+                                session.currency(),
+                                session.externalReference()
+                        ),
+                        HttpStatus.CREATED
+                ),
+                ErrorResponseAssembler::toErrorResponseFromApplicationError
         );
-
-        if (resultOpt.isEmpty()) {
-            String message = messageSource.getMessage("error.unexpected.message", null, LocaleContextHolder.getLocale());
-            return ErrorResponseAssembler.toErrorResponseFromApplicationError(
-                    ApplicationError.unexpected("preference", message));
-        }
-
-        var result = resultOpt.get();
-        var responseResource = new MercadoPagoPreferenceResource(
-                result.sessionId(),
-                result.checkoutUrl(),
-                result.sandboxCheckoutUrl(),
-                result.amount(),
-                result.currency(),
-                result.externalReference()
-        );
-
-        return new ResponseEntity<>(responseResource, HttpStatus.CREATED);
     }
 
     @PostMapping("/webhooks")
