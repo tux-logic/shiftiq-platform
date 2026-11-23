@@ -172,6 +172,14 @@ class WorkOrdersControllerTest {
                 new com.tuxlogic.shiftiq.platform.shared.domain.model.valueobjects.Mileage(35000)
         );
 
+        UUID mechanicId = UUID.randomUUID();
+        realWorkOrder.addTask(
+                new com.tuxlogic.shiftiq.platform.operations.domain.model.valueobjects.ServiceId(UUID.randomUUID()),
+                new com.tuxlogic.shiftiq.platform.operations.domain.model.valueobjects.MechanicId(mechanicId),
+                new com.tuxlogic.shiftiq.platform.operations.domain.model.valueobjects.TaskDescription("Cambio de aceite y revision general"),
+                com.tuxlogic.shiftiq.platform.shared.domain.model.valueobjects.Money.of(150.0)
+        );
+
         when(queryService.handle(any(GetWorkOrderByIdQuery.class))).thenReturn(Optional.of(realWorkOrder));
         when(multiTenancySecurityService.isAuthorizedForBranch(branchId)).thenReturn(true);
         when(queryService.getBranchCode(branchId)).thenReturn("BR-MIRA-01");
@@ -179,6 +187,7 @@ class WorkOrdersControllerTest {
         when(queryService.getVehicleSummary(vehicleId)).thenReturn(Optional.of(
                 new com.tuxlogic.shiftiq.platform.operations.application.outboundservices.ExternalVehicleService.VehicleSummary(
                         "B5K-412", "Toyota", "Corolla", 2022)));
+        when(queryService.getMechanicNames(realWorkOrder)).thenReturn(java.util.Map.of(mechanicId, "REYNALDO MACHACCA GONZALES"));
 
         ResponseEntity<?> response = controller.getWorkOrderById(workOrderId, null);
 
@@ -191,6 +200,8 @@ class WorkOrdersControllerTest {
         assertEquals("Toyota", body.vehicleBrand());
         assertEquals("Corolla", body.vehicleModel());
         assertEquals(2022, body.vehicleYear());
+        assertEquals(1, body.tasks().size());
+        assertEquals("REYNALDO MACHACCA GONZALES", body.tasks().get(0).assignedMechanicName());
     }
 
     @Test

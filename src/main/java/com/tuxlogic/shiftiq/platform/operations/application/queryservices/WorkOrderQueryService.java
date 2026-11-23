@@ -74,4 +74,11 @@ public interface WorkOrderQueryService {
      * @return an Optional containing the vehicle summary if found
      */
     Optional<com.tuxlogic.shiftiq.platform.operations.application.outboundservices.ExternalVehicleService.VehicleSummary> getVehicleSummary(java.util.UUID vehicleId);
+
+    /**
+     * Resolves display names for all mechanics assigned to the non-deleted tasks of a work order.
+     * @param workOrder the work order aggregate
+     * @return map of mechanic ID to display name
+     */
+    java.util.Map<java.util.UUID, String> getMechanicNames(WorkOrder workOrder);
 }
