@@ -18,8 +18,9 @@ Ambos flujos parten de la recepción del vehículo (`POST /api/v1/appointments`)
 2. **Servicio con Presupuesto Previo (autorización antes de ejecutar):**
    - Tras la revisión inicial, el taller carga las tareas/repuestos estimados en la OT y genera la cotización (`POST /api/v1/quotes` en estado `DRAFT`).
    - Si surgen ajustes antes de aprobar, el taller sincroniza el monto con `PUT /api/v1/quotes/{id}/sync` (o cancela y vuelve a cotizar).
-   - El cliente revisa el presupuesto (`GET /api/v1/quotes/me`) y lo aprueba (`POST /api/v1/quotes/{id}/approvals` → `APPROVED`) como autorización para iniciar el servicio *(el pago en línea permanece bloqueado hasta que la OT pase a `COMPLETED`)*.
-   - El mecánico ejecuta las tareas, el taller finaliza la OT (`COMPLETED`) y recién entonces se habilita el pago para el cliente.
+   - El cliente revisa el presupuesto (`GET /api/v1/quotes/me`) y lo aprueba (`POST /api/v1/quotes/{id}/approvals` → `APPROVED`) o lo rechaza (`POST /api/v1/quotes/{id}/cancellations` → `CANCELED`). *(El pago en línea permanece bloqueado hasta que la OT pase a `COMPLETED`.)*
+   - **Control de repuestos (reserva de stock):** Al agregar un repuesto a una tarea solo se *reserva* el stock en inventario (sin abrir/instalar la pieza física). Si el cliente rechaza el presupuesto adicional, el taller retira el repuesto (`DELETE /api/v1/work-order-tasks/{taskId}/products/{productId}`) y el stock vuelve intacto al inventario.
+   - El mecánico ejecuta las tareas asignadas (`PENDING` → `DOING` → `COMPLETED`), el taller finaliza la OT (`COMPLETED`) y recién entonces se habilita el pago para el cliente.
 
 ---
 
