@@ -202,7 +202,14 @@ public class Voucher extends AbstractDomainAggregateRoot<Voucher> {
 
         if (newTotalPaid.compareTo(this.totalAmount.amount()) == 0) {
             this.status = VoucherStatus.PAID;
-            this.registerDomainEvent(new VoucherPaidEvent(this, this.id, this.quoteId));
+            UUID resolvedBranchId = this.branchId != null ? this.branchId : branchId;
+            this.registerDomainEvent(new VoucherPaidEvent(
+                    this,
+                    this.id,
+                    this.quoteId,
+                    resolvedBranchId != null ? new com.tuxlogic.shiftiq.platform.shared.domain.model.valueobjects.BranchId(resolvedBranchId) : null,
+                    this.totalAmount.amount()
+            ));
         } else {
             this.status = VoucherStatus.PARTIALLY_PAID;
         }
@@ -274,7 +281,16 @@ public class Voucher extends AbstractDomainAggregateRoot<Voucher> {
         if (getTotalPaidAmount().compareTo(this.totalAmount.amount()) >= 0) {
             if (this.status != VoucherStatus.PAID) {
                 this.status = VoucherStatus.PAID;
-                this.registerDomainEvent(new VoucherPaidEvent(this, this.id, this.quoteId));
+                UUID resolvedBranchId = this.branchId != null
+                        ? this.branchId
+                        : this.payments.stream().map(Payment::getBranchId).filter(java.util.Objects::nonNull).findFirst().orElse(null);
+                this.registerDomainEvent(new VoucherPaidEvent(
+                        this,
+                        this.id,
+                        this.quoteId,
+                        resolvedBranchId != null ? new com.tuxlogic.shiftiq.platform.shared.domain.model.valueobjects.BranchId(resolvedBranchId) : null,
+                        this.totalAmount.amount()
+                ));
             }
         } else if (this.status == VoucherStatus.EMISSION_FAILED) {
             // Emission was retried successfully on a voucher without full payment: it is emitted
