@@ -49,6 +49,13 @@ public class BranchRepositoryImpl implements BranchRepository {
     }
 
     @Override
+    public List<Branch> findAll() {
+        return branchPersistenceRepository.findAll().stream()
+                .map(BranchPersistenceAssembler::toDomain)
+                .collect(Collectors.toList());
+    }
+
+    @Override
     public boolean existsById(BranchId id) {
         return branchPersistenceRepository.existsById(id.value());
     }

@@ -8,6 +8,7 @@ import com.tuxlogic.shiftiq.platform.core.domain.model.valueobjects.UserId;
 import com.tuxlogic.shiftiq.platform.core.interfaces.rest.resources.UpdateCustomerResource;
 import com.tuxlogic.shiftiq.platform.shared.infrastructure.security.AccountBranchScopeResolver;
 import com.tuxlogic.shiftiq.platform.shared.infrastructure.security.AuthenticatedPrincipal;
+import com.tuxlogic.shiftiq.platform.shared.infrastructure.security.CustomerScopeResolver;
 import com.tuxlogic.shiftiq.platform.shared.infrastructure.security.MultiTenancySecurityService;
 import com.tuxlogic.shiftiq.platform.shared.infrastructure.security.TenantScopeResolver;
 import org.junit.jupiter.api.AfterEach;
@@ -41,9 +42,10 @@ class CustomersControllerTest {
         queryService = Mockito.mock(CustomerQueryService.class);
         var tenantScopeResolver = Mockito.mock(TenantScopeResolver.class);
         var accountBranchScopeResolver = Mockito.mock(AccountBranchScopeResolver.class);
+        var customerScopeResolver = Mockito.mock(CustomerScopeResolver.class);
         controller = new CustomersController(
                 commandService, queryService,
-                new MultiTenancySecurityService(tenantScopeResolver, accountBranchScopeResolver));
+                new MultiTenancySecurityService(tenantScopeResolver, accountBranchScopeResolver, customerScopeResolver));
     }
 
     @AfterEach

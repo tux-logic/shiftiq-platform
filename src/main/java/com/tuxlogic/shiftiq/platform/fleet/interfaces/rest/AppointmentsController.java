@@ -51,8 +51,8 @@ public class AppointmentsController {
         }
 
         @PostMapping
-        @Operation(summary = "Create a new appointment", description = "Creates a new appointment")
-        @PreAuthorize("isAuthenticated() and (hasRole('ADMIN') or @multiTenancySecurityService.isAuthorizedForBranch(#resource.branchId()))")
+        @Operation(summary = "Create a new appointment", description = "Creates a new appointment for staff of a branch or for the authenticated customer booking themselves")
+        @PreAuthorize("isAuthenticated() and @multiTenancySecurityService.canCreateAppointment(#resource.branchId(), #resource.customerId())")
         public ResponseEntity<?> createAppointment(@Valid @RequestBody CreateAppointmentResource resource) {
                 var command = CreateAppointmentCommandFromResourceAssembler.toCommandFromResource(resource);
                 var result = commandService.handle(command);
@@ -73,7 +73,9 @@ public class AppointmentsController {
                         return handleQueryFailure(queryResult.failure().get());
                 }
                 var existingApp = queryResult.success().get();
-                if (!multiTenancySecurityService.isAuthorizedForBranch(existingApp.getBranchId())) {
+                if (!multiTenancySecurityService.canManageAppointment(
+                                existingApp.getBranchId().value(),
+                                existingApp.getCustomerId().value())) {
                         return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
                 }
 
@@ -95,7 +97,9 @@ public class AppointmentsController {
                         return handleQueryFailure(queryResult.failure().get());
                 }
                 var existingApp = queryResult.success().get();
-                if (!multiTenancySecurityService.isAuthorizedForBranch(existingApp.getBranchId())) {
+                if (!multiTenancySecurityService.canManageAppointment(
+                                existingApp.getBranchId().value(),
+                                existingApp.getCustomerId().value())) {
                         return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
                 }
 
@@ -137,11 +141,13 @@ public class AppointmentsController {
                                                                         .toList()),
                                         this::handleQueryFailure);
                 } else if (customerId != null) {
+                        boolean ownCustomer = multiTenancySecurityService.isAuthorizedForOwnCustomer(customerId);
                         var result = queryService.handle(new CustomerId(customerId));
                         return result.fold(
                                         appointments -> ResponseEntity.ok(
                                                         appointments.stream()
-                                                                        .filter(a -> multiTenancySecurityService.isAuthorizedForBranch(a.getBranchId()))
+                                                                        .filter(a -> ownCustomer
+                                                                                        || multiTenancySecurityService.isAuthorizedForBranch(a.getBranchId()))
                                                                         .map(AppointmentResourceFromAggregateAssembler::toResourceFromAggregate)
                                                                         .toList()),
                                         this::handleQueryFailure);
@@ -150,7 +156,9 @@ public class AppointmentsController {
                         return result.fold(
                                         appointments -> ResponseEntity.ok(
                                                         appointments.stream()
-                                                                        .filter(a -> multiTenancySecurityService.isAuthorizedForBranch(a.getBranchId()))
+                                                                        .filter(a -> multiTenancySecurityService.canManageAppointment(
+                                                                                        a.getBranchId().value(),
+                                                                                        a.getCustomerId().value()))
                                                                         .map(AppointmentResourceFromAggregateAssembler::toResourceFromAggregate)
                                                                         .toList()),
                                         this::handleQueryFailure);
@@ -165,7 +173,9 @@ public class AppointmentsController {
                 var result = queryService.handle(appointmentId);
                 return result.fold(
                                 appointment -> {
-                                        if (!multiTenancySecurityService.isAuthorizedForBranch(appointment.getBranchId())) {
+                                        if (!multiTenancySecurityService.canManageAppointment(
+                                                        appointment.getBranchId().value(),
+                                                        appointment.getCustomerId().value())) {
                                                 return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
                                         }
                                         return ResponseEntity.ok(

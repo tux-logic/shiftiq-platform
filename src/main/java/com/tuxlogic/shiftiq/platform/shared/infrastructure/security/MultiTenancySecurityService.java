@@ -32,11 +32,14 @@ public class MultiTenancySecurityService {
 
     private final TenantScopeResolver tenantScopeResolver;
     private final AccountBranchScopeResolver accountBranchScopeResolver;
+    private final CustomerScopeResolver customerScopeResolver;
 
     public MultiTenancySecurityService(TenantScopeResolver tenantScopeResolver,
-                                       AccountBranchScopeResolver accountBranchScopeResolver) {
+                                       AccountBranchScopeResolver accountBranchScopeResolver,
+                                       CustomerScopeResolver customerScopeResolver) {
         this.tenantScopeResolver = tenantScopeResolver;
         this.accountBranchScopeResolver = accountBranchScopeResolver;
+        this.customerScopeResolver = customerScopeResolver;
     }
 
     public boolean isAuthorizedForBranch(UUID branchId) {
@@ -74,6 +77,51 @@ public class MultiTenancySecurityService {
         if (!isAuthorizedForBranch(branchId)) {
             throw new AccessDeniedException("Unauthorized access for requested branch identifier: " + branchId);
         }
+    }
+
+    /**
+     * True when {@code customerId} belongs to the authenticated caller's customer profile
+     * (or the caller is {@code ROLE_ADMIN}).
+     */
+    public boolean isAuthorizedForOwnCustomer(UUID customerId) {
+        if (customerId == null) {
+            LOGGER.warn("Customer access denied: no customer identifier was provided");
+            return false;
+        }
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null || !authentication.isAuthenticated()) {
+            return false;
+        }
+        Object principal = authentication.getPrincipal();
+        if (!(principal instanceof AuthenticatedPrincipal authenticatedPrincipal)) {
+            return false;
+        }
+        if (authenticatedPrincipal.hasRole("ROLE_ADMIN")) {
+            return true;
+        }
+        UUID ownCustomerId = customerScopeResolver.findCustomerIdForUser(authenticatedPrincipal.getId());
+        return customerId.equals(ownCustomerId);
+    }
+
+    /**
+     * Staff may manage appointments for branches they can access; customers may manage
+     * only appointments that belong to their own customer profile.
+     */
+    public boolean canManageAppointment(UUID branchId, UUID customerId) {
+        return isAuthorizedForBranch(branchId) || isAuthorizedForOwnCustomer(customerId);
+    }
+
+    /**
+     * Customers may book into any existing branch; staff still require branch membership.
+     */
+    public boolean canCreateAppointment(UUID branchId, UUID customerId) {
+        if (branchId == null || customerId == null) {
+            return false;
+        }
+        if (isAuthorizedForBranch(branchId)) {
+            return true;
+        }
+        return isAuthorizedForOwnCustomer(customerId) && branchExists(branchId);
     }
 
     /**

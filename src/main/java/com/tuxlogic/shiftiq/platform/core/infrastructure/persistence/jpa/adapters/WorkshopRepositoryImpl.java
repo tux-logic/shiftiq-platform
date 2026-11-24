@@ -49,6 +49,13 @@ public class WorkshopRepositoryImpl implements WorkshopRepository {
     }
 
     @Override
+    public List<Workshop> findAll() {
+        return workshopPersistenceRepository.findAll().stream()
+                .map(WorkshopPersistenceAssembler::toDomain)
+                .collect(Collectors.toList());
+    }
+
+    @Override
     public boolean existsById(WorkshopId id) {
         return workshopPersistenceRepository.existsById(id.value());
     }
