@@ -35,11 +35,14 @@ public class MultiTenancySecurityService {
 
     private final TenantScopeResolver tenantScopeResolver;
     private final AccountBranchScopeResolver accountBranchScopeResolver;
+    private final CustomerScopeResolver customerScopeResolver;
 
     public MultiTenancySecurityService(TenantScopeResolver tenantScopeResolver,
-                                       AccountBranchScopeResolver accountBranchScopeResolver) {
+                                       AccountBranchScopeResolver accountBranchScopeResolver,
+                                       CustomerScopeResolver customerScopeResolver) {
         this.tenantScopeResolver = tenantScopeResolver;
         this.accountBranchScopeResolver = accountBranchScopeResolver;
+        this.customerScopeResolver = customerScopeResolver;
     }
 
     public boolean isAuthorizedForBranch(UUID branchId) {
@@ -77,6 +80,42 @@ public class MultiTenancySecurityService {
         if (!isAuthorizedForBranch(branchId)) {
             throw new AccessDeniedException("Unauthorized access for requested branch identifier: " + branchId);
         }
+    }
+
+    /** True when the customer profile belongs to the authenticated user (or the user is an admin). */
+    public boolean isAuthorizedForOwnCustomer(UUID customerId) {
+        if (customerId == null) {
+            LOGGER.warn("Customer access denied: no customer identifier was provided");
+            return false;
+        }
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null || !authentication.isAuthenticated()) {
+            return false;
+        }
+        Object principal = authentication.getPrincipal();
+        if (!(principal instanceof AuthenticatedPrincipal authenticatedPrincipal)) {
+            return false;
+        }
+        if (authenticatedPrincipal.hasRole("ROLE_ADMIN")) {
+            return true;
+        }
+        UUID ownCustomerId = customerScopeResolver.findCustomerIdForUser(authenticatedPrincipal.getId());
+        return customerId.equals(ownCustomerId);
+    }
+
+    /** Staff need appointment management permission; customers may manage their own appointments. */
+    public boolean canManageAppointment(UUID branchId, UUID customerId) {
+        return hasPermissionForBranch(branchId, Permission.APPOINTMENT_MANAGE)
+                || isAuthorizedForOwnCustomer(customerId);
+    }
+
+    /** A customer may book into an existing branch; staff need appointment management permission. */
+    public boolean canCreateAppointment(UUID branchId, UUID customerId) {
+        if (branchId == null || customerId == null) {
+            return false;
+        }
+        return hasPermissionForBranch(branchId, Permission.APPOINTMENT_MANAGE)
+                || (isAuthorizedForOwnCustomer(customerId) && branchExists(branchId));
     }
 
     /**

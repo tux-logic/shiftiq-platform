@@ -11,6 +11,7 @@ public interface BranchRepository {
     Branch save(Branch branch);
     Optional<Branch> findById(BranchId id);
     List<Branch> findAllByWorkshopId(WorkshopId workshopId);
+    List<Branch> findAll();
     boolean existsById(BranchId id);
     boolean existsByCode(String code);
 }

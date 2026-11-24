@@ -67,12 +67,11 @@ public class WorkshopSpecialtiesController {
     }
 
     @GetMapping
-    @Operation(summary = "List workshop specialties", description = "Retrieves all specialties for a workshop, optionally filtering for active only")
-    @PreAuthorize("isAuthenticated() and @multiTenancySecurityService.isAuthorizedForWorkshop(#workshopId)")
+    @Operation(summary = "List workshop specialties", description = "Retrieves all specialties for a workshop, optionally filtering for active only. Readable by any authenticated user for B2C booking discovery.")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<List<WorkshopSpecialtyResource>> getSpecialties(
             @PathVariable UUID workshopId,
             @RequestParam(required = false, defaultValue = "true") boolean activeOnly) {
-        multiTenancySecurityService.validateWorkshopAccess(workshopId);
         var query = new GetWorkshopSpecialtiesByWorkshopIdQuery(new WorkshopId(workshopId), activeOnly);
         var specialties = queryService.handle(query).stream()
                 .map(WorkshopSpecialtyResourceFromAggregateAssembler::toResource)
