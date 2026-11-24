@@ -2,6 +2,7 @@ package com.tuxlogic.shiftiq.platform.analytics.interfaces.events;
 
 import com.tuxlogic.shiftiq.platform.analytics.application.internal.services.AnalyticsDeltaDispatcher;
 import com.tuxlogic.shiftiq.platform.analytics.domain.model.valueobjects.AnalyticsDelta;
+import com.tuxlogic.shiftiq.platform.billing.domain.model.events.VoucherPaidEvent;
 import com.tuxlogic.shiftiq.platform.fleet.domain.model.events.AppointmentCreatedEvent;
 import com.tuxlogic.shiftiq.platform.inventory.domain.model.events.LowStockAlertClearedEvent;
 import com.tuxlogic.shiftiq.platform.inventory.domain.model.events.LowStockAlertTriggeredEvent;
@@ -35,25 +36,36 @@ class AnalyticsEventListenersTest {
     }
 
     @Test
-    @DisplayName("WorkOrderCompletedAnalyticsListener dispatches one completed work order and its revenue")
+    @DisplayName("WorkOrderCompletedAnalyticsListener dispatches one completed work order without premature revenue")
     void testWorkOrderCompletedListener() {
         var listener = new WorkOrderCompletedAnalyticsListener(dispatcher);
         var event = new WorkOrderCompletedEvent(this, branchId, null, null, new Money(new BigDecimal("150.00")));
 
         listener.on(event);
 
-        verify(dispatcher).dispatch(branchId, new AnalyticsDelta(new BigDecimal("150.00"), 1, 0, 0));
+        verify(dispatcher).dispatch(branchId, new AnalyticsDelta(BigDecimal.ZERO, 1, 0, 0));
     }
 
     @Test
-    @DisplayName("WorkOrderReopenedAnalyticsListener dispatches the negation of the completion")
+    @DisplayName("WorkOrderReopenedAnalyticsListener dispatches the negation of the completion count")
     void testWorkOrderReopenedListener() {
         var listener = new WorkOrderReopenedAnalyticsListener(dispatcher);
         var event = new WorkOrderReopenedEvent(this, branchId, null, null, new Money(new BigDecimal("150.00")));
 
         listener.on(event);
 
-        verify(dispatcher).dispatch(branchId, new AnalyticsDelta(new BigDecimal("-150.00"), -1, 0, 0));
+        verify(dispatcher).dispatch(branchId, new AnalyticsDelta(BigDecimal.ZERO, -1, 0, 0));
+    }
+
+    @Test
+    @DisplayName("VoucherPaidAnalyticsListener dispatches revenue when payment is confirmed")
+    void testVoucherPaidListener() {
+        var listener = new VoucherPaidAnalyticsListener(dispatcher);
+        var event = new VoucherPaidEvent(this, UUID.randomUUID(), UUID.randomUUID(), branchId, new BigDecimal("195.00"));
+
+        listener.on(event);
+
+        verify(dispatcher).dispatch(branchId, new AnalyticsDelta(new BigDecimal("195.00"), 0, 0, 0));
     }
 
     @Test
@@ -105,6 +117,10 @@ class AnalyticsEventListenersTest {
                 .on(new DtcAlertTriggeredEvent(UUID.randomUUID(), null, null, "P0300", DtcAlertSeverity.HIGH));
         new InventoryStockAnalyticsListener(dispatcher)
                 .on(new LowStockAlertTriggeredEvent(UUID.randomUUID(), null, 2, 5));
+        new VoucherPaidAnalyticsListener(dispatcher)
+                .on(new VoucherPaidEvent(this, UUID.randomUUID(), UUID.randomUUID(), null, new BigDecimal("195.00")));
+        new VoucherPaidAnalyticsListener(dispatcher)
+                .on(new VoucherPaidEvent(this, UUID.randomUUID(), UUID.randomUUID(), branchId, BigDecimal.ZERO));
 
         Mockito.verifyNoInteractions(dispatcher);
     }

@@ -9,6 +9,7 @@ import com.tuxlogic.shiftiq.platform.inventory.application.queryservices.Product
 import com.tuxlogic.shiftiq.platform.inventory.domain.model.queries.GetProductsByBranchIdQuery;
 import com.tuxlogic.shiftiq.platform.shared.domain.model.valueobjects.BranchId;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
@@ -38,7 +39,7 @@ public class BranchAnalyticsSnapshotService {
         this.productQueryService = productQueryService;
     }
 
-    @Transactional
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void applyDelta(BranchId branchId, AnalyticsDelta delta) {
         if (branchId == null) {
             throw new IllegalArgumentException("analytics.error.branchId.required");
@@ -53,7 +54,7 @@ public class BranchAnalyticsSnapshotService {
      * Recomputes the low stock alert count from inventory and stores it as an absolute
      * value, so the KPI can never drift from increments/decrements (finding M14).
      */
-    @Transactional
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void applyLowStockRecompute(BranchId branchId) {
         if (branchId == null) {
             throw new IllegalArgumentException("analytics.error.branchId.required");
@@ -62,7 +63,7 @@ public class BranchAnalyticsSnapshotService {
         repository.setLowStockAlertsCount(branchId, clock.today(), lowStockProducts.size());
     }
 
-    @Transactional
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void enqueueDelta(BranchId branchId, LocalDate deltaDate, AnalyticsDelta delta, boolean lowStockRecompute) {
         pendingRepository.save(new PendingAnalyticsDelta(branchId, deltaDate, delta, lowStockRecompute));
     }
