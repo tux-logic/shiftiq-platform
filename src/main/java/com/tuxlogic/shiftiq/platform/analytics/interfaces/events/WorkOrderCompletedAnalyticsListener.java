@@ -23,9 +23,7 @@ public class WorkOrderCompletedAnalyticsListener {
         if (event.branchId() == null) {
             return;
         }
-        var revenue = event.totalAmount() != null && event.totalAmount().amount() != null
-                ? event.totalAmount().amount()
-                : BigDecimal.ZERO;
-        dispatcher.dispatch(event.branchId(), new AnalyticsDelta(revenue, 1, 0, 0));
+        // Revenue is recognized on actual payment (VoucherPaidEvent), not on work order completion.
+        dispatcher.dispatch(event.branchId(), new AnalyticsDelta(BigDecimal.ZERO, 1, 0, 0));
     }
 }

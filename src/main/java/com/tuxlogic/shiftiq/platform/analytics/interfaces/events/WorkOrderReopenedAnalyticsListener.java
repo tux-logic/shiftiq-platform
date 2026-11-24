@@ -28,9 +28,6 @@ public class WorkOrderReopenedAnalyticsListener {
         if (event.branchId() == null) {
             return;
         }
-        var revenue = event.totalAmount() != null && event.totalAmount().amount() != null
-                ? event.totalAmount().amount()
-                : BigDecimal.ZERO;
-        dispatcher.dispatch(event.branchId(), new AnalyticsDelta(revenue.negate(), -1, 0, 0));
+        dispatcher.dispatch(event.branchId(), new AnalyticsDelta(BigDecimal.ZERO, -1, 0, 0));
     }
 }
