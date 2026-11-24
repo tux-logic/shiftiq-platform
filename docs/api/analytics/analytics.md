@@ -52,7 +52,7 @@
 
 ### Important Considerations
 
-- **`totalRevenue`**: Ingreso **reconocido** al completar OT (no al cobrar). Reabrir OT revierte ingreso + contador (clamp ≥ 0)
+- **`totalRevenue`**: Ingreso **real** reconocido cuando se confirma el pago (`VoucherPaidEvent`, vía Mercado Pago o cobro presencial en caja), independiente de si la facturación electrónica Factos/SUNAT está habilitada. Reabrir OT revierte únicamente `completedWorkOrdersCount` (clamp ≥ 0)
 - **Día de negocio**: `analytics.zone-id` (default `America/Lima`) — evento 02:00 UTC = día anterior en Lima
 - **Consistencia**: UPSERT atómico por (sede, día) — sin read-modify-write
 
@@ -162,8 +162,9 @@
 | Evento | Origen | Efecto en Snapshot |
 |--------|--------|-------------------|
 | `AppointmentCreated` | Fleet | `totalAppointmentsCount++` |
-| `WorkOrderCompleted` | Operations | `totalRevenue += ot.totalAmount`, `completedWorkOrdersCount++` |
-| `WorkOrderReopened` | Operations | `totalRevenue -= ot.totalAmount` (clamp ≥ 0), `completedWorkOrdersCount--` |
+| `WorkOrderCompleted` | Operations | `completedWorkOrdersCount++` |
+| `WorkOrderReopened` | Operations | `completedWorkOrdersCount--` (clamp ≥ 0) |
+| `VoucherPaid` | Billing | `totalRevenue += voucher.paidAmount` (Mercado Pago o caja presencial, sin depender de Factos) |
 | `DtcAlertTriggered` | IoT | `dtcAlertsCount++` |
 | `LowStockAlertTriggered` | Inventory | `lowStockAlertsCount` = recalculado desde inventario (no incremental) |
 
