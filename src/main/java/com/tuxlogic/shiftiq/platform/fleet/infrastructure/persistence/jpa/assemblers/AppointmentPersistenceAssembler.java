@@ -23,6 +23,7 @@ public class AppointmentPersistenceAssembler {
         targetEntity.setBranchId(aggregate.getBranchId());
         targetEntity.setCustomerId(aggregate.getCustomerId());
         targetEntity.setVehicleId(aggregate.getVehicleId());
+        targetEntity.setBayId(aggregate.getBayId());
         targetEntity.setStatus(aggregate.getStatus());
         targetEntity.setScheduledStart(aggregate.getScheduledStart());
         targetEntity.setScheduledEnd(aggregate.getScheduledEnd());
@@ -41,6 +42,7 @@ public class AppointmentPersistenceAssembler {
                 entity.getBranchId(),
                 entity.getCustomerId(),
                 entity.getVehicleId(),
+                entity.getBayId(),
                 entity.getScheduledStart(),
                 entity.getScheduledEnd(),
                 entity.getStatus(),

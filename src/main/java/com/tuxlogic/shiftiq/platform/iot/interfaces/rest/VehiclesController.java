@@ -38,9 +38,13 @@ import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * REST controller for managing Vehicle operations inside the iot context.
@@ -190,6 +194,50 @@ public class VehiclesController {
         var command = new DeleteVehicleCommand(new VehicleId(id));
         var result = vehicleCommandService.handle(command);
         return ResponseEntityFromVehicleCommandResultAssembler.toResponseEntityFromVoidResult(result, messageSource);
+    }
+
+    @GetMapping(value = "/{vehicleId}/telemetry/live", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+    @Operation(summary = "Stream live telemetry for a vehicle", description = "Polls latest telemetry every 3 seconds until disconnect or timeout (~5 minutes)")
+    public SseEmitter streamLiveTelemetry(@PathVariable UUID vehicleId, Authentication authentication) {
+        validateVehicleAccess(vehicleId, authentication);
+        SseEmitter emitter = new SseEmitter(TimeUnit.MINUTES.toMillis(5));
+        AtomicBoolean running = new AtomicBoolean(true);
+        var executor = Executors.newSingleThreadScheduledExecutor();
+
+        emitter.onCompletion(() -> {
+            running.set(false);
+            executor.shutdownNow();
+        });
+        emitter.onTimeout(() -> {
+            running.set(false);
+            executor.shutdownNow();
+        });
+        emitter.onError(ex -> {
+            running.set(false);
+            executor.shutdownNow();
+        });
+
+        executor.scheduleAtFixedRate(() -> {
+            if (!running.get()) {
+                return;
+            }
+            try {
+                var query = new GetVehicleTelemetrySnapshotHistoryQuery(new VehicleId(vehicleId), 0, 1);
+                var list = telemetryQueryService.handle(query);
+                if (list.isEmpty()) {
+                    emitter.send(SseEmitter.event().comment("keepalive"));
+                } else {
+                    var resource = TelemetrySnapshotResourceFromAggregateAssembler.toResourceFromAggregate(list.get(0));
+                    emitter.send(SseEmitter.event().data(resource));
+                }
+            } catch (Exception ex) {
+                running.set(false);
+                emitter.completeWithError(ex);
+                executor.shutdownNow();
+            }
+        }, 0, 3, TimeUnit.SECONDS);
+
+        return emitter;
     }
 
     @GetMapping("/{vehicleId}/telemetry-snapshots")

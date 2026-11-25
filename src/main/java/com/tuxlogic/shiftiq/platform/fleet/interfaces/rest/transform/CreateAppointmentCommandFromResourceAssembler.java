@@ -14,6 +14,7 @@ public class CreateAppointmentCommandFromResourceAssembler {
                 new BranchId(resource.branchId()),
                 new CustomerId(resource.customerId()),
                 new VehicleId(resource.vehicleId()),
+                resource.bayId(),
                 resource.scheduledStart(),
                 resource.notes() == null || resource.notes().isBlank()
                         ? null
