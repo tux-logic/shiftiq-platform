@@ -14,6 +14,7 @@ public record UpdateAppointmentCommand(
         BranchId branchId,
         CustomerId customerId,
         VehicleId vehicleId,
+        UUID bayId,
         LocalDateTime scheduledStart,
         AppointmentStatus status,
         AppointmentSummary notes

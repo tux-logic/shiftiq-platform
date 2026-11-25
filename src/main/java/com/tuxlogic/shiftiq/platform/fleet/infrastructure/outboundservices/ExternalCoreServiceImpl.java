@@ -4,6 +4,8 @@ import com.tuxlogic.shiftiq.platform.core.application.queryservices.BranchQueryS
 import com.tuxlogic.shiftiq.platform.core.application.queryservices.CustomerQueryService;
 import com.tuxlogic.shiftiq.platform.core.application.queryservices.EmployeeQueryService;
 import com.tuxlogic.shiftiq.platform.core.application.queryservices.WorkshopSpecialtyQueryService;
+import com.tuxlogic.shiftiq.platform.core.domain.model.valueobjects.BranchBayId;
+import com.tuxlogic.shiftiq.platform.core.domain.repositories.BranchBayRepository;
 import com.tuxlogic.shiftiq.platform.core.domain.model.queries.GetBranchByIdQuery;
 import com.tuxlogic.shiftiq.platform.core.domain.model.queries.GetCustomerByIdQuery;
 import com.tuxlogic.shiftiq.platform.core.domain.model.queries.GetEmployeeByIdQuery;
@@ -15,6 +17,7 @@ import com.tuxlogic.shiftiq.platform.shared.domain.model.valueobjects.BranchId;
 import com.tuxlogic.shiftiq.platform.shared.domain.model.valueobjects.CustomerId;
 import org.springframework.stereotype.Service;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -29,15 +32,18 @@ public class ExternalCoreServiceImpl implements ExternalCoreService {
     private final CustomerQueryService customerQueryService;
     private final EmployeeQueryService employeeQueryService;
     private final WorkshopSpecialtyQueryService workshopSpecialtyQueryService;
+    private final BranchBayRepository branchBayRepository;
 
     public ExternalCoreServiceImpl(BranchQueryService branchQueryService,
                                    CustomerQueryService customerQueryService,
                                    EmployeeQueryService employeeQueryService,
-                                   WorkshopSpecialtyQueryService workshopSpecialtyQueryService) {
+                                   WorkshopSpecialtyQueryService workshopSpecialtyQueryService,
+                                   BranchBayRepository branchBayRepository) {
         this.branchQueryService = branchQueryService;
         this.customerQueryService = customerQueryService;
         this.employeeQueryService = employeeQueryService;
         this.workshopSpecialtyQueryService = workshopSpecialtyQueryService;
+        this.branchBayRepository = branchBayRepository;
     }
 
     @Override
@@ -80,5 +86,31 @@ public class ExternalCoreServiceImpl implements ExternalCoreService {
                 .handle(new GetWorkshopSpecialtiesByWorkshopIdQuery(new WorkshopId(workshopId), false))
                 .stream()
                 .anyMatch(specialty -> specialty.isActive() && normalized.equals(specialty.getCode()));
+    }
+
+    @Override
+    public boolean existsBranchBay(UUID bayId, UUID branchId) {
+        if (bayId == null || branchId == null) {
+            return false;
+        }
+        return branchBayRepository.existsByIdAndBranchId(new BranchBayId(bayId), new BranchId(branchId));
+    }
+
+    @Override
+    public int countActiveBays(UUID branchId) {
+        if (branchId == null) {
+            return 0;
+        }
+        return branchBayRepository.countActiveByBranchId(new BranchId(branchId));
+    }
+
+    @Override
+    public List<UUID> findActiveBayIdsByBranchId(UUID branchId) {
+        if (branchId == null) {
+            return List.of();
+        }
+        return branchBayRepository.findAllActiveByBranchId(new BranchId(branchId)).stream()
+                .map(bay -> bay.getId().value())
+                .toList();
     }
 }
