@@ -79,6 +79,62 @@ public class AppointmentRepositoryAdapter implements AppointmentRepository {
     }
 
     @Override
+    public boolean existsByBranchIdAndBayIdAndStatusAndScheduledStartLessThanAndScheduledEndGreaterThan(
+            BranchId branchId,
+            UUID bayId,
+            AppointmentStatus status,
+            LocalDateTime scheduledEnd,
+            LocalDateTime scheduledStart
+    ) {
+        return appointmentJpaRepository.existsByBranchIdAndBayIdAndStatusAndScheduledStartLessThanAndScheduledEndGreaterThan(
+                branchId, bayId, status, scheduledEnd, scheduledStart);
+    }
+
+    @Override
+    public boolean existsByIdNotAndBranchIdAndBayIdAndStatusAndScheduledStartLessThanAndScheduledEndGreaterThan(
+            UUID appointmentId,
+            BranchId branchId,
+            UUID bayId,
+            AppointmentStatus status,
+            LocalDateTime scheduledEnd,
+            LocalDateTime scheduledStart
+    ) {
+        return appointmentJpaRepository.existsByIdNotAndBranchIdAndBayIdAndStatusAndScheduledStartLessThanAndScheduledEndGreaterThan(
+                appointmentId, branchId, bayId, status, scheduledEnd, scheduledStart);
+    }
+
+    @Override
+    public boolean existsByBranchIdAndStatusAndScheduledStartLessThanAndScheduledEndGreaterThan(
+            BranchId branchId,
+            AppointmentStatus status,
+            LocalDateTime scheduledEnd,
+            LocalDateTime scheduledStart
+    ) {
+        return appointmentJpaRepository.existsByBranchIdAndStatusAndScheduledStartLessThanAndScheduledEndGreaterThan(
+                branchId, status, scheduledEnd, scheduledStart);
+    }
+
+    @Override
+    public boolean existsByIdNotAndBranchIdAndStatusAndScheduledStartLessThanAndScheduledEndGreaterThan(
+            UUID appointmentId,
+            BranchId branchId,
+            AppointmentStatus status,
+            LocalDateTime scheduledEnd,
+            LocalDateTime scheduledStart
+    ) {
+        return appointmentJpaRepository.existsByIdNotAndBranchIdAndStatusAndScheduledStartLessThanAndScheduledEndGreaterThan(
+                appointmentId, branchId, status, scheduledEnd, scheduledStart);
+    }
+
+    @Override
+    public List<Appointment> findByBranchIdAndScheduledStartBetween(BranchId branchId, LocalDateTime from, LocalDateTime to) {
+        return appointmentJpaRepository.findByBranchIdAndScheduledStartBetween(branchId, from, to)
+                .stream()
+                .map(AppointmentPersistenceAssembler::toAggregateFromEntity)
+                .toList();
+    }
+
+    @Override
     public List<Appointment> findByBranchId(BranchId branchId) {
         return appointmentJpaRepository.findByBranchId(branchId)
                 .stream()

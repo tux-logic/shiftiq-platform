@@ -11,6 +11,7 @@ public class AppointmentResourceFromAggregateAssembler {
                 aggregate.getBranchId().value(),
                 aggregate.getCustomerId().value(),
                 aggregate.getVehicleId().value(),
+                aggregate.getBayId(),
                 aggregate.getScheduledStart(),
                 aggregate.getScheduledEnd(),
                 aggregate.getStatus().name(),

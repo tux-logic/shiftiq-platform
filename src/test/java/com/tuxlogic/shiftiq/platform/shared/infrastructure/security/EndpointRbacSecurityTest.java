@@ -453,7 +453,7 @@ class EndpointRbacSecurityTest {
         UUID appointmentId = UUID.randomUUID();
         UUID customerId = UUID.randomUUID();
         Appointment appointment = new Appointment(
-                new BranchId(branchId), new CustomerId(customerId), new VehicleId(UUID.randomUUID()),
+                new BranchId(branchId), new CustomerId(customerId), new VehicleId(UUID.randomUUID()), null,
                 LocalDateTime.now(), new AppointmentSummary("Service"));
         when(appointmentQueryService.handle(appointmentId)).thenReturn(Result.success(appointment));
         when(multiTenancySecurityService.hasPermissionForBranch(new BranchId(branchId), Permission.APPOINTMENT_MANAGE)).thenReturn(false);

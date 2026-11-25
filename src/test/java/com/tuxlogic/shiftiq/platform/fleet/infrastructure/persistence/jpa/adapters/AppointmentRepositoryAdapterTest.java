@@ -44,6 +44,7 @@ class AppointmentRepositoryAdapterTest {
                 new BranchId(UUID.randomUUID()),
                 new CustomerId(UUID.randomUUID()),
                 new VehicleId(UUID.randomUUID()),
+                null,
                 LocalDateTime.now().plusDays(1),
                 new AppointmentSummary("Cita inicial")
         );
