@@ -11,6 +11,7 @@ public record UpdateAppointmentResource(
         @NotNull(message = "fleet.error.resource.branchId.required") UUID branchId,
         @NotNull(message = "fleet.error.resource.customerId.required") UUID customerId,
         @NotNull(message = "fleet.error.resource.vehicleId.required") UUID vehicleId,
+        UUID bayId,
         @NotNull(message = "fleet.error.resource.scheduledStart.required") LocalDateTime scheduledStart,
         @NotNull(message = "fleet.error.resource.status.required") AppointmentStatus status,
         String notes

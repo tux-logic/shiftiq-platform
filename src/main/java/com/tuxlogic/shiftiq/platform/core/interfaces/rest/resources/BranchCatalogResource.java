@@ -13,6 +13,10 @@ public record BranchCatalogResource(
         String branchCode,
         String branchName,
         String address,
-        String phone
+        String phone,
+        Double averageRating,
+        Integer reviewCount,
+        Integer activeBaysCount,
+        Integer freeBaysToday
 ) {
 }

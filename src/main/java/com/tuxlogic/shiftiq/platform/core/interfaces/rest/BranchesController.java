@@ -101,7 +101,11 @@ public class BranchesController {
                         item.branchCode(),
                         item.branchName(),
                         item.address(),
-                        item.phone()
+                        item.phone(),
+                        item.averageRating(),
+                        item.reviewCount(),
+                        item.activeBaysCount(),
+                        item.freeBaysToday()
                 ))
                 .collect(Collectors.toList());
         return ResponseEntity.ok(catalog);

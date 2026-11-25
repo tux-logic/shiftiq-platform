@@ -22,6 +22,44 @@ public interface AppointmentRepository {
     boolean existsByIdNotAndScheduledStartLessThanAndScheduledEndGreaterThan(
             UUID appointmentId, LocalDateTime scheduledEnd, LocalDateTime scheduledStart);
 
+    boolean existsByBranchIdAndBayIdAndStatusAndScheduledStartLessThanAndScheduledEndGreaterThan(
+            BranchId branchId,
+            UUID bayId,
+            AppointmentStatus status,
+            LocalDateTime scheduledEnd,
+            LocalDateTime scheduledStart
+    );
+
+    boolean existsByIdNotAndBranchIdAndBayIdAndStatusAndScheduledStartLessThanAndScheduledEndGreaterThan(
+            UUID appointmentId,
+            BranchId branchId,
+            UUID bayId,
+            AppointmentStatus status,
+            LocalDateTime scheduledEnd,
+            LocalDateTime scheduledStart
+    );
+
+    boolean existsByBranchIdAndStatusAndScheduledStartLessThanAndScheduledEndGreaterThan(
+            BranchId branchId,
+            AppointmentStatus status,
+            LocalDateTime scheduledEnd,
+            LocalDateTime scheduledStart
+    );
+
+    boolean existsByIdNotAndBranchIdAndStatusAndScheduledStartLessThanAndScheduledEndGreaterThan(
+            UUID appointmentId,
+            BranchId branchId,
+            AppointmentStatus status,
+            LocalDateTime scheduledEnd,
+            LocalDateTime scheduledStart
+    );
+
+    List<Appointment> findByBranchIdAndScheduledStartBetween(
+            BranchId branchId,
+            LocalDateTime from,
+            LocalDateTime to
+    );
+
     List<Appointment> findByBranchId(BranchId branchId);
 
     List<Appointment> findByCustomerId(CustomerId customerId);

@@ -17,4 +17,10 @@ public interface ExternalCoreService {
     Optional<UUID> findUserIdByEmployeeId(EmployeeId employeeId);
     Optional<UUID> findWorkshopIdForBranch(BranchId branchId);
     boolean existsActiveWorkshopSpecialty(UUID workshopId, String code);
+
+    boolean existsBranchBay(UUID bayId, UUID branchId);
+
+    int countActiveBays(UUID branchId);
+
+    java.util.List<UUID> findActiveBayIdsByBranchId(UUID branchId);
 }
