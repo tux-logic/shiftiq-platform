@@ -8,6 +8,7 @@ public record AppointmentResource(
         UUID branchId,
         UUID customerId,
         UUID vehicleId,
+        UUID bayId,
         LocalDateTime scheduledStart,
         LocalDateTime scheduledEnd,
         String status,

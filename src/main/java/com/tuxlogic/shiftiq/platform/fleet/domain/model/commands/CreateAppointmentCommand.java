@@ -6,11 +6,13 @@ import com.tuxlogic.shiftiq.platform.shared.domain.model.valueobjects.CustomerId
 import com.tuxlogic.shiftiq.platform.shared.domain.model.valueobjects.VehicleId;
 
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 public record CreateAppointmentCommand(
         BranchId branchId,
         CustomerId customerId,
         VehicleId vehicleId,
+        UUID bayId,
         LocalDateTime scheduledStart,
         AppointmentSummary notes
 ) {

@@ -8,6 +8,7 @@ import com.tuxlogic.shiftiq.platform.fleet.domain.model.aggregates.Appointment;
 import com.tuxlogic.shiftiq.platform.fleet.domain.model.commands.CreateAppointmentCommand;
 import com.tuxlogic.shiftiq.platform.fleet.domain.model.commands.DeleteAppointmentCommand;
 import com.tuxlogic.shiftiq.platform.fleet.domain.model.commands.UpdateAppointmentCommand;
+import com.tuxlogic.shiftiq.platform.fleet.domain.model.valueobjects.AppointmentStatus;
 import com.tuxlogic.shiftiq.platform.fleet.domain.repositories.AppointmentRepository;
 import com.tuxlogic.shiftiq.platform.shared.application.result.Result;
 import lombok.extern.slf4j.Slf4j;
@@ -48,15 +49,17 @@ public class AppointmentCommandServiceImpl implements AppointmentCommandService 
                 log.warn("Appointment creation failed: Vehicle {} does not exist", command.vehicleId());
                 return Result.failure(AppointmentCommandFailure.INVALID_APPOINTMENT_DATA);
             }
+            if (command.bayId() != null
+                    && !externalCoreService.existsBranchBay(command.bayId(), command.branchId().value())) {
+                log.warn("Appointment creation failed: Bay {} does not belong to branch {}", command.bayId(),
+                        command.branchId());
+                return Result.failure(AppointmentCommandFailure.INVALID_APPOINTMENT_DATA);
+            }
 
             var scheduledStart = command.scheduledStart();
             var scheduledEnd = scheduledStart.plusHours(1);
 
-            boolean overlap = appointmentRepository.existsByScheduledStartLessThanAndScheduledEndGreaterThan(
-                    scheduledEnd,
-                    scheduledStart
-            );
-
+            boolean overlap = hasOverlap(null, command.branchId(), command.bayId(), scheduledEnd, scheduledStart);
             if (overlap) {
                 log.warn("Appointment creation conflict: time slot overlap detected for start time {}", scheduledStart);
                 return Result.failure(AppointmentCommandFailure.APPOINTMENT_ALREADY_EXISTS);
@@ -66,6 +69,7 @@ public class AppointmentCommandServiceImpl implements AppointmentCommandService 
                     command.branchId(),
                     command.customerId(),
                     command.vehicleId(),
+                    command.bayId(),
                     scheduledStart,
                     command.notes()
             );
@@ -90,6 +94,10 @@ public class AppointmentCommandServiceImpl implements AppointmentCommandService 
                 !externalVehicleService.existsVehicleById(command.vehicleId())) {
                 return Result.failure(AppointmentCommandFailure.INVALID_APPOINTMENT_DATA);
             }
+            if (command.bayId() != null
+                    && !externalCoreService.existsBranchBay(command.bayId(), command.branchId().value())) {
+                return Result.failure(AppointmentCommandFailure.INVALID_APPOINTMENT_DATA);
+            }
 
             var appointmentOptional = appointmentRepository.findById(command.appointmentId());
 
@@ -100,8 +108,10 @@ public class AppointmentCommandServiceImpl implements AppointmentCommandService 
             var scheduledStart = command.scheduledStart();
             var scheduledEnd = scheduledStart.plusHours(1);
 
-            boolean overlap = appointmentRepository.existsByIdNotAndScheduledStartLessThanAndScheduledEndGreaterThan(
+            boolean overlap = hasOverlap(
                     command.appointmentId(),
+                    command.branchId(),
+                    command.bayId(),
                     scheduledEnd,
                     scheduledStart
             );
@@ -116,6 +126,7 @@ public class AppointmentCommandServiceImpl implements AppointmentCommandService 
                     command.branchId(),
                     command.customerId(),
                     command.vehicleId(),
+                    command.bayId(),
                     scheduledStart,
                     command.status(),
                     command.notes()
@@ -145,5 +156,28 @@ public class AppointmentCommandServiceImpl implements AppointmentCommandService 
         } catch (IllegalArgumentException exception) {
             return Result.failure(AppointmentCommandFailure.INVALID_APPOINTMENT_DATA);
         }
+    }
+
+    private boolean hasOverlap(
+            UUID appointmentId,
+            com.tuxlogic.shiftiq.platform.shared.domain.model.valueobjects.BranchId branchId,
+            UUID bayId,
+            java.time.LocalDateTime scheduledEnd,
+            java.time.LocalDateTime scheduledStart
+    ) {
+        if (bayId != null) {
+            if (appointmentId == null) {
+                return appointmentRepository.existsByBranchIdAndBayIdAndStatusAndScheduledStartLessThanAndScheduledEndGreaterThan(
+                        branchId, bayId, AppointmentStatus.PENDING, scheduledEnd, scheduledStart);
+            }
+            return appointmentRepository.existsByIdNotAndBranchIdAndBayIdAndStatusAndScheduledStartLessThanAndScheduledEndGreaterThan(
+                    appointmentId, branchId, bayId, AppointmentStatus.PENDING, scheduledEnd, scheduledStart);
+        }
+        if (appointmentId == null) {
+            return appointmentRepository.existsByBranchIdAndStatusAndScheduledStartLessThanAndScheduledEndGreaterThan(
+                    branchId, AppointmentStatus.PENDING, scheduledEnd, scheduledStart);
+        }
+        return appointmentRepository.existsByIdNotAndBranchIdAndStatusAndScheduledStartLessThanAndScheduledEndGreaterThan(
+                appointmentId, branchId, AppointmentStatus.PENDING, scheduledEnd, scheduledStart);
     }
 }

@@ -54,6 +54,9 @@ public class AppointmentPersistenceEntity extends AuditableAbstractPersistenceEn
     @AttributeOverride(name = "value", column = @Column(name = "vehicle_id", nullable = false))
     private VehicleId vehicleId;
 
+    @Column(name = "bay_id")
+    private UUID bayId;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false, length = 20)
     private AppointmentStatus status;
