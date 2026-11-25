@@ -10,6 +10,10 @@ public record BranchCatalogItem(
         String branchCode,
         String branchName,
         String address,
-        String phone
+        String phone,
+        Double averageRating,
+        Integer reviewCount,
+        Integer activeBaysCount,
+        Integer freeBaysToday
 ) {
 }
