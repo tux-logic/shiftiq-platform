@@ -109,13 +109,15 @@ public class MultiTenancySecurityService {
                 || isAuthorizedForOwnCustomer(customerId);
     }
 
-    /** A customer may book into an existing branch; staff need appointment management permission. */
+    /** A customer may book into a branch belonging to a workshop they are registered with; staff need appointment management permission. */
     public boolean canCreateAppointment(UUID branchId, UUID customerId) {
         if (branchId == null || customerId == null) {
             return false;
         }
         return hasPermissionForBranch(branchId, Permission.APPOINTMENT_MANAGE)
-                || (isAuthorizedForOwnCustomer(customerId) && branchExists(branchId));
+                || (isAuthorizedForOwnCustomer(customerId)
+                && branchExists(branchId)
+                && customerScopeResolver.isCustomerAssociatedWithBranchWorkshop(customerId, branchId));
     }
 
     /**
