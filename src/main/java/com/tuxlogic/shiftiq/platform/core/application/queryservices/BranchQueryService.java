@@ -10,4 +10,5 @@ import java.util.Optional;
 public interface BranchQueryService {
     Optional<Branch> handle(GetBranchByIdQuery query);
     List<Branch> handle(GetAllBranchesByWorkshopIdQuery query);
+    List<BranchCatalogItem> findCatalog();
 }

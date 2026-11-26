@@ -64,6 +64,7 @@ class AppointmentsControllerTest {
                 branchId,
                 customerId,
                 vehicleId,
+                null,
                 now,
                 "Consulta de prueba"
         );
@@ -72,6 +73,7 @@ class AppointmentsControllerTest {
                 new BranchId(branchId),
                 new CustomerId(customerId),
                 new VehicleId(vehicleId),
+                null,
                 now,
                 new AppointmentSummary("Consulta de prueba")
         );
@@ -96,6 +98,7 @@ class AppointmentsControllerTest {
                 branchId,
                 customerId,
                 vehicleId,
+                null,
                 now,
                 "Solapamiento"
         );
@@ -118,6 +121,7 @@ class AppointmentsControllerTest {
                 new BranchId(branchId),
                 new CustomerId(UUID.randomUUID()),
                 new VehicleId(UUID.randomUUID()),
+                null,
                 LocalDateTime.now(),
                 new AppointmentSummary("Forbidden check")
         );
@@ -140,6 +144,7 @@ class AppointmentsControllerTest {
                 new BranchId(branchId),
                 new CustomerId(UUID.randomUUID()),
                 new VehicleId(UUID.randomUUID()),
+                null,
                 LocalDateTime.now(),
                 new AppointmentSummary("Forbidden check")
         );
@@ -162,6 +167,7 @@ class AppointmentsControllerTest {
                 new BranchId(branchId),
                 new CustomerId(UUID.randomUUID()),
                 new VehicleId(UUID.randomUUID()),
+                null,
                 LocalDateTime.now(),
                 new AppointmentSummary("Forbidden check")
         );

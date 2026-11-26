@@ -114,7 +114,8 @@ public class CustomerRegistrationsController {
             var result = queryService.handle(new GetCustomerRegistrationByCustomerIdQuery(customerId));
             return result.fold(
                     reg -> {
-                        if (!multiTenancySecurityService.isAuthorizedForBranch(reg.getBranchId())) {
+                        if (!multiTenancySecurityService.isAuthorizedForBranch(reg.getBranchId())
+                                && !multiTenancySecurityService.isAuthorizedForOwnCustomer(reg.getCustomerId())) {
                             return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
                         }
                         return ResponseEntity.ok(CustomerRegistrationResourceFromAggregateAssembler.toResourceFromAggregate(reg));
@@ -152,7 +153,8 @@ public class CustomerRegistrationsController {
         var result = queryService.handle(registrationId);
         return result.fold(
                 reg -> {
-                    if (!multiTenancySecurityService.isAuthorizedForBranch(reg.getBranchId())) {
+                    if (!multiTenancySecurityService.isAuthorizedForBranch(reg.getBranchId())
+                            && !multiTenancySecurityService.isAuthorizedForOwnCustomer(reg.getCustomerId())) {
                         return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
                     }
                     return ResponseEntity.ok(CustomerRegistrationResourceFromAggregateAssembler.toResourceFromAggregate(reg));

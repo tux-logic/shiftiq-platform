@@ -53,7 +53,7 @@ public class AppointmentsController {
 
         @PostMapping
         @Operation(summary = "Create a new appointment", description = "Creates a new appointment")
-        @PreAuthorize("isAuthenticated() and (hasRole('ADMIN') or @multiTenancySecurityService.hasPermissionForBranch(#resource.branchId(), T(com.tuxlogic.shiftiq.platform.iam.domain.model.valueobjects.Permission).APPOINTMENT_MANAGE) or (hasRole('USER') and @multiTenancySecurityService.isAuthorizedForSelf(#resource.customerId())))")
+        @PreAuthorize("isAuthenticated() and @multiTenancySecurityService.canCreateAppointment(#resource.branchId(), #resource.customerId())")
         public ResponseEntity<?> createAppointment(@Valid @RequestBody CreateAppointmentResource resource) {
                 var command = CreateAppointmentCommandFromResourceAssembler.toCommandFromResource(resource);
                 var result = commandService.handle(command);
@@ -75,7 +75,7 @@ public class AppointmentsController {
                 }
                 var existingApp = queryResult.success().get();
                 boolean isAuthorized = multiTenancySecurityService.hasPermissionForBranch(existingApp.getBranchId(), Permission.APPOINTMENT_MANAGE)
-                                || (existingApp.getCustomerId() != null && multiTenancySecurityService.isAuthorizedForSelf(existingApp.getCustomerId().value()));
+                                || (existingApp.getCustomerId() != null && multiTenancySecurityService.isAuthorizedForOwnCustomer(existingApp.getCustomerId().value()));
                 if (!isAuthorized) {
                         return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
                 }
@@ -142,11 +142,12 @@ public class AppointmentsController {
                                                                         .toList()),
                                         this::handleQueryFailure);
                 } else if (customerId != null) {
+                        boolean ownCustomer = multiTenancySecurityService.isAuthorizedForOwnCustomer(customerId);
                         var result = queryService.handle(new CustomerId(customerId));
                         return result.fold(
                                         appointments -> ResponseEntity.ok(
                                                         appointments.stream()
-                                                                        .filter(a -> multiTenancySecurityService.isAuthorizedForBranch(a.getBranchId()))
+                                                                        .filter(a -> ownCustomer || multiTenancySecurityService.isAuthorizedForBranch(a.getBranchId()))
                                                                         .map(AppointmentResourceFromAggregateAssembler::toResourceFromAggregate)
                                                                         .toList()),
                                         this::handleQueryFailure);
@@ -170,7 +171,9 @@ public class AppointmentsController {
                 var result = queryService.handle(appointmentId);
                 return result.fold(
                                 appointment -> {
-                                        if (!multiTenancySecurityService.isAuthorizedForBranch(appointment.getBranchId())) {
+                                        if (!multiTenancySecurityService.isAuthorizedForBranch(appointment.getBranchId())
+                                                        && (appointment.getCustomerId() == null
+                                                                        || !multiTenancySecurityService.isAuthorizedForOwnCustomer(appointment.getCustomerId().value()))) {
                                                 return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
                                         }
                                         return ResponseEntity.ok(

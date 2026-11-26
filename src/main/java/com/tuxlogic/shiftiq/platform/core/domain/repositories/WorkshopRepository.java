@@ -11,5 +11,6 @@ public interface WorkshopRepository {
     Workshop save(Workshop workshop);
     Optional<Workshop> findById(WorkshopId id);
     List<Workshop> findAllByOwnerId(OwnerId ownerId);
+    List<Workshop> findAll();
     boolean existsById(WorkshopId id);
 }

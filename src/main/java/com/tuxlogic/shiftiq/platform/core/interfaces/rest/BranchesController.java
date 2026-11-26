@@ -10,6 +10,7 @@ import com.tuxlogic.shiftiq.platform.core.application.commandservices.Subscripti
 import com.tuxlogic.shiftiq.platform.core.application.queryservices.BranchQueryService;
 import com.tuxlogic.shiftiq.platform.core.domain.model.commands.CancelSubscriptionCommand;
 import com.tuxlogic.shiftiq.platform.core.interfaces.rest.resources.AssignSubscriptionResource;
+import com.tuxlogic.shiftiq.platform.core.interfaces.rest.resources.BranchCatalogResource;
 import com.tuxlogic.shiftiq.platform.core.interfaces.rest.resources.BranchResource;
 import com.tuxlogic.shiftiq.platform.core.interfaces.rest.resources.BranchSubscriptionResource;
 import com.tuxlogic.shiftiq.platform.core.interfaces.rest.resources.CreateBranchResource;
@@ -83,6 +84,35 @@ public class BranchesController {
 
         var branchResource = BranchResourceFromEntityAssembler.toResourceFromEntity(branch.get());
         return ResponseEntity.ok(branchResource);
+    }
+
+    @Operation(
+            summary = "List branch catalog for B2C discovery",
+            description = "Returns every active branch with workshop branding so authenticated customers can discover and book workshops"
+    )
+    @GetMapping("/catalog")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<List<BranchCatalogResource>> getBranchCatalog() {
+        var catalog = branchQueryService.findCatalog().stream()
+                .map(item -> new BranchCatalogResource(
+                        item.branchId(),
+                        item.workshopId(),
+                        item.workshopBrandName(),
+                        item.workshopBusinessName(),
+                        item.branchCode(),
+                        item.branchName(),
+                        item.address(),
+                        item.phone(),
+                        item.coverImageUrl(),
+                        item.latitude(),
+                        item.longitude(),
+                        item.averageRating(),
+                        item.reviewCount(),
+                        item.activeBaysCount(),
+                        item.freeBaysToday()
+                ))
+                .collect(Collectors.toList());
+        return ResponseEntity.ok(catalog);
     }
 
     @Operation(summary = "Get a branch by ID", description = "Retrieves the details of a specific branch")

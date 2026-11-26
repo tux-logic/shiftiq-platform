@@ -31,6 +31,9 @@ class MultiTenancySecurityServiceTest {
     @Mock
     private AccountBranchScopeResolver accountBranchScopeResolver;
 
+    @Mock
+    private CustomerScopeResolver customerScopeResolver;
+
     private MultiTenancySecurityService service;
 
     private final UUID userId = UUID.randomUUID();
@@ -44,7 +47,7 @@ class MultiTenancySecurityServiceTest {
 
     @BeforeEach
     void setUp() {
-        service = new MultiTenancySecurityService(tenantScopeResolver, accountBranchScopeResolver);
+        service = new MultiTenancySecurityService(tenantScopeResolver, accountBranchScopeResolver, customerScopeResolver);
     }
 
     @AfterEach

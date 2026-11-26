@@ -19,6 +19,7 @@ public class Appointment extends AbstractDomainAggregateRoot<Appointment> {
     private BranchId branchId;
     private CustomerId customerId;
     private VehicleId vehicleId;
+    private UUID bayId;
     private LocalDateTime scheduledStart;
     private LocalDateTime scheduledEnd;
     private AppointmentStatus status;
@@ -38,6 +39,7 @@ public class Appointment extends AbstractDomainAggregateRoot<Appointment> {
             BranchId branchId,
             CustomerId customerId,
             VehicleId vehicleId,
+            UUID bayId,
             LocalDateTime scheduledStart,
             LocalDateTime scheduledEnd,
             AppointmentStatus status,
@@ -53,6 +55,7 @@ public class Appointment extends AbstractDomainAggregateRoot<Appointment> {
         this.branchId = branchId;
         this.customerId = customerId;
         this.vehicleId = vehicleId;
+        this.bayId = bayId;
         this.scheduledStart = scheduledStart;
         this.scheduledEnd = scheduledEnd;
         this.status = status;
@@ -69,6 +72,7 @@ public class Appointment extends AbstractDomainAggregateRoot<Appointment> {
             BranchId branchId,
             CustomerId customerId,
             VehicleId vehicleId,
+            UUID bayId,
             LocalDateTime scheduledStart,
             AppointmentSummary notes
     ) {
@@ -89,6 +93,7 @@ public class Appointment extends AbstractDomainAggregateRoot<Appointment> {
         this.branchId = branchId;
         this.customerId = customerId;
         this.vehicleId = vehicleId;
+        this.bayId = bayId;
         this.scheduledStart = scheduledStart;
         this.scheduledEnd = scheduledStart.plusHours(1);
         this.status = AppointmentStatus.PENDING;
@@ -104,6 +109,7 @@ public class Appointment extends AbstractDomainAggregateRoot<Appointment> {
             BranchId branchId,
             CustomerId customerId,
             VehicleId vehicleId,
+            UUID bayId,
             LocalDateTime scheduledStart,
             AppointmentStatus status,
             AppointmentSummary notes
@@ -127,6 +133,7 @@ public class Appointment extends AbstractDomainAggregateRoot<Appointment> {
         this.branchId = branchId;
         this.customerId = customerId;
         this.vehicleId = vehicleId;
+        this.bayId = bayId;
         this.scheduledStart = scheduledStart;
         this.scheduledEnd = scheduledStart.plusHours(1);
         this.status = status;
