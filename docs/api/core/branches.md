@@ -126,6 +126,39 @@ Users should **never** enter `latitude` or `longitude` manually. Web and mobile 
 
 ---
 
+## `GET /api/v1/branches/catalog` — Catálogo de Sedes para Clientes B2C
+
+**Security**: `@PreAuthorize("isAuthenticated()")` + alcance `resolveCustomerWorkshopScope()`  
+**Description**: Retorna las sedes activas con branding del taller (`workshopBrandName`, `workshopBusinessName`), banner (`coverImageUrl`), coordenadas (`latitude`, `longitude`), calificación promedio y bahías disponibles.  
+- **Cliente (`ROLE_USER` sin membresía de staff)**: Solo recibe las sedes pertenecientes al/los taller(es) (`Workshop`) donde tenga una `CustomerRegistration` `ACTIVE` (aislamiento B2B2C entre empresas). Si no tiene registro activo, retorna `[]`.
+- **Staff / Owner / Admin**: Recibe el catálogo completo de sedes activas.
+
+### Success Response (200 OK)
+
+```json
+[
+  {
+    "branchId": "abf41077-3ec1-4858-b95c-3c6e3c679dc8",
+    "workshopId": "ef7822a0-a438-4151-a303-04e25d8a2ee0",
+    "workshopBrandName": "AT Motors Miraflores",
+    "workshopBusinessName": "AT MOTORS EIRL",
+    "branchCode": "MIR-01",
+    "branchName": "Sede Miraflores - Santa Cruz",
+    "address": "Jr. Toribio Pacheco 550, Urb. Santa Cruz, Miraflores, Lima",
+    "phone": "+5114451234",
+    "coverImageUrl": "https://res.cloudinary.com/demo/image/upload/v1/shiftiq/branches/miraflores.jpg",
+    "latitude": -12.1128,
+    "longitude": -77.0454,
+    "averageRating": 4.8,
+    "reviewCount": 12,
+    "activeBaysCount": 4,
+    "freeBaysToday": 3
+  }
+]
+```
+
+---
+
 ## `GET /api/v1/branches/{branchId}` — Obtener Sede por ID
 
 **Security**: Validación manual `validateBranchAccess(branchId)`  
