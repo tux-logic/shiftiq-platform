@@ -12,6 +12,7 @@
 **Description**: Crea cita para cliente + vehículo en sede. Emite `AppointmentCreatedEvent` → Analytics.  
 - **Staff**: Requiere permiso `APPOINTMENT_MANAGE` en la sede.
 - **Cliente (`ROLE_USER`)**: Requiere ser dueño del perfil (`isAuthorizedForOwnCustomer(customerId)`) **y** que la sede pertenezca al mismo `Workshop` donde el cliente tiene una `CustomerRegistration` `ACTIVE` (permite reservar en su sede o sedes hermanas del mismo taller, bloqueando talleres de otras empresas con `403`).
+- **Horarios y Feriados**: Valida que la cita caiga dentro del horario efectivo de la sede para esa fecha (excepción sede > excepción taller > horario sede > horario taller > fallback `08:30-18:00`); si está cerrado o fuera de horario retorna `400 VALIDATION_ERROR`. Ver [`core/operating-hours.md`](../core/operating-hours.md).
 
 ### Request
 
