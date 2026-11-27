@@ -429,6 +429,41 @@ class MultiTenancySecurityServiceTest {
         assertThrows(AccessDeniedException.class, () -> service.validateWorkshopPermission(otherWorkshopId, Permission.ROLE_MANAGE));
     }
 
+    @Test
+    @DisplayName("canCreateAppointment restricts customers to branches of their registered workshop")
+    void canCreateAppointmentRestrictsCustomerToRegisteredWorkshop() {
+        var customerId = UUID.randomUUID();
+        var customerPrincipal = principal(false, false, Set.of());
+        authenticate(customerPrincipal);
+
+        when(customerScopeResolver.findCustomerIdForUser(userId)).thenReturn(customerId);
+        when(tenantScopeResolver.branchExists(ownBranchId)).thenReturn(true);
+        when(tenantScopeResolver.branchExists(otherBranchId)).thenReturn(true);
+        when(customerScopeResolver.isCustomerAssociatedWithBranchWorkshop(customerId, ownBranchId)).thenReturn(true);
+        when(customerScopeResolver.isCustomerAssociatedWithBranchWorkshop(customerId, otherBranchId)).thenReturn(false);
+
+        assertThat(service.canCreateAppointment(ownBranchId, customerId)).isTrue();
+        assertThat(service.canCreateAppointment(otherBranchId, customerId)).isFalse();
+        assertThat(service.canCreateAppointment(ownBranchId, UUID.randomUUID())).isFalse();
+    }
+
+    @Test
+    @DisplayName("resolveCustomerWorkshopScope returns registered workshops for customers and empty for staff/admin")
+    void resolveCustomerWorkshopScopeScopesCustomersOnly() {
+        var customerId = UUID.randomUUID();
+        authenticate(principal(false, false, Set.of()));
+        when(customerScopeResolver.findCustomerIdForUser(userId)).thenReturn(customerId);
+        when(customerScopeResolver.findCustomerWorkshopIds(customerId)).thenReturn(List.of(ownWorkshopId));
+
+        assertThat(service.resolveCustomerWorkshopScope()).contains(List.of(ownWorkshopId));
+
+        authenticate(principal(false, true, Set.of(ownBranchId)));
+        assertThat(service.resolveCustomerWorkshopScope()).isEmpty();
+
+        authenticate(staffPrincipal(false, Set.of(ownBranchId)));
+        assertThat(service.resolveCustomerWorkshopScope()).isEmpty();
+    }
+
     private AuthenticatedPrincipal principal(boolean admin, boolean owner, Set<UUID> memberships) {
         var principal = Mockito.mock(AuthenticatedPrincipal.class);
         Mockito.lenient().when(principal.getId()).thenReturn(userId);

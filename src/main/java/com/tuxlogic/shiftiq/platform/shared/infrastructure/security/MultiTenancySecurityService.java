@@ -13,6 +13,8 @@ import org.springframework.stereotype.Service;
 
 import java.util.Collections;
 import java.util.HashSet;
+import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 
@@ -109,13 +111,40 @@ public class MultiTenancySecurityService {
                 || isAuthorizedForOwnCustomer(customerId);
     }
 
-    /** A customer may book into an existing branch; staff need appointment management permission. */
+    /** A customer may book into a branch belonging to a workshop they are registered with; staff need appointment management permission. */
     public boolean canCreateAppointment(UUID branchId, UUID customerId) {
         if (branchId == null || customerId == null) {
             return false;
         }
         return hasPermissionForBranch(branchId, Permission.APPOINTMENT_MANAGE)
-                || (isAuthorizedForOwnCustomer(customerId) && branchExists(branchId));
+                || (isAuthorizedForOwnCustomer(customerId)
+                && branchExists(branchId)
+                && customerScopeResolver.isCustomerAssociatedWithBranchWorkshop(customerId, branchId));
+    }
+
+    /**
+     * Resolves the workshop IDs visible to a B2C customer in the branch catalog.
+     * Returns {@link Optional#empty()} for admins, owners, and branch staff.
+     */
+    public Optional<List<UUID>> resolveCustomerWorkshopScope() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null || !authentication.isAuthenticated()) {
+            return Optional.of(List.of());
+        }
+        Object principal = authentication.getPrincipal();
+        if (!(principal instanceof AuthenticatedPrincipal authenticatedPrincipal)) {
+            return Optional.of(List.of());
+        }
+        if (authenticatedPrincipal.hasRole("ROLE_ADMIN")
+                || authenticatedPrincipal.hasRole("ROLE_OWNER")
+                || !authenticatedPrincipal.getBranchIds().isEmpty()) {
+            return Optional.empty();
+        }
+        UUID customerId = customerScopeResolver.findCustomerIdForUser(authenticatedPrincipal.getId());
+        if (customerId == null) {
+            return Optional.of(List.of());
+        }
+        return Optional.of(customerScopeResolver.findCustomerWorkshopIds(customerId));
     }
 
     /**
