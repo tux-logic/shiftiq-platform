@@ -4,6 +4,7 @@ import com.tuxlogic.shiftiq.platform.core.application.queryservices.BranchQueryS
 import com.tuxlogic.shiftiq.platform.core.application.queryservices.CustomerQueryService;
 import com.tuxlogic.shiftiq.platform.core.application.queryservices.EmployeeQueryService;
 import com.tuxlogic.shiftiq.platform.core.application.queryservices.WorkshopSpecialtyQueryService;
+import com.tuxlogic.shiftiq.platform.core.application.services.OperatingHoursService;
 import com.tuxlogic.shiftiq.platform.core.domain.model.valueobjects.BranchBayId;
 import com.tuxlogic.shiftiq.platform.core.domain.repositories.BranchBayRepository;
 import com.tuxlogic.shiftiq.platform.core.domain.model.queries.GetBranchByIdQuery;
@@ -15,8 +16,10 @@ import com.tuxlogic.shiftiq.platform.core.domain.model.valueobjects.WorkshopId;
 import com.tuxlogic.shiftiq.platform.fleet.application.outboundservices.ExternalCoreService;
 import com.tuxlogic.shiftiq.platform.shared.domain.model.valueobjects.BranchId;
 import com.tuxlogic.shiftiq.platform.shared.domain.model.valueobjects.CustomerId;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -33,17 +36,29 @@ public class ExternalCoreServiceImpl implements ExternalCoreService {
     private final EmployeeQueryService employeeQueryService;
     private final WorkshopSpecialtyQueryService workshopSpecialtyQueryService;
     private final BranchBayRepository branchBayRepository;
+    private final OperatingHoursService operatingHoursService;
 
     public ExternalCoreServiceImpl(BranchQueryService branchQueryService,
                                    CustomerQueryService customerQueryService,
                                    EmployeeQueryService employeeQueryService,
                                    WorkshopSpecialtyQueryService workshopSpecialtyQueryService,
                                    BranchBayRepository branchBayRepository) {
+        this(branchQueryService, customerQueryService, employeeQueryService, workshopSpecialtyQueryService, branchBayRepository, null);
+    }
+
+    @Autowired
+    public ExternalCoreServiceImpl(BranchQueryService branchQueryService,
+                                   CustomerQueryService customerQueryService,
+                                   EmployeeQueryService employeeQueryService,
+                                   WorkshopSpecialtyQueryService workshopSpecialtyQueryService,
+                                   BranchBayRepository branchBayRepository,
+                                   OperatingHoursService operatingHoursService) {
         this.branchQueryService = branchQueryService;
         this.customerQueryService = customerQueryService;
         this.employeeQueryService = employeeQueryService;
         this.workshopSpecialtyQueryService = workshopSpecialtyQueryService;
         this.branchBayRepository = branchBayRepository;
+        this.operatingHoursService = operatingHoursService;
     }
 
     @Override
@@ -112,5 +127,14 @@ public class ExternalCoreServiceImpl implements ExternalCoreService {
         return branchBayRepository.findAllActiveByBranchId(new BranchId(branchId)).stream()
                 .map(bay -> bay.getId().value())
                 .toList();
+    }
+
+    @Override
+    public Optional<OperatingWindow> findEffectiveOperatingWindow(UUID branchId, LocalDate date) {
+        if (operatingHoursService == null || branchId == null || date == null) {
+            return Optional.empty();
+        }
+        var schedule = operatingHoursService.getEffectiveScheduleForDate(branchId, date);
+        return Optional.of(new OperatingWindow(schedule.open(), schedule.openTime(), schedule.closeTime(), schedule.slotDurationMinutes()));
     }
 }
