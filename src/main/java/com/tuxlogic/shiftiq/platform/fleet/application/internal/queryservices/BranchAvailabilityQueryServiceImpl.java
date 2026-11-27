@@ -52,8 +52,9 @@ public class BranchAvailabilityQueryServiceImpl implements BranchAvailabilityQue
         Set<UUID> busyNow = findBusyBayIds(branchId, activeBayIds, nowStart, nowEnd);
         int freeBaysNow = Math.max(0, activeBaysCount - busyNow.size());
 
+        List<LocalTime> slotStarts = resolveSlotStarts(branchId, date);
         List<BranchAvailabilityResource.AvailabilitySlotResource> slots = new ArrayList<>();
-        for (LocalTime slotStart : SLOT_STARTS) {
+        for (LocalTime slotStart : slotStarts) {
             LocalDateTime start = LocalDateTime.of(date, slotStart);
             LocalDateTime end = start.plusHours(1);
             Set<UUID> busy = findBusyBayIds(branchId, activeBayIds, start, end);
@@ -64,6 +65,29 @@ public class BranchAvailabilityQueryServiceImpl implements BranchAvailabilityQue
         }
 
         return new BranchAvailabilityResource(branchId, date, activeBaysCount, freeBaysNow, slots);
+    }
+
+    private List<LocalTime> resolveSlotStarts(UUID branchId, LocalDate date) {
+        var windowOpt = externalCoreService.findEffectiveOperatingWindow(branchId, date);
+        if (windowOpt.isEmpty()) {
+            return SLOT_STARTS;
+        }
+        var window = windowOpt.get();
+        if (!window.open() || window.openTime() == null || window.closeTime() == null) {
+            return List.of();
+        }
+        int stepMinutes = window.slotDurationMinutes() > 0 ? window.slotDurationMinutes() : 60;
+        List<LocalTime> dynamicSlots = new ArrayList<>();
+        LocalTime cursor = window.openTime();
+        while (!cursor.plusMinutes(stepMinutes).isAfter(window.closeTime())) {
+            dynamicSlots.add(cursor);
+            LocalTime next = cursor.plusMinutes(stepMinutes);
+            if (!next.isAfter(cursor)) {
+                break;
+            }
+            cursor = next;
+        }
+        return dynamicSlots;
     }
 
     private Set<UUID> findBusyBayIds(UUID branchId, List<UUID> activeBayIds, LocalDateTime start, LocalDateTime end) {

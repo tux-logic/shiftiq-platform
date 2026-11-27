@@ -15,6 +15,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.UUID;
 
 @Slf4j
@@ -58,6 +59,11 @@ public class AppointmentCommandServiceImpl implements AppointmentCommandService 
 
             var scheduledStart = command.scheduledStart();
             var scheduledEnd = scheduledStart.plusHours(1);
+
+            if (!isWithinOperatingWindow(command.branchId().value(), scheduledStart, scheduledEnd)) {
+                log.warn("Appointment creation rejected: branch {} is closed or outside operating hours at {}", command.branchId(), scheduledStart);
+                return Result.failure(AppointmentCommandFailure.INVALID_APPOINTMENT_DATA);
+            }
 
             boolean overlap = hasOverlap(null, command.branchId(), command.bayId(), scheduledEnd, scheduledStart);
             if (overlap) {
@@ -108,6 +114,11 @@ public class AppointmentCommandServiceImpl implements AppointmentCommandService 
             var scheduledStart = command.scheduledStart();
             var scheduledEnd = scheduledStart.plusHours(1);
 
+            if (!isWithinOperatingWindow(command.branchId().value(), scheduledStart, scheduledEnd)) {
+                log.warn("Appointment update rejected: branch {} is closed or outside operating hours at {}", command.branchId(), scheduledStart);
+                return Result.failure(AppointmentCommandFailure.INVALID_APPOINTMENT_DATA);
+            }
+
             boolean overlap = hasOverlap(
                     command.appointmentId(),
                     command.branchId(),
@@ -156,6 +167,20 @@ public class AppointmentCommandServiceImpl implements AppointmentCommandService 
         } catch (IllegalArgumentException exception) {
             return Result.failure(AppointmentCommandFailure.INVALID_APPOINTMENT_DATA);
         }
+    }
+
+    private boolean isWithinOperatingWindow(UUID branchId, LocalDateTime start, LocalDateTime end) {
+        var windowOpt = externalCoreService.findEffectiveOperatingWindow(branchId, start.toLocalDate());
+        if (windowOpt.isEmpty()) {
+            return true;
+        }
+        var window = windowOpt.get();
+        if (!window.open() || window.openTime() == null || window.closeTime() == null) {
+            return false;
+        }
+        return start.toLocalDate().equals(end.toLocalDate())
+                && !start.toLocalTime().isBefore(window.openTime())
+                && !end.toLocalTime().isAfter(window.closeTime());
     }
 
     private boolean hasOverlap(
