@@ -131,4 +131,32 @@ class BranchesControllerTest {
         assertThrows(IllegalArgumentException.class,
                 () -> new Branch(workshopId, "BR-X", "Test", addr, phone, null, -12.0, 190.0));
     }
+
+    @Test
+    void getBranchCatalog_WhenCustomerScoped_ShouldFilterByRegisteredWorkshopsAndIncludeBanner() {
+        var ownWorkshopId = UUID.randomUUID();
+        var otherWorkshopId = UUID.randomUUID();
+        var item1 = new com.tuxlogic.shiftiq.platform.core.application.queryservices.BranchCatalogItem(
+                UUID.randomUUID(), ownWorkshopId, "AT Motors", "AT MOTORS EIRL", "MIR-01",
+                "Sede Miraflores", "Jr. Toribio Pacheco 550", "+5114451234",
+                "https://cdn.example.com/banner.jpg", -12.1128, -77.0454, 4.8, 10, 4, 2);
+        var item2 = new com.tuxlogic.shiftiq.platform.core.application.queryservices.BranchCatalogItem(
+                UUID.randomUUID(), otherWorkshopId, "Competitor", "COMPETITOR SAC", "SUR-01",
+                "Sede Surco", "Av. Caminos del Inca 100", "+5114459999",
+                null, -12.13, -76.99, 4.0, 2, 2, 1);
+
+        when(multiTenancySecurityService.resolveCustomerWorkshopScope())
+                .thenReturn(Optional.of(java.util.List.of(ownWorkshopId)));
+        when(branchQueryService.findCatalog()).thenReturn(java.util.List.of(item1, item2));
+
+        var response = controller.getBranchCatalog();
+
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertNotNull(response.getBody());
+        assertEquals(1, response.getBody().size());
+        assertEquals(ownWorkshopId, response.getBody().get(0).workshopId());
+        assertEquals("https://cdn.example.com/banner.jpg", response.getBody().get(0).coverImageUrl());
+        assertEquals(-12.1128, response.getBody().get(0).latitude());
+        assertEquals(-77.0454, response.getBody().get(0).longitude());
+    }
 }

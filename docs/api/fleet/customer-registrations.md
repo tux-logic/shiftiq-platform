@@ -84,14 +84,14 @@
 ### Important Considerations
 
 - **Filtro branchId**: Si se usa, valida `isAuthorizedForBranch(branchId)`
-- **Filtro customerId**: Si se usa, busca registro → valida `isAuthorizedForBranch(registro.branchId)`
+- **Filtro customerId**: Si se usa, busca registro → valida `isAuthorizedForBranch(registro.branchId)` o `isAuthorizedForOwnCustomer(registro.customerId)` (el cliente puede consultar su propia vinculación)
 - **Sin filtros**: Retorna 400 (requiere al menos un filtro)
 
 ---
 
 ## `GET /api/v1/customer-registrations/{registrationId}` — Detalle de Vinculación
 
-**Security**: Validación manual `isAuthorizedForBranch(registro.branchId)`  
+**Security**: Validación manual `isAuthorizedForBranch(registro.branchId)` o `isAuthorizedForOwnCustomer(registro.customerId)`  
 **Description**: Retorna detalle de una vinculación por ID.
 
 ### Success Response (200 OK)

@@ -8,8 +8,10 @@
 
 ## `POST /api/v1/appointments` — Agendar Nueva Cita
 
-**Security**: `@PreAuthorize("isAuthenticated() and (hasRole('ADMIN') or @multiTenancySecurityService.isAuthorizedForBranch(#resource.branchId()))")`  
-**Description**: Crea cita para cliente + vehículo en sede. Emite `AppointmentCreatedEvent` → Analytics.
+**Security**: `@PreAuthorize("isAuthenticated() and (hasRole('ADMIN') or @multiTenancySecurityService.canCreateAppointment(#resource.branchId(), #resource.customerId()))")`  
+**Description**: Crea cita para cliente + vehículo en sede. Emite `AppointmentCreatedEvent` → Analytics.  
+- **Staff**: Requiere permiso `APPOINTMENT_MANAGE` en la sede.
+- **Cliente (`ROLE_USER`)**: Requiere ser dueño del perfil (`isAuthorizedForOwnCustomer(customerId)`) **y** que la sede pertenezca al mismo `Workshop` donde el cliente tiene una `CustomerRegistration` `ACTIVE` (permite reservar en su sede o sedes hermanas del mismo taller, bloqueando talleres de otras empresas con `403`).
 
 ### Request
 

@@ -88,12 +88,14 @@ public class BranchesController {
 
     @Operation(
             summary = "List branch catalog for B2C discovery",
-            description = "Returns every active branch with workshop branding so authenticated customers can discover and book workshops"
+            description = "Returns active branches with workshop branding scoped to the customer's registered workshop(s)"
     )
     @GetMapping("/catalog")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<List<BranchCatalogResource>> getBranchCatalog() {
+        var workshopScope = multiTenancySecurityService.resolveCustomerWorkshopScope();
         var catalog = branchQueryService.findCatalog().stream()
+                .filter(item -> workshopScope.isEmpty() || workshopScope.get().contains(item.workshopId()))
                 .map(item -> new BranchCatalogResource(
                         item.branchId(),
                         item.workshopId(),
