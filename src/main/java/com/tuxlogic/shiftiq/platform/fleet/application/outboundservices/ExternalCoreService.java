@@ -4,6 +4,8 @@ import com.tuxlogic.shiftiq.platform.core.domain.model.valueobjects.EmployeeId;
 import com.tuxlogic.shiftiq.platform.shared.domain.model.valueobjects.BranchId;
 import com.tuxlogic.shiftiq.platform.shared.domain.model.valueobjects.CustomerId;
 
+import java.time.LocalDate;
+import java.time.LocalTime;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -11,6 +13,9 @@ import java.util.UUID;
  * Anti-Corruption Layer (ACL) Outbound Port to verify entity existence in core context.
  */
 public interface ExternalCoreService {
+
+    record OperatingWindow(boolean open, LocalTime openTime, LocalTime closeTime, int slotDurationMinutes) {}
+
     boolean existsBranchById(BranchId branchId);
     boolean existsCustomerById(CustomerId customerId);
     boolean existsEmployeeById(EmployeeId employeeId);
@@ -23,4 +28,8 @@ public interface ExternalCoreService {
     int countActiveBays(UUID branchId);
 
     java.util.List<UUID> findActiveBayIdsByBranchId(UUID branchId);
+
+    default Optional<OperatingWindow> findEffectiveOperatingWindow(UUID branchId, LocalDate date) {
+        return Optional.empty();
+    }
 }
